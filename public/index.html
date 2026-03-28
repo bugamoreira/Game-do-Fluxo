@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game do Fluxo</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #6C5CE7;
+      --secondary: #00CEC9;
+      --accent: #FD79A8;
+      --dark: #0a0a23;
+      --card: #1a1a3e;
+      --text: #ffffff;
+      --text-muted: #a0a0c0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Screens */
+    .screen { display: none; flex-direction: column; flex: 1; }
+    .screen.active { display: flex; }
+
+    /* Logo */
+    .logo {
+      text-align: center;
+      padding: 40px 0 20px;
+    }
+    .logo h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+    .logo p {
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-size: 1rem;
+    }
+
+    /* Inputs */
+    input, select {
+      width: 100%;
+      padding: 16px 20px;
+      border: 2px solid rgba(108, 92, 231, 0.3);
+      border-radius: 16px;
+      background: var(--card);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.3s;
+      margin-bottom: 12px;
+    }
+    input:focus {
+      border-color: var(--primary);
+    }
+    input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 16px 32px;
+      border: none;
+      border-radius: 16px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #a855f7);
+      color: white;
+    }
+    .btn-secondary {
+      background: linear-gradient(135deg, var(--secondary), #22d3ee);
+      color: var(--dark);
+    }
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent), #f472b6);
+      color: white;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(108, 92, 231, 0.4);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* Room Code Display */
+    .room-code {
+      text-align: center;
+      padding: 20px;
+    }
+    .room-code .code {
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: 8px;
+      color: var(--secondary);
+      font-family: monospace;
+    }
+    .room-code p {
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Player List */
+    .player-list {
+      list-style: none;
+    }
+    .player-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+    .player-list li .name {
+      font-weight: 600;
+    }
+    .player-list li .score {
+      color: var(--secondary);
+      font-weight: 700;
+    }
+    .player-list li .host-badge {
+      background: var(--accent);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+
+    /* Question */
+    .question-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .question-number {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+    .question-text {
+      font-size: 1.3rem;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .timer {
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--accent);
+      text-align: center;
+      margin: 16px 0;
+    }
+    .timer.warning { color: #ff6b6b; animation: pulse 0.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    /* Options */
+    .options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .option-btn {
+      padding: 20px 16px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      background: var(--card);
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+    .option-btn:hover { border-color: var(--primary); transform: scale(1.02); }
+    .option-btn.selected { border-color: var(--primary); background: rgba(108,92,231,0.3); }
+    .option-btn.correct { border-color: #00b894; background: rgba(0,184,148,0.3); }
+    .option-btn.wrong { border-color: #ff6b6b; background: rgba(255,107,107,0.3); }
+    .option-btn:disabled { cursor: default; transform: none; }
+
+    .option-colors .option-btn:nth-child(1) { border-color: #e74c3c; }
+    .option-colors .option-btn:nth-child(2) { border-color: #3498db; }
+    .option-colors .option-btn:nth-child(3) { border-color: #f39c12; }
+    .option-colors .option-btn:nth-child(4) { border-color: #2ecc71; }
+
+    /* Leaderboard */
+    .leaderboard-item {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      margin-bottom: 10px;
+    }
+    .leaderboard-item .rank {
+      font-size: 1.5rem;
+      font-weight: 900;
+      width: 50px;
+      text-align: center;
+    }
+    .leaderboard-item:nth-child(1) .rank { color: #ffd700; }
+    .leaderboard-item:nth-child(2) .rank { color: #c0c0c0; }
+    .leaderboard-item:nth-child(3) .rank { color: #cd7f32; }
+    .leaderboard-item .info { flex: 1; }
+    .leaderboard-item .info .name { font-weight: 700; font-size: 1.1rem; }
+    .leaderboard-item .total-score {
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: var(--secondary);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--card);
+      border: 1px solid var(--primary);
+      padding: 16px 24px;
+      border-radius: 16px;
+      font-weight: 600;
+      transition: transform 0.3s;
+      z-index: 100;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Spacing helpers */
+    .mt-auto { margin-top: auto; }
+    .mt-20 { margin-top: 20px; }
+    .mb-20 { margin-bottom: 20px; }
+    .text-center { text-align: center; }
+    .text-muted { color: var(--text-muted); }
+    .gap-8 { gap: 8px; }
+
+    /* Waiting animation */
+    .waiting-dots::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- SCREEN: LOGIN -->
+    <div id="screen-login" class="screen active">
+      <div class="logo">
+        <h1>GAME DO FLUXO</h1>
+        <p>Quiz Multiplayer em Tempo Real</p>
+      </div>
+      <div class="card mt-20">
+        <input type="text" id="input-nickname" placeholder="Seu apelido" maxlength="20" autofocus>
+        <button class="btn btn-primary" onclick="enterGame()">ENTRAR</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: LOBBY -->
+    <div id="screen-lobby" class="screen">
+      <div class="logo">
+        <h1>GAME DO FLUXO</h1>
+      </div>
+      <div class="card">
+        <p class="text-muted mb-20">Bem-vindo, <strong id="lobby-nickname"></strong>!</p>
+        <input type="text" id="input-room-name" placeholder="Nome da sala">
+        <button class="btn btn-primary" onclick="createRoom()">CRIAR SALA</button>
+        <div style="text-align:center; margin: 16px 0; color: var(--text-muted)">ou</div>
+        <input type="text" id="input-room-code" placeholder="Codigo da sala (ex: ABC12)" maxlength="5" style="text-transform:uppercase">
+        <button class="btn btn-secondary" onclick="joinRoom()">ENTRAR NA SALA</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: WAITING ROOM -->
+    <div id="screen-waiting" class="screen">
+      <div class="room-code card">
+        <p>Codigo da Sala</p>
+        <div class="code" id="display-room-code">-----</div>
+        <p id="display-room-name"></p>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom: 12px">Jogadores na Sala</h3>
+        <ul class="player-list" id="waiting-player-list"></ul>
+      </div>
+      <div class="card" id="host-controls" style="display:none">
+        <p class="text-muted mb-20">Voce e o host! Adicione perguntas e inicie o jogo.</p>
+        <button class="btn btn-primary" onclick="showAddQuestions()">ADICIONAR PERGUNTAS</button>
+        <button class="btn btn-accent" onclick="startGame()" id="btn-start" disabled>INICIAR JOGO</button>
+      </div>
+      <div id="guest-waiting" class="text-center mt-20" style="display:none">
+        <p class="text-muted">Aguardando o host iniciar o jogo<span class="waiting-dots"></span></p>
+      </div>
+    </div>
+
+    <!-- SCREEN: ADD QUESTIONS -->
+    <div id="screen-questions" class="screen">
+      <h2 class="text-center mb-20">Adicionar Perguntas</h2>
+      <div id="questions-form"></div>
+      <button class="btn btn-secondary mb-20" onclick="addQuestionField()">+ NOVA PERGUNTA</button>
+      <button class="btn btn-primary" onclick="saveQuestions()">SALVAR E VOLTAR</button>
+    </div>
+
+    <!-- SCREEN: PLAYING -->
+    <div id="screen-playing" class="screen">
+      <div class="question-header">
+        <div class="question-number" id="question-counter">Pergunta 1 de 5</div>
+        <div class="timer" id="timer">20</div>
+        <div class="question-text" id="question-text">Carregando...</div>
+      </div>
+      <div class="options option-colors" id="options-container"></div>
+      <div class="text-center mt-20">
+        <p class="text-muted" id="answers-count">0 jogadores responderam</p>
+      </div>
+      <div id="host-next" style="display:none" class="mt-auto">
+        <button class="btn btn-accent" onclick="nextQuestion()">PROXIMA PERGUNTA</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: RESULTS -->
+    <div id="screen-results" class="screen">
+      <div class="logo">
+        <h1>RESULTADO!</h1>
+      </div>
+      <div class="card">
+        <div id="leaderboard"></div>
+      </div>
+      <button class="btn btn-primary mt-auto" onclick="backToLobby()">VOLTAR AO LOBBY</button>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script src="js/supabase-config.js"></script>
+  <script src="js/game-engine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
