@@ -376,14 +376,20 @@ function Game() {
   // ── Multiplayer: join room ────────────────────────────────
   const joinRoom = async (name, code) => {
     SimsMusic.init();
-    const { data:room } = await sb.from('rooms').select('id,code,status').eq('code', code).maybeSingle();
+    const { data:room } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle();
     if (!room) return { error:`Sala "${code}" nao encontrada. Verifique o codigo com o instrutor.` };
+    if (room.status === 'finished') return { error:`A sala "${code}" ja foi encerrada.` };
     const cols = ['#FF3B3B','#00d4ff','#22c55e','#eab308','#f97316','#a855f7','#ec4899','#14b8a6'];
     const col  = cols[Math.floor(Math.random()*cols.length)];
     const { data:team, error } = await sb.from('teams').insert({ room_id:room.id, name, color:col }).select('id').single();
     if (error||!team) return { error:'Erro ao registrar time. Tente novamente.' };
     setTName(name); setRCode(code); setRoomId(room.id); setTeamId(team.id);
-    setPh('waiting');
+    // Se rodada ja iniciou e entrada apos inicio esta permitida, entrar direto
+    if (room.allow_late_join && (room.status==='round1'||room.status==='round2')) {
+      startR(room.status==='round1' ? 1 : 2);
+    } else {
+      setPh('waiting');
+    }
     sb.channel(`rm-${room.id}`)
       .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${room.id}` }, p => {
         if (p.new.status==='round1') startR(1);

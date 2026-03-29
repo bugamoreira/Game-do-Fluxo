@@ -108,6 +108,47 @@ function TeamRow({team, gs, rank, prevRank}) {
   );
 }
 
+// ── Login Screen ──────────────────────────────────────────────
+function LoginScreen({ onAuth }) {
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [err,  setErr]  = useState('');
+  const submit = () => {
+    if (user.trim() === 'ed.leaders' && pass === 'flame2026') { onAuth(); }
+    else setErr('Credenciais invalidas. Tente novamente.');
+  };
+  return (
+    <div style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20}}>
+      <div style={{textAlign:'center', maxWidth:380, width:'100%'}}>
+        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.14em', marginBottom:6, textTransform:'uppercase'}}>Acesso Instrutor</div>
+        <div style={{fontSize:28, fontWeight:900, color:'#FF3B3B', marginBottom:4}}>PLANTAO TRAVADO</div>
+        <div style={{fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28}}>ED Leaders x FLAME 2026</div>
+        <div style={{background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b'}}>
+          <div style={{display:'flex', flexDirection:'column', gap:10, marginBottom:16}}>
+            <input
+              placeholder="Login" value={user}
+              onChange={e => setUser(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && submit()}
+              autoFocus autoComplete="username"
+            />
+            <input
+              placeholder="Senha" type="password" value={pass}
+              onChange={e => setPass(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && submit()}
+              autoComplete="current-password"
+            />
+          </div>
+          {err && <div style={{color:'#fca5a5', fontSize:11, marginBottom:10}}>{err}</div>}
+          <button onClick={submit} className="btn"
+            style={{background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'12px 32px', fontSize:14, fontWeight:800, width:'100%', boxShadow:'0 0 24px rgba(255,59,59,.2)'}}>
+            Entrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Instructor component ─────────────────────────────────
 function Instructor() {
   const [phase,    setPhase]   = useState('setup');  // setup | lobby | round1 | debrief | round2 | done
@@ -118,6 +159,7 @@ function Instructor() {
   const [simMin,   setSimMin]  = useState(null);
   const [creating, setCreating] = useState(false);
   const [err,      setErr]     = useState('');
+  const [pendingRound, setPendingRound] = useState(null); // 1 | 2 — aguardando confirmacao late join
   const subRef = useRef(null);
 
   // ── Create room ──────────────────────────────────────────────
@@ -161,29 +203,35 @@ function Instructor() {
   };
 
   // ── Round control ────────────────────────────────────────────
-  const setStatus = async (status, roundNum) => {
-    await sb.from('rooms').update({ status, round: roundNum }).eq('id', roomId);
+  const setStatus = async (status, roundNum, allowLateJoin=false) => {
+    await sb.from('rooms').update({ status, round: roundNum, allow_late_join: allowLateJoin }).eq('id', roomId);
   };
 
-  const startRound1 = async () => {
-    await setStatus('round1', 1);
-    setPhase('round1');
-    setSimMin(7 * 60);
+  // Shows confirm modal asking about late join; actual start happens in confirmStart()
+  const startRound1 = () => setPendingRound(1);
+  const startRound2 = () => setPendingRound(2);
+
+  const confirmStart = async (allowLateJoin) => {
+    const rn = pendingRound;
+    setPendingRound(null);
+    if (rn === 1) {
+      await setStatus('round1', 1, allowLateJoin);
+      setPhase('round1');
+      setSimMin(7 * 60);
+    } else {
+      await setStatus('round2', 2, allowLateJoin);
+      setPhase('round2');
+      setSimMin(7 * 60);
+    }
   };
 
   const endRound1 = async () => {
-    await setStatus('debrief', 1);
+    await setStatus('debrief', 1, false);
     setPhase('debrief');
   };
 
-  const startRound2 = async () => {
-    await setStatus('round2', 2);
-    setPhase('round2');
-    setSimMin(7 * 60);
-  };
-
   const endRound2 = async () => {
-    await setStatus('finished', 2);
+    await setStatus('finished', 2, false);
     setPhase('done');
   };
 
@@ -248,6 +296,37 @@ function Instructor() {
 
   return (
     <div style={{height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden'}}>
+
+      {/* ── Confirm Late Join Modal ── */}
+      {pendingRound !== null && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000}}>
+          <div style={{background:'#0f172a', border:'1px solid #334155', borderRadius:16, padding:32, maxWidth:380, width:'100%', textAlign:'center'}}>
+            <div style={{fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:8, textTransform:'uppercase'}}>
+              Iniciar {pendingRound === 1 ? 'Plantao Travado (R1)' : 'Plantao Lean (R2)'}
+            </div>
+            <div style={{fontSize:16, fontWeight:800, color:'#e2e8f0', marginBottom:6}}>
+              Permitir entrada apos inicio?
+            </div>
+            <div style={{fontSize:11, color:'#64748b', marginBottom:24}}>
+              Se sim, grupos que entrarem depois continuam jogando normalmente.
+            </div>
+            <div style={{display:'flex', gap:10}}>
+              <button onClick={() => confirmStart(true)} className="btn"
+                style={{flex:1, background:'linear-gradient(135deg,#22c55e,#16a34a)', padding:'12px 0', fontSize:13}}>
+                Sim, entrada aberta
+              </button>
+              <button onClick={() => confirmStart(false)} className="btn"
+                style={{flex:1, background:'#374151', padding:'12px 0', fontSize:13}}>
+                Nao, sala fechada
+              </button>
+            </div>
+            <button onClick={() => setPendingRound(null)} className="btn"
+              style={{marginTop:10, background:'transparent', color:'#475569', fontSize:11, padding:'6px 0', width:'100%'}}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div style={{background:'#0a0f1a', borderBottom:'1px solid #1e293b', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0}}>
@@ -461,7 +540,13 @@ function Instructor() {
   );
 }
 
-ReactDOM.render(<Instructor/>, document.getElementById('root'));
+function App() {
+  const [authed, setAuthed] = useState(false);
+  if (!authed) return <LoginScreen onAuth={() => setAuthed(true)} />;
+  return <Instructor />;
+}
+
+ReactDOM.render(<App/>, document.getElementById('root'));
 </script>
 </body>
 </html>
