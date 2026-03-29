@@ -67,7 +67,7 @@ function mkPt(sector, dest, sev, ready = false, deT = 120) {
 
 // ── Estado inicial ─────────────────────────────────────────
 // DE   8/15  (53%) — pressão desde o início
-// ENF 72/85 (85%) — quase sem folga → ocupação (72+13)/100 = 85%
+// ENF 71/85 (84%) — quase sem folga → ocupação (71+13)/100 = 84%
 // UTI 13/15 (87%) — gargalo imediato
 function mkInit() {
   _id = 0;
@@ -91,7 +91,7 @@ function mkInit() {
     }
     P.push(p);
   });
-  for (let i = 0; i < 72; i++) P.push(mkPt('enf', 'alta_enf', Math.random() < .6 ? 'green' : 'yellow'));
+  for (let i = 0; i < 71; i++) P.push(mkPt('enf', 'alta_enf', Math.random() < .6 ? 'green' : 'yellow'));
   for (let i = 0; i < 13; i++) P.push(mkPt('uti', 'step_down', 'red'));
   return P;
 }

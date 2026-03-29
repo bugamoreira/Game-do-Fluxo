@@ -594,7 +594,7 @@ function Game() {
     const title = roundNum===2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO';
     const ccMsg = blocked ? ' Sala 4 reservada para emergências.' : ' Todas as 4 salas em uso eletivo.';
     const r2Msg = roundNum===2 ? ' FERRAMENTAS LEAN ATIVAS: Alta precoce, Fast Track, Discharge Lounge, Surgical Smoothing, Fluxista, NIR, Full Capacity, Alta Segura.' : '';
-    const initLogs = [{ msg:`${title} iniciado! DE 8/15, Enf 72/85, UTI 13/15. Ocupação hospitalar: 85%.${ccMsg}${r2Msg}`, type:'info', t:SH*60 }];
+    const initLogs = [{ msg:`${title} iniciado! DE 8/15, Enf 71/85, UTI 13/15. Ocupação hospitalar: 84%.${ccMsg}${r2Msg}`, type:'info', t:SH*60 }];
     if (roundNum===1) {
       const delayMin = Math.round((sxList.find(s=>s.sala===1)?.stH - 7.5) * 60);
       if (delayMin > 0) initLogs.push({ msg:`ATRASO: Primeira cirurgia atrasou ${delayMin}min. Efeito cascata na Sala 1.`, type:'warning', t:SH*60 });
