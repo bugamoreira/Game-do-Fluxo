@@ -1059,8 +1059,8 @@ function Game() {
               <span style={{ fontSize:20, fontWeight:800, fontFamily:'monospace',
                 color:score>700?'#22c55e':score>400?'#eab308':'#ef4444' }}>{score}</span>
             </div>
-            <button onClick={()=>setRun(r=>!r)} className="btn"
-              style={{ background:run?'#374151':'#16a34a' }}>{run?'PAUSAR':'RETOMAR'}</button>
+            {!roomId && <button onClick={()=>setRun(r=>!r)} className="btn"
+              style={{ background:run?'#374151':'#16a34a' }}>{run?'PAUSAR':'RETOMAR'}</button>}
           </div>
         </div>
       </div>
@@ -1085,11 +1085,11 @@ function Game() {
             { l:'Boarding',  v:boarding.length, c:boarding.length>3?'#ef4444':boarding.length>0?'#eab308':'#64748b' },
             { l:'Board.méd', v:`${Math.floor(avgB/60)}h${String(avgB%60).padStart(2,'0')}`, c:avgB>BOARD_DET_MIN?'#ef4444':avgB>60?'#eab308':'#64748b' },
             { l:'Corredor',  v:byS('corredor').length, c:byS('corredor').length>0?'#ef4444':'#64748b' },
-            { l:'Deter.',    v:st.dets,   c:st.dets>0?'#f97316':'#64748b' },
+            { l:'Deterioraram',    v:st.dets,   c:st.dets>0?'#f97316':'#64748b' },
             { l:'Óbitos',    v:st.deaths, c:st.deaths>0?'#ef4444':'#64748b' },
             { l:'Cx cancel.',v:st.cxCan,  c:st.cxCan>0?'#ef4444':'#64748b' },
             { l:'LWBS',      v:st.lwbs,   c:st.lwbs>0?'#ef4444':'#64748b' },
-            { l:'Off-svc',   v:st.offS,   c:st.offS>0?'#f97316':'#64748b' },
+            { l:'Fora do perfil',   v:st.offS,   c:st.offS>0?'#f97316':'#64748b' },
             { l:'Altas',     v:st.disc,   c:'#22c55e' },
           ].map(({ l, v, c }) => (
             <div key={l} className="metric">
