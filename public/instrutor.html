@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Instrutor — Plantao Travado | FLAME 2026</title>
+<title>Facilitador — Plantão Travado | FLAME 2026</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
@@ -14,6 +14,8 @@ html,body{height:100%;overflow:hidden}
 body{background:#060a13;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shine{0%{background-position:200% center}100%{background-position:-200% center}}
+@keyframes trophyPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .btn{border:none;color:#fff;padding:8px 20px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;transition:all .2s}
 .btn:hover{filter:brightness(1.15)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -26,8 +28,6 @@ input:focus{border-color:#00d4ff}
 <script src="js/supabase-config.js"></script>
 <script type="text/babel">
 const {useState, useEffect, useRef} = React;
-
-const TEAM_COLORS = ['#FF3B3B','#00d4ff','#22c55e','#eab308','#f97316','#a855f7','#ec4899','#14b8a6'];
 
 function fmt(m) {
   if (!m && m !== 0) return '--:--';
@@ -51,10 +51,9 @@ function ScoreBar({score, max=1000}) {
 }
 
 // ── Team row in ranking ───────────────────────────────────────
-function TeamRow({team, gs, rank, prevRank}) {
+function TeamRow({team, gs, rank}) {
   const score   = gs?.score ?? 1000;
   const metrics = gs?.metrics ?? {};
-  const moved   = prevRank && prevRank !== rank;
   const scoreC  = score > 700 ? '#22c55e' : score > 400 ? '#eab308' : '#ef4444';
 
   return (
@@ -63,30 +62,23 @@ function TeamRow({team, gs, rank, prevRank}) {
       padding:'10px 14px', borderRadius:10, marginBottom:6,
       background: rank === 1 ? 'rgba(234,179,8,.07)' : 'rgba(255,255,255,.02)',
       border: `1px solid ${rank === 1 ? '#eab30833' : '#1e293b'}`,
-      animation: moved ? 'slideIn .4s' : 'none',
+      animation: 'slideIn .4s',
       transition: 'all .4s',
     }}>
-      {/* Rank */}
-      <div style={{width:28, textAlign:'center', fontSize:18, fontWeight:900, color: rank === 1 ? '#eab308' : rank === 2 ? '#94a3b8' : rank === 3 ? '#b45309' : '#475569', flexShrink:0}}>
+      <div style={{width:28, textAlign:'center', fontSize:18, fontWeight:900, color: rank===1?'#eab308':rank===2?'#94a3b8':rank===3?'#b45309':'#475569', flexShrink:0}}>
         {rank}
       </div>
-
-      {/* Color dot */}
       <div style={{width:10, height:10, borderRadius:'50%', background: team.color || '#64748b', flexShrink:0}}/>
-
-      {/* Name */}
       <div style={{flex:1, fontWeight:700, fontSize:14, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
         {team.name}
       </div>
-
-      {/* Metrics */}
       <div style={{display:'flex', gap:16, alignItems:'center', flexShrink:0}}>
         <div style={{textAlign:'center'}}>
           <div style={{fontSize:9, color:'#64748b'}}>Boarding</div>
           <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color: (metrics.boarding||0) > 3 ? '#ef4444' : (metrics.boarding||0) > 0 ? '#eab308' : '#64748b'}}>{metrics.boarding ?? '—'}</div>
         </div>
         <div style={{textAlign:'center'}}>
-          <div style={{fontSize:9, color:'#64748b'}}>Obitos</div>
+          <div style={{fontSize:9, color:'#64748b'}}>Óbitos</div>
           <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color: (metrics.dth||0) > 0 ? '#ef4444' : '#64748b'}}>{metrics.dth ?? '—'}</div>
         </div>
         <div style={{textAlign:'center'}}>
@@ -98,11 +90,98 @@ function TeamRow({team, gs, rank, prevRank}) {
           <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color: (metrics.psOcc||0) >= 15 ? '#ef4444' : (metrics.psOcc||0) >= 12 ? '#eab308' : '#64748b'}}>{metrics.psOcc != null ? `${Math.round(metrics.psOcc/15*100)}%` : '—'}</div>
         </div>
       </div>
-
-      {/* Score */}
       <div style={{minWidth:90, textAlign:'right', flexShrink:0}}>
         <div style={{fontSize:22, fontWeight:900, fontFamily:'monospace', color:scoreC}}>{score}</div>
         <ScoreBar score={score}/>
+      </div>
+    </div>
+  );
+}
+
+// ── Podium Component ──────────────────────────────────────────
+function Podium({teams, gameStates}) {
+  const ranked = [...teams]
+    .map(t => ({
+      team: t,
+      r1: gameStates[t.id]?.round1?.score ?? null,
+      r2: gameStates[t.id]?.round2?.score ?? null,
+      best: gameStates[t.id]?.round2?.score ?? gameStates[t.id]?.round1?.score ?? 0,
+      delta: (gameStates[t.id]?.round2?.score??0) - (gameStates[t.id]?.round1?.score??0),
+    }))
+    .sort((a,b) => b.best - a.best);
+
+  const top3 = ranked.slice(0, 3);
+  const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
+  const heights = [140, 180, 110];
+  const medals = ['🥈', '🥇', '🥉'];
+  const bgGrad = [
+    'linear-gradient(180deg, #94a3b8 0%, #64748b 100%)',
+    'linear-gradient(180deg, #eab308 0%, #ca8a04 100%)',
+    'linear-gradient(180deg, #b45309 0%, #92400e 100%)',
+  ];
+
+  return (
+    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,.95)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:2000, animation:'slideIn .5s'}}>
+      <div style={{textAlign:'center', maxWidth:700, width:'100%', padding:20}}>
+        <div style={{fontSize:12, fontWeight:700, color:'#64748b', letterSpacing:'.14em', marginBottom:6, textTransform:'uppercase'}}>ED Leaders × FLAME 2026</div>
+        <div style={{fontSize:36, fontWeight:900, color:'#eab308', marginBottom:8, animation:'trophyPulse 2s infinite'}}>PÓDIO FINAL</div>
+        <div style={{fontSize:13, color:'#94a3b8', marginBottom:32}}>Classificação com base no score do Plantão Lean (R2)</div>
+
+        {/* Podium bars */}
+        <div style={{display:'flex', alignItems:'flex-end', justifyContent:'center', gap:12, marginBottom:24}}>
+          {podiumOrder.map((entry, i) => {
+            if (!entry) return null;
+            const h = heights[i];
+            const medal = medals[i];
+            const bg = bgGrad[i];
+            return (
+              <div key={entry.team.id} style={{display:'flex', flexDirection:'column', alignItems:'center', width:180}}>
+                <div style={{fontSize:32, marginBottom:8}}>{medal}</div>
+                <div style={{fontWeight:800, fontSize:16, color:'#e2e8f0', marginBottom:4, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                  {entry.team.name}
+                </div>
+                <div style={{fontSize:11, color:'#94a3b8', marginBottom:8}}>
+                  R1: <span style={{color:'#FF3B3B', fontWeight:700}}>{entry.r1 ?? '—'}</span>
+                  {' → '}
+                  R2: <span style={{color:'#00d4ff', fontWeight:700}}>{entry.r2 ?? '—'}</span>
+                  {entry.delta !== 0 && (
+                    <span style={{color: entry.delta > 0 ? '#22c55e' : '#ef4444', fontWeight:800, marginLeft:4}}>
+                      ({entry.delta > 0 ? '+' : ''}{entry.delta})
+                    </span>
+                  )}
+                </div>
+                <div style={{
+                  width:'100%', height:h, background:bg,
+                  borderRadius:'12px 12px 0 0',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 -4px 20px rgba(0,0,0,.4)',
+                }}>
+                  <div style={{fontSize:40, fontWeight:900, fontFamily:'monospace', color:'#fff', textShadow:'0 2px 10px rgba(0,0,0,.5)'}}>
+                    {entry.best}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Full ranking table below podium */}
+        {ranked.length > 3 && (
+          <div style={{background:'#0f172a', borderRadius:10, border:'1px solid #1e293b', overflow:'hidden', marginBottom:20, textAlign:'left'}}>
+            {ranked.slice(3).map((entry, i) => (
+              <div key={entry.team.id} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px solid #1e293b'}}>
+                <span style={{width:24, fontSize:14, fontWeight:800, color:'#475569', textAlign:'center'}}>{i+4}</span>
+                <div style={{width:8, height:8, borderRadius:'50%', background:entry.team.color||'#64748b'}}/>
+                <span style={{flex:1, fontWeight:700, fontSize:13}}>{entry.team.name}</span>
+                <span style={{fontFamily:'monospace', fontWeight:700, color: entry.best > 700 ? '#22c55e' : entry.best > 400 ? '#eab308' : '#ef4444'}}>{entry.best}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{fontSize:14, color:'#94a3b8', lineHeight:1.7, padding:'16px 20px', background:'rgba(34,197,94,.06)', borderRadius:10, border:'1px solid rgba(34,197,94,.2)', marginBottom:20}}>
+          "O problema nunca foi falta de leito. Era falta de <strong style={{color:'#22c55e'}}>gestão do fluxo de saída</strong>."
+        </div>
       </div>
     </div>
   );
@@ -115,28 +194,20 @@ function LoginScreen({ onAuth }) {
   const [err,  setErr]  = useState('');
   const submit = () => {
     if (user.trim() === 'ed.leaders' && pass === 'flame2026') { onAuth(); }
-    else setErr('Credenciais invalidas. Tente novamente.');
+    else setErr('Credenciais inválidas. Tente novamente.');
   };
   return (
     <div style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20}}>
       <div style={{textAlign:'center', maxWidth:380, width:'100%'}}>
-        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.14em', marginBottom:6, textTransform:'uppercase'}}>Acesso Instrutor</div>
-        <div style={{fontSize:28, fontWeight:900, color:'#FF3B3B', marginBottom:4}}>PLANTAO TRAVADO</div>
-        <div style={{fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28}}>ED Leaders x FLAME 2026</div>
+        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.14em', marginBottom:6, textTransform:'uppercase'}}>Acesso Facilitador</div>
+        <div style={{fontSize:28, fontWeight:900, color:'#FF3B3B', marginBottom:4}}>PLANTÃO TRAVADO</div>
+        <div style={{fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28}}>ED Leaders × FLAME 2026</div>
         <div style={{background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b'}}>
           <div style={{display:'flex', flexDirection:'column', gap:10, marginBottom:16}}>
-            <input
-              placeholder="Login" value={user}
-              onChange={e => setUser(e.target.value)}
-              onKeyDown={e => e.key==='Enter' && submit()}
-              autoFocus autoComplete="username"
-            />
-            <input
-              placeholder="Senha" type="password" value={pass}
-              onChange={e => setPass(e.target.value)}
-              onKeyDown={e => e.key==='Enter' && submit()}
-              autoComplete="current-password"
-            />
+            <input placeholder="Login" value={user} onChange={e => setUser(e.target.value)}
+              onKeyDown={e => e.key==='Enter'&&submit()} autoFocus autoComplete="username"/>
+            <input placeholder="Senha" type="password" value={pass} onChange={e => setPass(e.target.value)}
+              onKeyDown={e => e.key==='Enter'&&submit()} autoComplete="current-password"/>
           </div>
           {err && <div style={{color:'#fca5a5', fontSize:11, marginBottom:10}}>{err}</div>}
           <button onClick={submit} className="btn"
@@ -151,42 +222,34 @@ function LoginScreen({ onAuth }) {
 
 // ── Main Instructor component ─────────────────────────────────
 function Instructor() {
-  const [phase,    setPhase]   = useState('setup');  // setup | lobby | round1 | debrief | round2 | done
+  const [phase,    setPhase]   = useState('setup');
   const [roomCode, setRoomCode] = useState('FLAME');
   const [roomId,   setRoomId]  = useState(null);
   const [teams,    setTeams]   = useState([]);
-  const [gameStates, setGameStates] = useState({});  // { teamId: { round1: gs, round2: gs } }
+  const [gameStates, setGameStates] = useState({});
   const [simMin,   setSimMin]  = useState(null);
   const [creating, setCreating] = useState(false);
   const [err,      setErr]     = useState('');
-  const [pendingRound, setPendingRound] = useState(null); // 1 | 2 — aguardando confirmacao late join
+  const [pendingRound, setPendingRound] = useState(null);
+  const [showPodium, setShowPodium] = useState(false);
   const subRef = useRef(null);
 
-  // ── Create room ──────────────────────────────────────────────
   const createRoom = async () => {
     const code = roomCode.trim().toUpperCase() || genCode();
     setCreating(true); setErr('');
-    // Check if code already exists
     const { data: existing } = await sb.from('rooms').select('id').eq('code', code).maybeSingle();
-    if (existing) { setErr(`Codigo "${code}" ja existe. Escolha outro.`); setCreating(false); return; }
+    if (existing) { setErr(`Código "${code}" já existe. Escolha outro.`); setCreating(false); return; }
     const { data: room, error } = await sb.from('rooms').insert({ code, status:'waiting', round:0 }).select('id,code').single();
     if (error || !room) { setErr('Erro ao criar sala. Tente novamente.'); setCreating(false); return; }
-    setRoomId(room.id);
-    setRoomCode(room.code);
-    setPhase('lobby');
-    setCreating(false);
+    setRoomId(room.id); setRoomCode(room.code); setPhase('lobby'); setCreating(false);
     subscribeRoom(room.id);
   };
 
-  // ── Supabase subscriptions ───────────────────────────────────
   const subscribeRoom = (rid) => {
-    // Teams joining
     const teamSub = sb.channel(`teams-${rid}`)
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'teams', filter:`room_id=eq.${rid}` },
         p => setTeams(prev => [...prev, p.new]))
       .subscribe();
-
-    // Game state updates
     const gsSub = sb.channel(`gs-${rid}`)
       .on('postgres_changes', { event:'*', schema:'public', table:'game_state', filter:`room_id=eq.${rid}` },
         p => {
@@ -198,47 +261,28 @@ function Instructor() {
           if (gs.sim_minute) setSimMin(gs.sim_minute);
         })
       .subscribe();
-
     subRef.current = { teamSub, gsSub };
   };
 
-  // ── Round control ────────────────────────────────────────────
   const setStatus = async (status, roundNum, allowLateJoin=false) => {
     await sb.from('rooms').update({ status, round: roundNum, allow_late_join: allowLateJoin }).eq('id', roomId);
   };
 
-  // Shows confirm modal asking about late join; actual start happens in confirmStart()
   const startRound1 = () => setPendingRound(1);
   const startRound2 = () => setPendingRound(2);
 
   const confirmStart = async (allowLateJoin) => {
     const rn = pendingRound;
     setPendingRound(null);
-    if (rn === 1) {
-      await setStatus('round1', 1, allowLateJoin);
-      setPhase('round1');
-      setSimMin(7 * 60);
-    } else {
-      await setStatus('round2', 2, allowLateJoin);
-      setPhase('round2');
-      setSimMin(7 * 60);
-    }
+    if (rn === 1) { await setStatus('round1', 1, allowLateJoin); setPhase('round1'); setSimMin(7*60); }
+    else          { await setStatus('round2', 2, allowLateJoin); setPhase('round2'); setSimMin(7*60); }
   };
 
-  const endRound1 = async () => {
-    await setStatus('debrief', 1, false);
-    setPhase('debrief');
-  };
+  const endRound1 = async () => { await setStatus('debrief', 1, false); setPhase('debrief'); };
+  const endRound2 = async () => { await setStatus('finished', 2, false); setPhase('done'); };
 
-  const endRound2 = async () => {
-    await setStatus('finished', 2, false);
-    setPhase('done');
-  };
-
-  // ── Compute ranking ──────────────────────────────────────────
   const getRanking = (roundKey) => {
-    return [...teams]
-      .map(t => ({ team:t, gs: gameStates[t.id]?.[roundKey] }))
+    return [...teams].map(t => ({ team:t, gs: gameStates[t.id]?.[roundKey] }))
       .sort((a, b) => (b.gs?.score ?? 1000) - (a.gs?.score ?? 1000));
   };
 
@@ -246,7 +290,6 @@ function Instructor() {
   const r2Ranking = getRanking('round2');
   const activeRanking = phase === 'round2' || phase === 'done' ? r2Ranking : r1Ranking;
 
-  // ── Consolidated metrics ─────────────────────────────────────
   const activeRound = phase === 'round2' || phase === 'done' ? 'round2' : 'round1';
   const allGS = teams.map(t => gameStates[t.id]?.[activeRound]).filter(Boolean);
   const avgScore   = allGS.length ? Math.round(allGS.reduce((a,g) => a + (g.score||1000), 0) / allGS.length) : null;
@@ -254,25 +297,20 @@ function Instructor() {
   const totalCxCan  = allGS.reduce((a,g) => a + (g.metrics?.cxC||0), 0);
   const avgBoarding = allGS.length ? Math.round(allGS.reduce((a,g) => a + (g.metrics?.boarding||0), 0) / allGS.length) : null;
 
-  // ── Phase: Setup ─────────────────────────────────────────────
+  // ── Setup phase ──
   if (phase === 'setup') return (
     <div style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20}}>
       <div style={{textAlign:'center', maxWidth:440, width:'100%'}}>
-        <div style={{fontSize:12, fontWeight:700, color:'#64748b', letterSpacing:'.12em', marginBottom:8, textTransform:'uppercase'}}>Tela do Instrutor</div>
-        <div style={{fontSize:30, fontWeight:900, color:'#FF3B3B', marginBottom:4}}>PLANTAO TRAVADO</div>
-        <div style={{fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:32}}>ED Leaders x FLAME 2026</div>
-
+        <div style={{fontSize:12, fontWeight:700, color:'#64748b', letterSpacing:'.12em', marginBottom:8, textTransform:'uppercase'}}>Painel do Facilitador</div>
+        <div style={{fontSize:30, fontWeight:900, color:'#FF3B3B', marginBottom:4}}>PLANTÃO TRAVADO</div>
+        <div style={{fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:32}}>ED Leaders × FLAME 2026</div>
         <div style={{background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b', marginBottom:14}}>
           <div style={{fontSize:12, fontWeight:700, color:'#64748b', marginBottom:16, letterSpacing:'.08em', textTransform:'uppercase'}}>Criar Sala</div>
           <div style={{marginBottom:14}}>
-            <input
-              value={roomCode}
-              onChange={e => setRoomCode(e.target.value.toUpperCase())}
-              placeholder="Codigo da sala (ex: FLAME)"
-              maxLength={8}
-              style={{textTransform:'uppercase', letterSpacing:'.12em', fontWeight:800, textAlign:'center', fontSize:20}}
-            />
-            <div style={{fontSize:10, color:'#475569', marginTop:6}}>Os grupos digitarao este codigo para entrar na sala</div>
+            <input value={roomCode} onChange={e => setRoomCode(e.target.value.toUpperCase())}
+              placeholder="Código da sala (ex: FLAME)" maxLength={8}
+              style={{textTransform:'uppercase', letterSpacing:'.12em', fontWeight:800, textAlign:'center', fontSize:20}}/>
+            <div style={{fontSize:10, color:'#475569', marginTop:6}}>Os grupos digitarão este código para entrar na sala</div>
           </div>
           {err && <div style={{color:'#fca5a5', fontSize:11, marginBottom:10}}>{err}</div>}
           <button onClick={createRoom} disabled={creating} className="btn"
@@ -280,35 +318,43 @@ function Instructor() {
             {creating ? 'Criando...' : 'Criar Sala'}
           </button>
         </div>
-        <div style={{fontSize:11, color:'#475569'}}>Abra esta pagina no notebook conectado ao projetor</div>
+        <div style={{fontSize:11, color:'#475569'}}>Abra esta página no notebook conectado ao projetor</div>
       </div>
     </div>
   );
 
-  // ── Game phases ───────────────────────────────────────────────
   const phaseLabel = {
     lobby:   { label:'Aguardando grupos', color:'#64748b' },
-    round1:  { label:'Plantao Travado (R1)', color:'#FF3B3B' },
+    round1:  { label:'Plantão Travado (R1)', color:'#FF3B3B' },
     debrief: { label:'Debrief R1', color:'#eab308' },
-    round2:  { label:'Plantao Lean (R2)', color:'#00d4ff' },
+    round2:  { label:'Plantão Lean (R2)', color:'#00d4ff' },
     done:    { label:'Finalizado', color:'#22c55e' },
   }[phase] || { label:'', color:'#64748b' };
 
   return (
     <div style={{height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden'}}>
 
-      {/* ── Confirm Late Join Modal ── */}
+      {/* Podium overlay */}
+      {showPodium && <Podium teams={teams} gameStates={gameStates}/>}
+      {showPodium && (
+        <button onClick={()=>setShowPodium(false)} className="btn"
+          style={{position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:2001, background:'#374151', padding:'10px 30px', fontSize:14}}>
+          Fechar Pódio
+        </button>
+      )}
+
+      {/* Confirm Late Join Modal */}
       {pendingRound !== null && (
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000}}>
           <div style={{background:'#0f172a', border:'1px solid #334155', borderRadius:16, padding:32, maxWidth:380, width:'100%', textAlign:'center'}}>
             <div style={{fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:8, textTransform:'uppercase'}}>
-              Iniciar {pendingRound === 1 ? 'Plantao Travado (R1)' : 'Plantao Lean (R2)'}
+              Iniciar {pendingRound === 1 ? 'Plantão Travado (R1)' : 'Plantão Lean (R2)'}
             </div>
             <div style={{fontSize:16, fontWeight:800, color:'#e2e8f0', marginBottom:6}}>
-              Permitir entrada apos inicio?
+              Permitir entrada após início?
             </div>
             <div style={{fontSize:11, color:'#64748b', marginBottom:24}}>
-              Se sim, grupos que entrarem depois continuam jogando normalmente.
+              Se sim, grupos que entrarem depois poderão jogar normalmente.
             </div>
             <div style={{display:'flex', gap:10}}>
               <button onClick={() => confirmStart(true)} className="btn"
@@ -317,7 +363,7 @@ function Instructor() {
               </button>
               <button onClick={() => confirmStart(false)} className="btn"
                 style={{flex:1, background:'#374151', padding:'12px 0', fontSize:13}}>
-                Nao, sala fechada
+                Não, sala fechada
               </button>
             </div>
             <button onClick={() => setPendingRound(null)} className="btn"
@@ -328,16 +374,16 @@ function Instructor() {
         </div>
       )}
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{background:'#0a0f1a', borderBottom:'1px solid #1e293b', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0}}>
         <div style={{display:'flex', alignItems:'center', gap:16}}>
           <div>
-            <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>INSTRUTOR</div>
-            <div style={{fontSize:20, fontWeight:900, color:'#FF3B3B'}}>PLANTAO TRAVADO</div>
+            <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>FACILITADOR</div>
+            <div style={{fontSize:20, fontWeight:900, color:'#FF3B3B'}}>PLANTÃO TRAVADO</div>
           </div>
           <div style={{width:1, height:36, background:'#1e293b'}}/>
           <div>
-            <div style={{fontSize:11, color:'#64748b'}}>Codigo da sala</div>
+            <div style={{fontSize:11, color:'#64748b'}}>Código da sala</div>
             <div style={{fontSize:24, fontWeight:900, color:'#00d4ff', letterSpacing:'.12em'}}>{roomCode}</div>
           </div>
           <div style={{width:1, height:36, background:'#1e293b'}}/>
@@ -352,44 +398,48 @@ function Instructor() {
             </>
           )}
         </div>
-
-        {/* Controls */}
         <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
           {phase === 'lobby' && (
             <button onClick={startRound1} disabled={teams.length === 0} className="btn"
               style={{background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'10px 22px', fontSize:13}}>
-              Iniciar Plantao Travado (R1)
+              Iniciar Plantão Travado (R1)
             </button>
           )}
           {phase === 'round1' && (
             <button onClick={endRound1} className="btn"
               style={{background:'#374151', padding:'10px 22px', fontSize:13}}>
-              Encerrar R1 / Iniciar Debrief
+              Encerrar R1 → Debrief
             </button>
           )}
           {phase === 'debrief' && (
             <button onClick={startRound2} className="btn"
               style={{background:'linear-gradient(135deg,#00d4ff,#0891b2)', padding:'10px 22px', fontSize:13}}>
-              Iniciar Plantao Lean (R2)
+              Iniciar Plantão Lean (R2)
             </button>
           )}
           {phase === 'round2' && (
             <button onClick={endRound2} className="btn"
               style={{background:'#374151', padding:'10px 22px', fontSize:13}}>
-              Encerrar R2 / Ver Comparacao
+              Encerrar R2 → Comparação
+            </button>
+          )}
+          {phase === 'done' && (
+            <button onClick={()=>setShowPodium(true)} className="btn"
+              style={{background:'linear-gradient(135deg,#eab308,#ca8a04)', padding:'10px 22px', fontSize:13, boxShadow:'0 0 20px rgba(234,179,8,.3)'}}>
+              🏆 Gerar Pódio
             </button>
           )}
         </div>
       </div>
 
-      {/* ── Consolidated metrics ── */}
+      {/* Consolidated metrics */}
       {allGS.length > 0 && (
         <div style={{background:'#0d1117', borderBottom:'1px solid #1e293b', padding:'6px 20px', display:'flex', gap:20, alignItems:'center', justifyContent:'center', flexShrink:0}}>
           {[
-            {l:'Score medio',    v: avgScore != null ? avgScore : '—',    c: avgScore > 700 ? '#22c55e' : avgScore > 400 ? '#eab308' : '#ef4444'},
-            {l:'Obitos total',   v: totalDeaths, c: totalDeaths > 0 ? '#ef4444' : '#22c55e'},
+            {l:'Score médio',    v: avgScore != null ? avgScore : '—',    c: avgScore > 700 ? '#22c55e' : avgScore > 400 ? '#eab308' : '#ef4444'},
+            {l:'Óbitos total',   v: totalDeaths, c: totalDeaths > 0 ? '#ef4444' : '#22c55e'},
             {l:'Cx canceladas',  v: totalCxCan,  c: totalCxCan > 0 ? '#f97316' : '#22c55e'},
-            {l:'Boarding medio', v: avgBoarding != null ? avgBoarding : '—', c: avgBoarding > 3 ? '#ef4444' : avgBoarding > 0 ? '#eab308' : '#22c55e'},
+            {l:'Boarding médio', v: avgBoarding != null ? avgBoarding : '—', c: avgBoarding > 3 ? '#ef4444' : avgBoarding > 0 ? '#eab308' : '#22c55e'},
           ].map(({l,v,c}) => (
             <div key={l} style={{display:'flex', alignItems:'center', gap:6, padding:'2px 10px', background:'rgba(255,255,255,.02)', borderRadius:6}}>
               <span style={{fontSize:10, color:'#64748b'}}>{l}:</span>
@@ -399,13 +449,11 @@ function Instructor() {
         </div>
       )}
 
-      {/* ── Main content ── */}
+      {/* Main content */}
       <div style={{flex:1, overflow:'hidden', display:'flex', gap:0, minHeight:0}}>
 
         {/* Left: Ranking */}
         <div style={{flex:1, padding:16, overflowY:'auto', minHeight:0}}>
-
-          {/* Waiting for teams */}
           {phase === 'lobby' && (
             <div style={{textAlign:'center', padding:32}}>
               <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:12}}>
@@ -413,18 +461,17 @@ function Instructor() {
                 <span style={{color:'#94a3b8', fontSize:14}}>Aguardando grupos entrarem...</span>
               </div>
               <div style={{fontSize:48, fontWeight:900, color:'#00d4ff', letterSpacing:'.12em', marginBottom:4}}>{roomCode}</div>
-              <div style={{fontSize:12, color:'#475569'}}>Grupos: abrir index.html e digitar este codigo</div>
+              <div style={{fontSize:12, color:'#475569'}}>Grupos: acessar <strong style={{color:'#00d4ff'}}>plantaoflame.netlify.app</strong> e digitar este código</div>
             </div>
           )}
 
-          {/* Ranking header */}
           {teams.length > 0 && (
             <div style={{marginBottom:12}}>
               <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:10, textTransform:'uppercase'}}>
-                {phase === 'done' ? 'Resultado Final' : phase === 'round2' ? 'Plantao Lean — Ranking ao Vivo' : 'Plantao Travado — Ranking ao Vivo'}
+                {phase === 'done' ? 'Resultado Final' : phase === 'round2' ? 'Plantão Lean — Ranking ao Vivo' : 'Plantão Travado — Ranking ao Vivo'}
               </div>
               {activeRanking.map(({team, gs}, i) => (
-                <TeamRow key={team.id} team={team} gs={gs} rank={i+1} prevRank={null}/>
+                <TeamRow key={team.id} team={team} gs={gs} rank={i+1}/>
               ))}
             </div>
           )}
@@ -433,7 +480,7 @@ function Instructor() {
           {phase === 'done' && teams.some(t => gameStates[t.id]?.round1 || gameStates[t.id]?.round2) && (
             <div style={{marginTop:20}}>
               <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:10, textTransform:'uppercase'}}>
-                Comparacao R1 vs R2
+                Comparação R1 vs R2
               </div>
               <div style={{background:'#0f172a', borderRadius:10, border:'1px solid #1e293b', overflow:'hidden'}}>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 100px 100px 80px', padding:'8px 14px', borderBottom:'1px solid #1e293b', fontSize:10, color:'#64748b', fontWeight:700, letterSpacing:'.06em'}}>
@@ -464,7 +511,7 @@ function Instructor() {
           )}
         </div>
 
-        {/* Right sidebar: Teams list */}
+        {/* Right sidebar */}
         <div style={{width:220, background:'#0a0f1a', borderLeft:'1px solid #1e293b', padding:12, overflowY:'auto'}}>
           <div style={{fontSize:10, fontWeight:700, color:'#475569', letterSpacing:'.1em', marginBottom:10, textTransform:'uppercase'}}>
             Grupos ({teams.length})
@@ -488,7 +535,6 @@ function Instructor() {
             );
           })}
 
-          {/* Pedagogical cues */}
           {phase === 'round1' && (
             <div style={{marginTop:16, padding:10, background:'rgba(239,68,68,.06)', borderRadius:8, border:'1px solid rgba(239,68,68,.2)'}}>
               <div style={{fontSize:9, fontWeight:700, color:'#ef4444', marginBottom:6, letterSpacing:'.06em'}}>PONTOS PARA COMENTAR</div>
@@ -497,6 +543,8 @@ function Instructor() {
                 <li>Boarding acumulando?</li>
                 <li>Cirurgia cancelada?</li>
                 <li>UTI travada?</li>
+                <li>Round médico atrasou?</li>
+                <li>Exames pendentes?</li>
               </ul>
             </div>
           )}
@@ -505,24 +553,26 @@ function Instructor() {
               <div style={{fontSize:9, fontWeight:700, color:'#eab308', marginBottom:6, letterSpacing:'.06em'}}>PERGUNTAS DE DEBRIEF</div>
               <ul style={{fontSize:10, color:'#fde047', lineHeight:1.7, paddingLeft:12}}>
                 <li>"O que aconteceu?"</li>
-                <li>"Onde travou?"</li>
-                <li>"Foi falta de leito?"</li>
+                <li>"Onde travou primeiro?"</li>
+                <li>"Foi falta de leito ou falta de gestão?"</li>
                 <li>"Quando o PS congestionou?"</li>
+                <li>"As altas saíram no horário?"</li>
               </ul>
               <div style={{fontSize:10, color:'#eab308', marginTop:8, fontWeight:700}}>
-                Fechar: "O problema nao esta na entrada. Esta na SAIDA."
+                Fechar: "O problema não está na entrada. Está na SAÍDA."
               </div>
             </div>
           )}
           {phase === 'round2' && (
             <div style={{marginTop:16, padding:10, background:'rgba(0,212,255,.06)', borderRadius:8, border:'1px solid rgba(0,212,255,.2)'}}>
-              <div style={{fontSize:9, fontWeight:700, color:'#00d4ff', marginBottom:6, letterSpacing:'.06em'}}>FERRAMENTAS ATIVAS</div>
+              <div style={{fontSize:9, fontWeight:700, color:'#00d4ff', marginBottom:6, letterSpacing:'.06em'}}>FERRAMENTAS LEAN ATIVAS</div>
               <ul style={{fontSize:10, color:'#7dd3fc', lineHeight:1.7, paddingLeft:12}}>
-                <li>Alta precoce (8h)</li>
-                <li>Fast Track</li>
+                <li>Bed Huddle + Alta precoce (8h)</li>
+                <li>Fast Track (verdes)</li>
                 <li>Discharge Lounge</li>
                 <li>Surgical Smoothing</li>
                 <li>Fluxista + NIR</li>
+                <li>Alta Segura (social reduzido)</li>
               </ul>
             </div>
           )}
@@ -530,8 +580,12 @@ function Instructor() {
             <div style={{marginTop:16, padding:10, background:'rgba(34,197,94,.06)', borderRadius:8, border:'1px solid rgba(34,197,94,.2)'}}>
               <div style={{fontSize:9, fontWeight:700, color:'#22c55e', marginBottom:6, letterSpacing:'.06em'}}>FECHAMENTO</div>
               <div style={{fontSize:10, color:'#86efac', lineHeight:1.7}}>
-                "O problema nunca foi falta de leito. Era falta de <strong>gestao do fluxo de saida</strong>."
+                "O problema nunca foi falta de leito. Era falta de <strong>gestão do fluxo de saída</strong>."
               </div>
+              <button onClick={()=>setShowPodium(true)} className="btn"
+                style={{marginTop:10, width:'100%', background:'linear-gradient(135deg,#eab308,#ca8a04)', padding:'8px 0', fontSize:11}}>
+                🏆 Gerar Pódio
+              </button>
             </div>
           )}
         </div>

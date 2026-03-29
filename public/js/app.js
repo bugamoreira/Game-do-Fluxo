@@ -1,6 +1,6 @@
 // ============================================================
-// PLANTAO TRAVADO / PLANTAO LEAN — UI + Multiplayer
-// ED Leaders x FLAME 2026
+// PLANTÃO TRAVADO / PLANTÃO LEAN — UI + Multiplayer
+// ED Leaders × FLAME 2026
 // ============================================================
 const { useState, useEffect, useRef, useCallback } = React;
 
@@ -22,7 +22,7 @@ function Chip({ p, sel, onClick }) {
   const s   = SEV[p.sev];
   const isR = p.ready || (p.dischReady && p.prep <= 0 && !p.social);
   const minsTodet = p.ready && (p.dest === 'enf' || p.dest === 'uti') && !p.det && !p.dead && p.bMin > 0
-    ? Math.max(0, 240 - p.bMin) : null;
+    ? Math.max(0, BOARD_DET_MIN - p.bMin) : null;
 
   return (
     <div className={`chip${sel ? ' selected' : ''}`}
@@ -40,9 +40,10 @@ function Chip({ p, sel, onClick }) {
       {p.offSvc && <span className="badge badge-bl" style={{ color:'#f97316', fontSize:7 }}>OFF</span>}
       {(p.social || p.blocked) && <span className="badge badge-br" style={{ color:'#eab308', fontSize:7 }}>BL</span>}
       {p.obsProlong && <span className="badge badge-bl" style={{ color:'#a855f7', fontSize:7 }}>OBS</span>}
+      {p.labDelay && <span className="badge badge-bl" style={{ color:'#06b6d4', fontSize:7 }}>LAB</span>}
       {p.bMin > 0 && !p.dead && (
         <div style={{ position:'absolute', bottom:0, left:0, right:0, height:3, borderRadius:'0 0 5px 5px',
-          background: p.bMin >= 480 ? '#ef4444' : p.bMin >= 240 ? '#f97316' : '#eab308' }}/>
+          background: p.bMin >= BOARD_DEAD_MIN ? '#ef4444' : p.bMin >= BOARD_DET_MIN ? '#f97316' : '#eab308' }}/>
       )}
       {minsTodet !== null && minsTodet < 60 && (
         <div style={{ position:'absolute', top:-12, left:'50%', transform:'translateX(-50%)',
@@ -112,8 +113,71 @@ function SxPan({ surgeries, sm }) {
   );
 }
 
-// ── Lobby ─────────────────────────────────────────────────────
-function LobbyScreen({ onJoin, onSolo }) {
+// ── Role Selector (entry point único) ─────────────────────────
+function RoleSelector({ onJogador, onFacilitador }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
+      <div style={{ textAlign:'center', maxWidth:500, width:'100%' }}>
+        <div style={{ fontSize:36, fontWeight:900, color:'#FF3B3B', letterSpacing:'.04em', marginBottom:4 }}>PLANTÃO TRAVADO</div>
+        <div style={{ fontSize:14, color:'#00d4ff', fontWeight:600, marginBottom:40 }}>Simulador de Fluxo Hospitalar — ED Leaders × FLAME 2026</div>
+        <div style={{ display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
+          <button onClick={onJogador} className="btn"
+            style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'18px 40px', fontSize:17, fontWeight:800, borderRadius:12, boxShadow:'0 0 30px rgba(255,59,59,.25)', minWidth:180 }}>
+            Sou Jogador
+          </button>
+          <button onClick={onFacilitador} className="btn"
+            style={{ background:'linear-gradient(135deg,#0891b2,#0e7490)', padding:'18px 40px', fontSize:17, fontWeight:800, borderRadius:12, boxShadow:'0 0 30px rgba(0,212,255,.2)', minWidth:180 }}>
+            Sou Facilitador
+          </button>
+        </div>
+        <div style={{ fontSize:11, color:'#475569', marginTop:24, lineHeight:1.6 }}>
+          <strong>Jogadores:</strong> entrem com o nome do time e o código da sala.<br/>
+          <strong>Facilitadores:</strong> criem e controlem a sala do jogo.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Facilitator Login ─────────────────────────────────────────
+function FacilitadorLogin({ onAuth, onBack }) {
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [err,  setErr]  = useState('');
+  const submit = () => {
+    if (user.trim() === 'ed.leaders' && pass === 'flame2026') onAuth();
+    else setErr('Credenciais inválidas. Tente novamente.');
+  };
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
+      <div style={{ textAlign:'center', maxWidth:380, width:'100%' }}>
+        <div style={{ fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.14em', marginBottom:6, textTransform:'uppercase' }}>Acesso Facilitador</div>
+        <div style={{ fontSize:28, fontWeight:900, color:'#FF3B3B', marginBottom:4 }}>PLANTÃO TRAVADO</div>
+        <div style={{ fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28 }}>ED Leaders × FLAME 2026</div>
+        <div style={{ background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b' }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+            <input placeholder="Login" value={user} onChange={e => setUser(e.target.value)}
+              onKeyDown={e => e.key==='Enter'&&submit()} autoFocus autoComplete="username"/>
+            <input placeholder="Senha" type="password" value={pass} onChange={e => setPass(e.target.value)}
+              onKeyDown={e => e.key==='Enter'&&submit()} autoComplete="current-password"/>
+          </div>
+          {err && <div style={{ color:'#fca5a5', fontSize:11, marginBottom:10 }}>{err}</div>}
+          <button onClick={submit} className="btn"
+            style={{ background:'linear-gradient(135deg,#0891b2,#0e7490)', padding:'12px 32px', fontSize:14, fontWeight:800, width:'100%', boxShadow:'0 0 24px rgba(0,212,255,.2)' }}>
+            Entrar
+          </button>
+        </div>
+        <button onClick={onBack} className="btn"
+          style={{ background:'transparent', color:'#475569', marginTop:14, fontSize:12 }}>
+          ← Voltar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Lobby (Jogador) ──────────────────────────────────────────
+function LobbyScreen({ onJoin, onSolo, onBack }) {
   const [tName,   setTName]   = useState('');
   const [rCode,   setRCode]   = useState('FLAME');
   const [err,     setErr]     = useState('');
@@ -121,7 +185,7 @@ function LobbyScreen({ onJoin, onSolo }) {
 
   const submit = async () => {
     if (!tName.trim()) { setErr('Digite o nome do seu time.'); return; }
-    if (!rCode.trim()) { setErr('Digite o codigo da sala.');   return; }
+    if (!rCode.trim()) { setErr('Digite o código da sala.');   return; }
     setLoading(true); setErr('');
     const result = await onJoin(tName.trim(), rCode.trim().toUpperCase());
     if (result?.error) { setErr(result.error); setLoading(false); }
@@ -130,14 +194,14 @@ function LobbyScreen({ onJoin, onSolo }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:440, width:'100%' }}>
-        <div style={{ fontSize:32, fontWeight:900, color:'#FF3B3B', letterSpacing:'.04em', marginBottom:2 }}>PLANTAO TRAVADO</div>
-        <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:32 }}>Simulador de Fluxo Hospitalar — ED Leaders x FLAME 2026</div>
+        <div style={{ fontSize:32, fontWeight:900, color:'#FF3B3B', letterSpacing:'.04em', marginBottom:2 }}>PLANTÃO TRAVADO</div>
+        <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:32 }}>Simulador de Fluxo Hospitalar — ED Leaders × FLAME 2026</div>
         <div style={{ background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b', marginBottom:14 }}>
           <div style={{ fontSize:12, fontWeight:700, color:'#64748b', marginBottom:18, letterSpacing:'.08em', textTransform:'uppercase' }}>Entrar na Sala Multiplayer</div>
           <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
             <input placeholder="Nome do time (ex: Grupo Alpha)" value={tName}
               onChange={e => setTName(e.target.value)} onKeyDown={e => e.key==='Enter'&&submit()} maxLength={30} autoFocus/>
-            <input placeholder="Codigo da sala" value={rCode}
+            <input placeholder="Código da sala" value={rCode}
               onChange={e => setRCode(e.target.value.toUpperCase())} onKeyDown={e => e.key==='Enter'&&submit()}
               maxLength={8} style={{ textTransform:'uppercase', letterSpacing:'.12em', fontWeight:700 }}/>
           </div>
@@ -147,10 +211,16 @@ function LobbyScreen({ onJoin, onSolo }) {
             {loading ? 'Conectando...' : 'Entrar na Sala'}
           </button>
         </div>
-        <button onClick={onSolo} className="btn"
-          style={{ background:'rgba(255,255,255,.04)', border:'1px solid #334155', color:'#64748b', padding:'9px 24px', fontSize:12 }}>
-          Jogar Sozinho (sem multiplayer)
-        </button>
+        <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+          <button onClick={onSolo} className="btn"
+            style={{ background:'rgba(255,255,255,.04)', border:'1px solid #334155', color:'#64748b', padding:'9px 24px', fontSize:12 }}>
+            Jogar Sozinho
+          </button>
+          <button onClick={onBack} className="btn"
+            style={{ background:'transparent', color:'#475569', fontSize:12 }}>
+            ← Voltar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -161,8 +231,8 @@ function WaitingScreen({ tName, rCode }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:440 }}>
-        <div style={{ fontSize:32, fontWeight:900, color:'#FF3B3B', marginBottom:2 }}>PLANTAO TRAVADO</div>
-        <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:36 }}>ED Leaders x FLAME 2026</div>
+        <div style={{ fontSize:32, fontWeight:900, color:'#FF3B3B', marginBottom:2 }}>PLANTÃO TRAVADO</div>
+        <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:36 }}>ED Leaders × FLAME 2026</div>
         <div style={{ background:'#0f172a', borderRadius:14, padding:36, border:'1px solid #1e293b' }}>
           <div style={{ fontSize:18, fontWeight:800, color:'#e2e8f0', marginBottom:6 }}>{tName}</div>
           <div style={{ fontSize:13, color:'#64748b', marginBottom:28 }}>
@@ -170,10 +240,10 @@ function WaitingScreen({ tName, rCode }) {
           </div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:8 }}>
             <div style={{ width:9, height:9, borderRadius:'50%', background:'#22c55e', animation:'pulse 1.5s infinite' }}/>
-            <span style={{ color:'#94a3b8', fontSize:13 }}>Conectado. Aguardando o instrutor...</span>
+            <span style={{ color:'#94a3b8', fontSize:13 }}>Conectado. Aguardando o facilitador...</span>
           </div>
           <div style={{ fontSize:11, color:'#475569', marginTop:20, lineHeight:1.6 }}>
-            O jogo comecar&aacute; automaticamente quando o instrutor clicar em "Iniciar Rodada".
+            O jogo começará automaticamente quando o facilitador clicar em "Iniciar Rodada".
           </div>
         </div>
       </div>
@@ -186,30 +256,30 @@ function MenuScreen({ onStart }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:620 }}>
-        <div style={{ fontSize:30, fontWeight:900, color:'#FF3B3B', marginBottom:4 }}>PLANTAO TRAVADO</div>
+        <div style={{ fontSize:30, fontWeight:900, color:'#FF3B3B', marginBottom:4 }}>PLANTÃO TRAVADO</div>
         <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:24 }}>Simulador de Fluxo Hospitalar — ED Leaders</div>
         <div style={{ textAlign:'left', background:'#0f172a', borderRadius:12, padding:20, border:'1px solid #1e293b', marginBottom:22 }}>
           <p style={{ color:'#94a3b8', lineHeight:1.7, marginBottom:10 }}>
-            Voce e o <strong style={{ color:'#00d4ff' }}>coordenador de fluxo</strong> de um hospital com 100 leitos.
+            Você é o <strong style={{ color:'#00d4ff' }}>coordenador de fluxo</strong> de um hospital com 100 leitos.
             Clique num paciente [OK] para selecionar, depois clique no setor destino para mover.
           </p>
           <p style={{ color:'#94a3b8', lineHeight:1.7 }}>
-            O gargalo esta na <strong style={{ color:'#FF3B3B' }}>saida</strong>, nao na entrada.
-            Acima de 85% de ocupacao: colapso exponencial.
+            O gargalo está na <strong style={{ color:'#FF3B3B' }}>saída</strong>, não na entrada.
+            Acima de 85% de ocupação: colapso exponencial.
           </p>
         </div>
         <div style={{ display:'flex', gap:18, justifyContent:'center', flexWrap:'wrap' }}>
           <div style={{ flex:1, minWidth:220 }}>
             <button onClick={() => onStart(1)} className="btn"
               style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'14px 32px', fontSize:16, fontWeight:800, width:'100%', boxShadow:'0 0 30px rgba(255,59,59,.3)', marginBottom:8 }}>
-              PLANTAO TRAVADO
+              PLANTÃO TRAVADO
             </button>
-            <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>Rodada 1 — sem ferramentas. O sistema congela. Voce sente o caos.</div>
+            <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>Rodada 1 — sem ferramentas. O sistema congela. Você sente o caos.</div>
           </div>
           <div style={{ flex:1, minWidth:220 }}>
             <button onClick={() => onStart(2)} className="btn"
               style={{ background:'linear-gradient(135deg,#00d4ff,#0891b2)', padding:'14px 32px', fontSize:16, fontWeight:800, width:'100%', boxShadow:'0 0 30px rgba(0,212,255,.3)', marginBottom:8 }}>
-              PLANTAO LEAN
+              PLANTÃO LEAN
             </button>
             <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>Rodada 2 — ferramentas Lean ativas. Mesma demanda, resultado oposto.</div>
           </div>
@@ -226,23 +296,23 @@ function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
   const maxB     = pts.reduce((a, p) => Math.max(a, p.bMin), 0);
   const msg = isR2
     ? (st.deaths===0&&st.cxCan===0
-        ? 'As ferramentas Lean transformaram o fluxo. Mesma demanda, resultado oposto. O problema nunca foi falta de leito — era falta de gestao.'
+        ? 'As ferramentas Lean transformaram o fluxo. Mesma demanda, resultado oposto. O problema nunca foi falta de leito — era falta de gestão.'
         : st.deaths===0 ? 'As ferramentas reduziram o impacto, mas ainda houve gargalos. Compare com a Rodada 1.'
         : 'Mesmo com ferramentas, o sistema sofreu. Reflita sobre quais ferramentas poderiam ter sido melhor utilizadas.')
     : (st.deaths>0
-        ? 'O congelamento da saida causou obitos evitaveis. O gargalo nao esta na porta de entrada — esta na porta de saida.'
+        ? 'O congelamento da saída causou óbitos evitáveis. O gargalo não está na porta de entrada — está na porta de saída.'
         : st.cxCan>0 ? 'Cirurgias canceladas criaram efeito cascata: menos altas, mais boarding, mais congelamento.'
-        : st.dets>0  ? 'Pacientes deterioraram esperando leito. Boarding prolongado tem consequencias clinicas reais.'
-        : 'Bom gerenciamento! Na Rodada 2 (Plantao Lean), ferramentas Lean melhoram ainda mais.');
+        : st.dets>0  ? 'Pacientes deterioraram esperando leito. Boarding prolongado tem consequências clínicas reais.'
+        : 'Bom gerenciamento! Na Rodada 2 (Plantão Lean), ferramentas Lean melhoram ainda mais.');
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 }}>
       <div style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:16, padding:32, maxWidth:560, width:'92%', textAlign:'center', boxShadow:'0 20px 60px rgba(0,0,0,.6)' }}>
         <div style={{ fontSize:11, fontWeight:700, padding:'3px 12px', borderRadius:4, display:'inline-block', marginBottom:8,
           background:isR2?'rgba(0,212,255,.12)':'rgba(255,59,59,.12)', color:isR2?'#00d4ff':'#FF3B3B' }}>
-          {isR2 ? 'PLANTAO LEAN' : 'PLANTAO TRAVADO'}
+          {isR2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO'}
         </div>
-        <div style={{ fontSize:20, fontWeight:900, color:isR2?'#00d4ff':'#FF3B3B', marginBottom:8 }}>PLANTAO ENCERRADO</div>
+        <div style={{ fontSize:20, fontWeight:900, color:isR2?'#00d4ff':'#FF3B3B', marginBottom:8 }}>PLANTÃO ENCERRADO</div>
         <div style={{ fontSize:48, fontWeight:900, fontFamily:'monospace', marginBottom:16,
           color: score>700?'#22c55e':score>400?'#eab308':'#ef4444' }}>
           {score}<span style={{ fontSize:16, color:'#64748b' }}>/1000</span>
@@ -250,12 +320,12 @@ function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:16, textAlign:'left' }}>
           {[
             { l:'Altas',        v:st.disc,         c:'#22c55e' },
-            { l:'Board.max',    v:`${Math.floor(maxB/60)}h${String(maxB%60).padStart(2,'0')}`, c:'#eab308' },
-            { l:'Deterioracoes',v:st.dets,          c:st.dets>0?'#f97316':'#22c55e' },
-            { l:'Obitos',       v:st.deaths,        c:st.deaths>0?'#ef4444':'#22c55e' },
-            { l:'Cx cancel.',   v:st.cxCan,         c:st.cxCan>0?'#ef4444':'#22c55e' },
+            { l:'Board. máx',   v:`${Math.floor(maxB/60)}h${String(maxB%60).padStart(2,'0')}`, c:'#eab308' },
+            { l:'Deteriorações',v:st.dets,          c:st.dets>0?'#f97316':'#22c55e' },
+            { l:'Óbitos',       v:st.deaths,        c:st.deaths>0?'#ef4444':'#22c55e' },
+            { l:'Cx canceladas',v:st.cxCan,         c:st.cxCan>0?'#ef4444':'#22c55e' },
             { l:'LWBS',         v:st.lwbs,          c:st.lwbs>0?'#ef4444':'#22c55e' },
-            { l:'Off-svc',      v:st.offS,          c:st.offS>0?'#f97316':'#22c55e' },
+            { l:'Off-service',  v:st.offS,          c:st.offS>0?'#f97316':'#22c55e' },
             { l:'Em boarding',  v:boarding.length,  c:boarding.length>0?'#ef4444':'#22c55e' },
             { l:'Corredor',     v:corredor.length,  c:corredor.length>0?'#ef4444':'#22c55e' },
           ].map(({ l, v, c }) => (
@@ -270,8 +340,8 @@ function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
           <p style={{ color:isR2?'#7dd3fc':'#fca5a5', fontSize:12, lineHeight:1.6 }}>{msg}</p>
         </div>
         <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
-          <button onClick={() => onRestart(1)} className="btn" style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'10px 22px', fontSize:13, fontWeight:800 }}>Plantao Travado</button>
-          <button onClick={() => onRestart(2)} className="btn" style={{ background:'linear-gradient(135deg,#00d4ff,#0891b2)', padding:'10px 22px', fontSize:13, fontWeight:800 }}>Plantao Lean</button>
+          <button onClick={() => onRestart(1)} className="btn" style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'10px 22px', fontSize:13, fontWeight:800 }}>Plantão Travado</button>
+          <button onClick={() => onRestart(2)} className="btn" style={{ background:'linear-gradient(135deg,#00d4ff,#0891b2)', padding:'10px 22px', fontSize:13, fontWeight:800 }}>Plantão Lean</button>
           <button onClick={onMenu} className="btn" style={{ background:'#374151', padding:'10px 22px', fontSize:13 }}>Menu</button>
         </div>
       </div>
@@ -281,7 +351,7 @@ function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
 
 // ── Main Game ─────────────────────────────────────────────────
 function Game() {
-  const [ph,        setPh]       = useState('lobby');
+  const [ph,        setPh]       = useState('role');    // role | lobby | facilLogin | waiting | menu | play | over
   const [pts,       setPts]      = useState([]);
   const [sx,        setSx]       = useState([]);
   const [sm,        setSm]       = useState(SH*60);
@@ -290,7 +360,7 @@ function Game() {
   const [fl,        setFl]       = useState(null);
   const [log,       setLog]      = useState([]);
   const [st,        setSt]       = useState({ disc:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
-  const [evts,      setEvts]     = useState({ pcr:false, tomo:false, surto:false, social:false, pcrEnd:0, tomoEnd:0 });
+  const [evts,      setEvts]     = useState({ pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
   const [cascade,   setCascade]  = useState(null);
   const [rpaW,      setRpaW]     = useState(null);
   const [rnd2,      setRnd2]     = useState(1);
@@ -343,7 +413,6 @@ function Game() {
     }
   }, [psOcc, boarding.length, st.deaths, isR2, run, ph]);
 
-  // ── Music mute toggle ─────────────────────────────────────
   const toggleMusic = () => setMusicMuted(SimsMusic.toggleMute());
 
   // ── Start round ───────────────────────────────────────────
@@ -360,12 +429,12 @@ function Game() {
     setNirUses(0);
     setNirCd(0);
     setDeathFlash(false);
-    const title = roundNum===2 ? 'PLANTAO LEAN' : 'PLANTAO TRAVADO';
+    const title = roundNum===2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO';
     const r2Msg = roundNum===2 ? ' FERRAMENTAS LEAN ATIVAS: Alta precoce, Fast Track, Discharge Lounge, Surgical Smoothing, Fluxista, NIR, Full Capacity, Alta Segura.' : '';
-    setLog([{ msg:`${title} iniciado! PS 6/15, Enf 68/85 (80%), UTI 12/15 (80%).${r2Msg}`, type:'info', t:SH*60 }]);
-    if (roundNum===2) setLog(prev => [{ msg:'BED HUDDLE 7h: Previsao ~40 pacientes. 7 cirurgias redistribuidas. Pico 11h-14h.', type:'info', t:SH*60 }, ...prev]);
+    setLog([{ msg:`${title} iniciado! PS 8/15, Enf 72/85 (85%), UTI 13/15 (87%).${r2Msg}`, type:'info', t:SH*60 }]);
+    if (roundNum===2) setLog(prev => [{ msg:'BED HUDDLE 7h: Previsão ~40 pacientes. 7 cirurgias redistribuídas. Pico 11h-14h.', type:'info', t:SH*60 }, ...prev]);
     setSt({ disc:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
-    setEvts({ pcr:false, tomo:false, surto:false, social:false, pcrEnd:0, tomoEnd:0 });
+    setEvts({ pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
     setCascade(null);
     setRpaW(null);
     ref.current.nx   = SH*60+rnd(5,12);
@@ -377,14 +446,13 @@ function Game() {
   const joinRoom = async (name, code) => {
     SimsMusic.init();
     const { data:room } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle();
-    if (!room) return { error:`Sala "${code}" nao encontrada. Verifique o codigo com o instrutor.` };
-    if (room.status === 'finished') return { error:`A sala "${code}" ja foi encerrada.` };
+    if (!room) return { error:`Sala "${code}" não encontrada. Verifique o código com o facilitador.` };
+    if (room.status === 'finished') return { error:`A sala "${code}" já foi encerrada.` };
     const cols = ['#FF3B3B','#00d4ff','#22c55e','#eab308','#f97316','#a855f7','#ec4899','#14b8a6'];
     const col  = cols[Math.floor(Math.random()*cols.length)];
     const { data:team, error } = await sb.from('teams').insert({ room_id:room.id, name, color:col }).select('id').single();
     if (error||!team) return { error:'Erro ao registrar time. Tente novamente.' };
     setTName(name); setRCode(code); setRoomId(room.id); setTeamId(team.id);
-    // Se rodada ja iniciou e entrada apos inicio esta permitida, entrar direto
     if (room.allow_late_join && (room.status==='round1'||room.status==='round2')) {
       startR(room.status==='round1' ? 1 : 2);
     } else {
@@ -424,7 +492,7 @@ function Game() {
   const tick = useCallback(() => {
     setSm(prev => {
       const nm = prev+1;
-      if (nm>=EH*60) { setRun(false); setPh('over'); addL('Plantao encerrado!','success'); return EH*60; }
+      if (nm>=EH*60) { setRun(false); setPh('over'); addL('Plantão encerrado!','success'); return EH*60; }
       return nm;
     });
     setPts(prev => {
@@ -435,21 +503,31 @@ function Game() {
       const isR2local = ref.current.rnd2===2;
 
       // ── Random events ────────────────────────────────────
-      // Parada cardiaca — mais frequente em R1
-      if (ch>=9&&ch<16&&!E.pcr&&Math.random()<(isR2local?.004:.007)) {
+
+      // Parada cardíaca — mais frequente em R1
+      if (ch>=9&&ch<16&&!E.pcr&&Math.random()<(isR2local?.004:.008)) {
         E.pcr=true; E.pcrEnd=cm+60;
-        addL('PARADA CARDIACA no PS! 1 maca bloqueada por 1h.','danger');
+        addL('PARADA CARDÍACA no PS! 1 maca bloqueada por 1h.','danger');
       }
       if (E.pcr&&cm>=E.pcrEnd) { E.pcr=false; addL('Parada resolvida. Maca liberada.','success'); }
 
-      // Tomografo quebrado
-      if (ch>=8&&ch<14&&!E.tomo&&Math.random()<.004) {
+      // Tomógrafo quebrado
+      if (ch>=8&&ch<14&&!E.tomo&&Math.random()<.005) {
         E.tomo=true; E.tomoEnd=cm+120;
-        addL('TOMOGRAFO QUEBROU! Decisao +120min para todos no PS.','danger');
+        addL('TOMÓGRAFO QUEBROU! Decisão +120min para todos no PS.','danger');
       }
-      if (E.tomo&&cm>=E.tomoEnd) { E.tomo=false; addL('Tomografo reparado.','success'); }
+      if (E.tomo&&cm>=E.tomoEnd) { E.tomo=false; addL('Tomógrafo reparado.','success'); }
 
-      // Surto: GARANTIDO as 12h na R1, aleatorio na R2
+      // Exames com atraso (NOVO — Teoria das Restrições)
+      if (ch>=9&&ch<16&&!E.lab&&Math.random()<(isR2local?.002:.006)) {
+        E.lab=true; E.labEnd=cm+(isR2local?45:90);
+        const affected=P.filter(p=>p.sector==='ps'&&!p.ready&&!p.obsProlong).slice(0,rnd(2,4));
+        affected.forEach(p => { p.psNeed+=isR2local?30:60; p.labDelay=true; });
+        addL(`ATRASO NO LABORATÓRIO! ${affected.length} pacientes aguardando resultados (+${isR2local?30:60}min).`,'warning');
+      }
+      if (E.lab&&cm>=E.labEnd) { E.lab=false; P.forEach(p => { if(p.labDelay) p.labDelay=false; }); addL('Laboratório normalizado.','success'); }
+
+      // Surto: GARANTIDO às 12h na R1, aleatório na R2
       const surtoForced = !isR2local && cm===12*60 && !E.surto;
       const surtoRandom = ch>=12&&ch<15&&!E.surto&&Math.random()<.006;
       if (surtoForced||surtoRandom) {
@@ -458,24 +536,34 @@ function Game() {
           const d = i<2 ? rollDest() : { dest:'uti', sev:'red', ps:rnd(90,150) };
           const np=mkPt('porta',d.dest,d.sev,false,d.ps); np.arrMin=cm; P.push(np);
         }
-        addL('SURTO! 3 pacientes simultaneos chegando!','danger');
+        addL('SURTO! 3 pacientes simultâneos chegando!','danger');
         SimsMusic.sfx('cascade');
       }
 
-      // Paciente social
-      if (ch>=10&&ch<17&&!E.social&&Math.random()<.004) {
+      // Paciente social (atraso de familiares)
+      if (ch>=10&&ch<17&&!E.social&&Math.random()<.005) {
         E.social=true;
         const ef=P.find(p=>p.sector==='enf'&&p.dischReady&&p.prep<=0&&!p.social&&!p.blocked);
         if (ef) {
-          ef.social=true; ef.socialDelay=isR2local?60:rnd(180,240); S.socB++;
-          addL(`PACIENTE SOCIAL: ${ef.name} — leito bloqueado ~${Math.round(ef.socialDelay/60)}h.${isR2local?' Alta segura acionada.':''}`, isR2local?'info':'warning');
+          ef.social=true; ef.socialDelay=isR2local?60:rnd(180,300); S.socB++;
+          addL(`ATRASO DE FAMILIARES: ${ef.name} — leito bloqueado ~${Math.round(ef.socialDelay/60)}h.${isR2local?' Alta segura acionada: reduzido a 1h.':''}`, isR2local?'info':'warning');
         }
       }
 
-      // Observacao prolongada
-      if (ch>=9&&ch<15&&Math.random()<.003) {
+      // Segundo caso social em R1 (agrava o problema)
+      if (!isR2local&&ch>=13&&ch<16&&!E.famDelay&&Math.random()<.004) {
+        E.famDelay=true;
+        const ef=P.find(p=>p.sector==='enf'&&p.dischReady&&p.prep<=0&&!p.social&&!p.blocked);
+        if (ef) {
+          ef.social=true; ef.socialDelay=rnd(120,240); S.socB++;
+          addL(`BLOQUEIO SOCIAL: ${ef.name} — sem responsável, leito preso ~${Math.round(ef.socialDelay/60)}h!`,'warning');
+        }
+      }
+
+      // Observação prolongada
+      if (ch>=9&&ch<15&&Math.random()<.004) {
         const pp=P.find(p=>p.sector==='ps'&&!p.ready&&!p.obsProlong);
-        if (pp) { pp.obsProlong=true; pp.obsEnd=cm+rnd(360,480); pp.psNeed=99999; addL(`OBS PROLONGADA: ${pp.name} — maca presa por ${Math.round((pp.obsEnd-cm)/60)}h.`,'warning'); }
+        if (pp) { pp.obsProlong=true; pp.obsEnd=cm+rnd(300,480); pp.psNeed=99999; addL(`OBS PROLONGADA: ${pp.name} — maca presa por ${Math.round((pp.obsEnd-cm)/60)}h.`,'warning'); }
       }
       P.forEach(p => { if (p.obsProlong&&cm>=p.obsEnd) { p.obsProlong=false; p.ready=true; p.dest='alta_ps'; addL(`${p.name} (obs) liberado.`,'success'); }});
       setEvts(E);
@@ -485,11 +573,11 @@ function Game() {
         const d=rollDest();
         const np=mkPt('porta',d.dest,d.sev,false,d.ps);
         np.arrMin=cm; if (E.tomo) np.psNeed+=120;
+        if (E.lab) { np.psNeed+=30; np.labDelay=true; }
         const pcrB=E.pcr?1:0;
         if (P.filter(x=>x.sector==='ps').length<CAP.ps-pcrB) np.sector='ps';
         P.push(np);
-        // R1 pico mais intenso: 6/hr em vez de 5/hr
-        const rate=arrRate(ch)+(isR2local?0:(ch>=11&&ch<14?1:0));
+        const rate=arrRate(ch, isR2local);
         ref.current.nx=cm+Math.max(3,Math.round(60/rate)+rnd(-4,4));
       }
 
@@ -503,13 +591,18 @@ function Game() {
       const psN=P.filter(p=>p.sector==='ps').length;
       const psEffective=isR2local?P.filter(p=>p.sector==='ps'&&p.dest!=='alta_ps').length:psN;
       const mult=psMult(isR2local?Math.round(psEffective/CAP.ps*15):psN);
-      P.forEach(p => { if (p.sector==='ps'&&!p.ready&&!p.obsProlong) { p.psSpent+=mult; if (p.psSpent>=p.psNeed) p.ready=true; }});
+      P.forEach(p => { if (p.sector==='ps'&&!p.ready&&!p.obsProlong) { p.psSpent+=mult; if (p.psSpent>=p.psNeed) { p.ready=true; if(p.labDelay) p.labDelay=false; }}});
 
-      // R2: Fluxista auto-discharge alta_ps every 30 sim-min
-      if (isR2local&&cm%30===0) {
+      // R2: Fluxista auto-discharge alta_ps every 20 sim-min (was 30)
+      if (isR2local&&cm%20===0) {
         const fluxPts=P.filter(p=>p.sector==='ps'&&p.ready&&p.dest==='alta_ps');
-        fluxPts.forEach(p => { p.sector='alta'; S.disc++; addL(`Fluxista: ${p.name} alta automatica.`,'success'); });
+        fluxPts.forEach(p => { p.sector='alta'; S.disc++; addL(`Fluxista: ${p.name} — alta automática.`,'success'); });
         if (fluxPts.length>0) SimsMusic.sfx('fluxista');
+      }
+
+      // R2: Fast Track — green patients process 40% faster
+      if (isR2local) {
+        P.forEach(p => { if (p.sector==='ps'&&!p.ready&&!p.obsProlong&&p.sev==='green') p.psSpent+=0.4; });
       }
 
       // NIR cooldown
@@ -521,14 +614,14 @@ function Game() {
           if (!p.bStart) p.bStart=cm;
           p.bMin=cm-p.bStart;
           S.boardHrs+=(1/60);
-          if (p.bMin>=240&&!p.det) {
+          if (p.bMin>=BOARD_DET_MIN&&!p.det) {
             p.det=true; S.dets++;
-            addL(`DETERIORACAO: ${p.name} — ${Math.floor(p.bMin/60)}h boarding!`,'warning');
+            addL(`DETERIORAÇÃO: ${p.name} — ${Math.floor(p.bMin/60)}h em boarding!`,'warning');
             SimsMusic.sfx('det');
           }
-          if (p.bMin>=480&&!p.dead) {
+          if (p.bMin>=BOARD_DEAD_MIN&&!p.dead) {
             p.dead=true; S.deaths++;
-            addL(`OBITO EVITAVEL: ${p.name} — ${Math.floor(p.bMin/60)}h boarding.`,'danger');
+            addL(`ÓBITO EVITÁVEL: ${p.name} — ${Math.floor(p.bMin/60)}h em boarding.`,'danger');
             SimsMusic.sfx('death');
             setDeathFlash(true); setTimeout(()=>setDeathFlash(false),600);
           }
@@ -536,49 +629,51 @@ function Game() {
       });
 
       // Off-service deterioration
-      P.forEach(p => { if (p.offSvc&&p.sector==='enf'&&!p.dead&&!p.det&&Math.random()<(1/(60*3.33))) { p.det=true; S.dets++; addL(`${p.name} deteriorou OFF-SERVICE!`,'warning'); SimsMusic.sfx('det'); }});
+      P.forEach(p => { if (p.offSvc&&p.sector==='enf'&&!p.dead&&!p.det&&Math.random()<OFFSVC_DET_PROB) { p.det=true; S.dets++; addL(`${p.name} deteriorou OFF-SERVICE!`,'warning'); SimsMusic.sfx('det'); }});
 
-      // Corridor overflow — LWBS dispara mais cedo em R1 (corredor > 3)
+      // Corridor overflow — LWBS dispara mais cedo em R1 (corredor > 2)
       if (P.filter(p=>p.sector==='ps').length>=CAP.ps-pcrB&&P.filter(p=>p.sector==='porta').length>2) {
         const tc=P.find(p=>p.sector==='porta');
-        if (tc&&Math.random()<.4) { tc.sector='corredor'; addL(`${tc.name} > CORREDOR — sem macas!`,'warning'); }
+        if (tc&&Math.random()<.4) { tc.sector='corredor'; addL(`${tc.name} → CORREDOR — sem macas disponíveis!`,'warning'); }
       }
-      const corredorLimit = isR2local ? 5 : 3;
+      const corredorLimit = isR2local ? 5 : 2;
       if (P.filter(p=>p.sector==='corredor').length>corredorLimit) {
         const lw=P.find(p=>p.sector==='corredor'&&p.dest==='alta_ps'&&!p.dead);
-        if (lw&&Math.random()<.25) { lw.sector='alta'; S.lwbs++; addL(`${lw.name} SAIU SEM ATENDIMENTO! (LWBS)`,'danger'); }
+        if (lw&&Math.random()<.3) { lw.sector='alta'; S.lwbs++; addL(`${lw.name} SAIU SEM ATENDIMENTO! (LWBS)`,'danger'); }
       }
 
       // Social delay countdown
       P.forEach(p => { if (p.social&&p.socialDelay>0) { p.socialDelay--; if (p.socialDelay<=0) { p.social=false; addL(`${p.name} (social) liberado.`,'success'); }}});
 
-      // ENF rounds — R2 antecipa para 8h (alta precoce)
-      const enfRoundH=isR2local?8:10;
+      // ENF rounds — R2 Bed Huddle antecipa para 8h (alta precoce)
+      // R1: round médico às 11h (atraso!), preparo 120-180min (burocracia)
+      const enfRoundH=isR2local?8:11;
       if (ch>=enfRoundH&&!R.e1) {
         R.e1=true;
         const c=P.filter(p=>p.sector==='enf'&&!p.dischReady&&!p.blocked&&!p.social);
         const n=Math.min(rnd(6,8),c.length);
-        for (let i=0;i<n;i++) { c[i].dischReady=true; c[i].prep=isR2local?0:(Math.random()<.2?120:60); }
-        addL(`ROUND ${enfRoundH}h: ${n} altas prescritas.${isR2local?' Discharge Lounge: leitos liberam IMEDIATO.':`Preparo ~1h. (${10-enfRoundH}h atraso!)`}`,'success');
+        for (let i=0;i<n;i++) { c[i].dischReady=true; c[i].prep=isR2local?0:rnd(120,180); }
+        if (isR2local) addL(`BED HUDDLE ${enfRoundH}h: ${n} altas prescritas. Discharge Lounge: leitos liberam IMEDIATO.`,'success');
+        else addL(`ROUND MÉDICO ${enfRoundH}h: ${n} altas prescritas. Preparo estimado: 2-3h. TARDE DEMAIS!`,'warning');
       }
       if (ch>=14&&!R.e2) {
         R.e2=true;
         const c=P.filter(p=>p.sector==='enf'&&!p.dischReady&&!p.blocked&&!p.social);
         const n=Math.min(rnd(3,4),c.length);
-        for (let i=0;i<n;i++) { c[i].dischReady=true; c[i].prep=isR2local?0:60; }
-        addL(`ROUND 14h: ${n} altas.${isR2local?' Liberacao imediata.':''}`,'success');
+        for (let i=0;i<n;i++) { c[i].dischReady=true; c[i].prep=isR2local?0:rnd(90,120); }
+        addL(`ROUND 14h: ${n} altas.${isR2local?' Liberação imediata.':' Preparo ~1.5-2h.'}`,'success');
       }
       if (ch>=17&&!R.e3) {
         R.e3=true;
         const c=P.filter(p=>p.sector==='enf'&&!p.dischReady&&!p.blocked&&!p.social);
         const n=Math.min(rnd(1,2),c.length);
         for (let i=0;i<n;i++) { c[i].dischReady=true; c[i].prep=isR2local?0:60; }
-        if (n>0) addL(`ROUND 17h: ${n} alta(s) esporadica(s).`,'info');
+        if (n>0) addL(`ROUND 17h: ${n} alta(s) esporádica(s).`,'info');
       }
 
       // UTI step-downs
-      if (ch>=11&&!R.u1) { R.u1=true; const c=P.filter(p=>p.sector==='uti'&&!p.dischReady); for (let i=0;i<Math.min(2,c.length);i++) { c[i].dischReady=true; c[i].dest='enf'; c[i].prep=isR2local?0:60; addL(`Alta UTI: ${c[i].name} step-down.`,'info'); }}
-      if (ch>=15&&!R.u2) { R.u2=true; const c=P.find(p=>p.sector==='uti'&&!p.dischReady); if (c) { c.dischReady=true; c.dest='enf'; c.prep=isR2local?0:60; addL(`Alta UTI: ${c.name} step-down.`,'info'); }}
+      if (ch>=11&&!R.u1) { R.u1=true; const c=P.filter(p=>p.sector==='uti'&&!p.dischReady); for (let i=0;i<Math.min(2,c.length);i++) { c[i].dischReady=true; c[i].dest='enf'; c[i].prep=isR2local?0:60; addL(`Alta UTI: ${c[i].name} step-down → ENF.`,'info'); }}
+      if (ch>=15&&!R.u2) { R.u2=true; const c=P.find(p=>p.sector==='uti'&&!p.dischReady); if (c) { c.dischReady=true; c.dest='enf'; c.prep=isR2local?0:60; addL(`Alta UTI: ${c.name} step-down → ENF.`,'info'); }}
 
       P.forEach(p => { if (p.prep>0) p.prep--; });
 
@@ -593,14 +688,14 @@ function Game() {
             if (rC>=CAP.rpa) {
               s.st='cancelled'; S.cxCan++;
               const disch=P.find(p=>p.sector==='enf'&&p.dischReady&&p.prep<=0&&!p.blocked&&!p.social);
-              if (disch) { disch.dischReady=false; disch.blocked=true; addL(`${s.label} CANCELADA! ${disch.name} perde alta. CASCATA.`,'danger'); setCascade(`${s.label} cancelada > ${disch.name} perde alta > leito nao gira`); setTimeout(()=>setCascade(null),8000); }
-              else { addL(`${s.label} CANCELADA — RPA lotada!`,'danger'); setCascade('Cirurgia cancelada > menos giro > mais boarding'); setTimeout(()=>setCascade(null),6000); }
+              if (disch) { disch.dischReady=false; disch.blocked=true; addL(`${s.label} CANCELADA! ${disch.name} perde alta. EFEITO CASCATA.`,'danger'); setCascade(`${s.label} cancelada → ${disch.name} perde alta → leito não gira`); setTimeout(()=>setCascade(null),8000); }
+              else { addL(`${s.label} CANCELADA — RPA lotada!`,'danger'); setCascade('Cirurgia cancelada → menos giro → mais boarding'); setTimeout(()=>setCascade(null),6000); }
               SimsMusic.sfx('cascade');
             } else {
               s.st='done';
               const np=mkPt('rpa',s.dest,s.dest==='uti'?'red':'orange',true);
               np.postOp=true; np.name=`PO-${s.label.replace('Cx ','')}`;
-              P.push(np); addL(`${np.name} > RPA, precisa de ${s.dest==='uti'?'UTI':'ENF'}.`,'info');
+              P.push(np); addL(`${np.name} → RPA, precisa de ${s.dest==='uti'?'UTI':'ENF'}.`,'info');
             }
           }
         });
@@ -642,9 +737,9 @@ function Game() {
     const isOff=sel.dest==='uti'&&sid==='enf'&&sel.sector!=='uti';
     setPts(prev=>prev.map(p=>{
       if (p.id!==sel.id) return p;
-      if (sid==='alta') { setSt(s=>({...s,disc:s.disc+1})); addL(`${p.name} alta.`,'success'); SimsMusic.sfx('disc'); }
-      else if (isOff)   { setSt(s=>({...s,offS:s.offS+1})); addL(`OFF-SERVICE: ${p.name} UTI>ENF. Risco!`,'warning'); }
-      else addL(`${p.name} > ${sid.toUpperCase()}`,'info');
+      if (sid==='alta') { setSt(s=>({...s,disc:s.disc+1})); addL(`${p.name} — alta.`,'success'); SimsMusic.sfx('disc'); }
+      else if (isOff)   { setSt(s=>({...s,offS:s.offS+1})); addL(`OFF-SERVICE: ${p.name} UTI→ENF. Risco elevado!`,'warning'); }
+      else addL(`${p.name} → ${sid.toUpperCase()}`,'info');
       return {...p,sector:sid,ready:false,dischReady:false,bStart:null,bMin:0,offSvc:isOff};
     }));
     setSel(null);
@@ -655,7 +750,7 @@ function Game() {
     if (sel.sector!=='ps'||!sel.ready) return;
     setPts(prev=>prev.filter(pt=>pt.id!==sel.id));
     setNirUses(n=>n+1); setNirCd(60); setSel(null);
-    addL(`NIR: ${sel.name} transferido. (${nirUses+1}/3 usos)`,'success');
+    addL(`NIR: ${sel.name} transferido para outra unidade. (${nirUses+1}/3 usos)`,'success');
     SimsMusic.sfx('disc');
   };
 
@@ -664,7 +759,7 @@ function Game() {
     if (sel.sector!=='ps'||!sel.ready||sel.dest==='uti'||sel.dest==='alta_ps') return;
     setPts(prev=>prev.map(pt=>pt.id!==sel.id?pt:{...pt,sector:'corredor',bStart:null,bMin:0}));
     setSel(null);
-    addL(`FULL CAPACITY: ${sel.name} ao corredor da enfermaria. Maca liberada.`,'success');
+    addL(`FULL CAPACITY: ${sel.name} ao corredor da enfermaria. Maca liberada no PS.`,'success');
   };
 
   const clk = p => run && setSel(s=>s?.id===p.id?null:p);
@@ -676,9 +771,11 @@ function Game() {
   const secN   = { ps:'PS', enf:'ENF', uti:'UTI', rpa:'RPA', alta:'ALTA' };
 
   // Phase routing
-  if (ph==='lobby')   return <LobbyScreen onJoin={joinRoom} onSolo={()=>{ SimsMusic.init(); setPh('menu'); }}/>;
-  if (ph==='waiting') return <WaitingScreen tName={tName} rCode={rCode}/>;
-  if (ph==='menu')    return <MenuScreen onStart={startR}/>;
+  if (ph==='role')       return <RoleSelector onJogador={()=>setPh('lobby')} onFacilitador={()=>setPh('facilLogin')}/>;
+  if (ph==='facilLogin') return <FacilitadorLogin onAuth={()=>{ window.location.href='instrutor.html'; }} onBack={()=>setPh('role')}/>;
+  if (ph==='lobby')      return <LobbyScreen onJoin={joinRoom} onSolo={()=>{ SimsMusic.init(); setPh('menu'); }} onBack={()=>setPh('role')}/>;
+  if (ph==='waiting')    return <WaitingScreen tName={tName} rCode={rCode}/>;
+  if (ph==='menu')       return <MenuScreen onStart={startR}/>;
 
   // ── Game UI ───────────────────────────────────────────────
   const allEnf = byS('enf');
@@ -698,7 +795,7 @@ function Game() {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <span style={{ fontSize:14, fontWeight:900, color:isR2?'#00d4ff':'#FF3B3B' }}>
-              {isR2?'PLANTAO LEAN':'PLANTAO TRAVADO'}
+              {isR2?'PLANTÃO LEAN':'PLANTÃO TRAVADO'}
             </span>
             <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:4,
               background:isR2?'rgba(0,212,255,.15)':'rgba(255,59,59,.15)', color:isR2?'#00d4ff':'#FF3B3B' }}>R{rnd2}</span>
@@ -711,11 +808,10 @@ function Game() {
             </div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            {/* PS urgency indicator */}
             {psDanger && !isR2 && (
               <div style={{ fontSize:10, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite',
                 padding:'2px 8px', background:'rgba(239,68,68,.12)', borderRadius:4, border:'1px solid #ef444433' }}>
-                {psColapso ? 'PS COLAPSADO' : 'PS CRITICO'}
+                {psColapso ? 'PS COLAPSADO' : 'PS CRÍTICO'}
               </div>
             )}
             <div style={{ background:'rgba(255,255,255,.03)', padding:'4px 12px', borderRadius:6, display:'flex', alignItems:'center', gap:5 }}>
@@ -750,10 +846,10 @@ function Game() {
         <div style={{ display:'flex', gap:5, justifyContent:'center', minWidth:600 }}>
           {[
             { l:'Boarding',  v:boarding.length, c:boarding.length>3?'#ef4444':boarding.length>0?'#eab308':'#64748b' },
-            { l:'Board.med', v:`${Math.floor(avgB/60)}h${String(avgB%60).padStart(2,'0')}`, c:avgB>240?'#ef4444':avgB>60?'#eab308':'#64748b' },
+            { l:'Board.méd', v:`${Math.floor(avgB/60)}h${String(avgB%60).padStart(2,'0')}`, c:avgB>BOARD_DET_MIN?'#ef4444':avgB>60?'#eab308':'#64748b' },
             { l:'Corredor',  v:byS('corredor').length, c:byS('corredor').length>0?'#ef4444':'#64748b' },
             { l:'Deter.',    v:st.dets,   c:st.dets>0?'#f97316':'#64748b' },
-            { l:'Obitos',    v:st.deaths, c:st.deaths>0?'#ef4444':'#64748b' },
+            { l:'Óbitos',    v:st.deaths, c:st.deaths>0?'#ef4444':'#64748b' },
             { l:'Cx cancel.',v:st.cxCan,  c:st.cxCan>0?'#ef4444':'#64748b' },
             { l:'LWBS',      v:st.lwbs,   c:st.lwbs>0?'#ef4444':'#64748b' },
             { l:'Off-svc',   v:st.offS,   c:st.offS>0?'#f97316':'#64748b' },
@@ -770,8 +866,9 @@ function Game() {
       {/* ── Alerts ── */}
       {cascade && <div style={{ background:'linear-gradient(90deg,#450a0a,#1a0505)', borderBottom:'2px solid #ef4444', padding:'5px 14px', textAlign:'center', animation:'cascPulse 2s infinite', fontSize:12, fontWeight:700, color:'#fca5a5', flexShrink:0 }}>EFEITO CASCATA: {cascade}</div>}
       {!cascade&&rpaW && <div style={{ background:'linear-gradient(90deg,#422006,#1a1005)', borderBottom:'2px solid #ca8a04', padding:'4px 14px', textAlign:'center', fontSize:11, fontWeight:600, color:'#fde047', flexShrink:0 }}>{rpaW}</div>}
-      {evts.pcr  && <div style={{ background:'#450a0a', borderBottom:'1px solid #ef4444', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#fca5a5', animation:'pulse 2s infinite', flexShrink:0 }}>PARADA CARDIACA — 1 maca bloqueada ({fmt(evts.pcrEnd)})</div>}
-      {evts.tomo && <div style={{ background:'#1a1505', borderBottom:'1px solid #ca8a04', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#fde047', flexShrink:0 }}>TOMOGRAFO QUEBRADO — Decisao +120min ({fmt(evts.tomoEnd)})</div>}
+      {evts.pcr  && <div style={{ background:'#450a0a', borderBottom:'1px solid #ef4444', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#fca5a5', animation:'pulse 2s infinite', flexShrink:0 }}>PARADA CARDÍACA — 1 maca bloqueada ({fmt(evts.pcrEnd)})</div>}
+      {evts.tomo && <div style={{ background:'#1a1505', borderBottom:'1px solid #ca8a04', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#fde047', flexShrink:0 }}>TOMÓGRAFO QUEBRADO — Decisão +120min ({fmt(evts.tomoEnd)})</div>}
+      {evts.lab  && <div style={{ background:'#0a1a2a', borderBottom:'1px solid #0891b2', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#67e8f9', flexShrink:0 }}>ATRASO NO LABORATÓRIO — Resultados pendentes ({fmt(evts.labEnd)})</div>}
 
       {/* ── Main 4-column layout ── */}
       <div style={{ flex:1, display:'flex', gap:6, padding:'6px 8px', overflow:'hidden', minHeight:0 }}>
@@ -805,17 +902,17 @@ function Game() {
               </div>
               <span style={{ fontSize:12, fontFamily:'monospace', fontWeight:700,
                 color:psPct>=100?'#ef4444':psPct>=85?'#eab308':'#64748b' }}>
-                {psOcc}/{CAP.ps} ({psPct}%){psMult(psOcc)>1?` [x${psMult(psOcc)}]`:''}
+                {psOcc}/{CAP.ps} ({psPct}%){psMult(psOcc)>1?` [×${psMult(psOcc)}]`:''}
               </span>
             </div>
             <div style={{ flex:1, display:'flex', flexDirection:'column', gap:5, minHeight:0, overflow:'hidden' }}>
               <div className="subarea" style={{ background:'rgba(100,116,139,.06)', border:'1px dashed #33415566' }}>
-                <div style={{ fontSize:9, color:'#64748b', marginBottom:3 }}>Em Avaliacao ({psEval.length})</div>
+                <div style={{ fontSize:9, color:'#64748b', marginBottom:3 }}>Em Avaliação ({psEval.length})</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{psEval.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>
               <div className="subarea" style={{ background:psBoard.length>5?'rgba(239,68,68,.06)':'rgba(234,179,8,.04)', border:`1px solid ${psBoard.length>5?'#ef444433':'#eab30822'}` }}>
                 <div style={{ fontSize:9, color:psBoard.length>5?'#ef4444':'#eab308', marginBottom:3, fontWeight:psBoard.length>5?700:400 }}>
-                  Boarding ({psBoard.length}){psBoard.length>5?'  CRITICO!':''}
+                  Boarding ({psBoard.length}){psBoard.length>5?' CRÍTICO!':''}
                 </div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{psBoard.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>
@@ -833,11 +930,11 @@ function Game() {
           {/* Corredor */}
           <div className="sector" style={{
             background:byS('corredor').length>0?'#1a0505':'#0f172a',
-            border:`1px solid ${byS('corredor').length>3?'#ef4444':byS('corredor').length>0?'#eab308':'#1e293b'}`,
+            border:`1px solid ${byS('corredor').length>2?'#ef4444':byS('corredor').length>0?'#eab308':'#1e293b'}`,
             flexShrink:0,
           }}>
             <div style={{ fontSize:10, fontWeight:700, color:byS('corredor').length>0?'#ef4444':'#64748b', marginBottom:3 }}>
-              CORREDOR{byS('corredor').length>0?` (${byS('corredor').length}${byS('corredor').length>3?'! LWBS ativo':''})`:''}
+              CORREDOR{byS('corredor').length>0?` (${byS('corredor').length}${byS('corredor').length>2?' — LWBS ativo!':''})`:''}
             </div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:3, minHeight:16 }}>
               {byS('corredor').map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}
@@ -943,30 +1040,30 @@ function Game() {
           <div style={{ minWidth:0 }}>
             <div style={{ fontWeight:700, fontSize:12 }}>{sel.name}</div>
             <div style={{ fontSize:10, color:'#94a3b8' }}>
-              {sel.sector==='ps'&&!sel.ready&&!sel.obsProlong?`Avaliando... ${Math.max(0,Math.round(sel.psNeed-sel.psSpent))}min`
+              {sel.sector==='ps'&&!sel.ready&&!sel.obsProlong?`Avaliando... ${Math.max(0,Math.round(sel.psNeed-sel.psSpent))}min${sel.labDelay?' (lab)':''}`
                 :sel.obsProlong?'Obs prolongada'
                 :sel.sector==='ps'&&sel.ready&&sel.dest==='alta_ps'?'Pronto para alta PS'
                 :sel.sector==='ps'&&sel.ready&&sel.dest==='enf'?'Precisa de ENF'
-                :sel.sector==='ps'&&sel.ready&&sel.dest==='uti'?'Precisa de UTI (ou off-svc>ENF)'
+                :sel.sector==='ps'&&sel.ready&&sel.dest==='uti'?'Precisa de UTI (ou off-svc→ENF)'
                 :sel.sector==='enf'&&sel.dischReady&&sel.prep>0?`Preparo: ${sel.prep}min`
                 :sel.sector==='enf'&&sel.dischReady&&sel.prep<=0&&!sel.social?'Pronto ALTA!'
-                :sel.sector==='enf'&&sel.social?`Social ${sel.socialDelay}min`
+                :sel.sector==='enf'&&sel.social?`Atraso familiar: ${sel.socialDelay}min`
                 :sel.sector==='enf'&&sel.blocked?'Bloqueado (Cx cancel.)'
-                :sel.sector==='uti'&&sel.dischReady&&sel.prep<=0?'Step-down > ENF'
-                :sel.sector==='rpa'?`Pos-op > ${sel.dest.toUpperCase()}`
+                :sel.sector==='uti'&&sel.dischReady&&sel.prep<=0?'Step-down → ENF'
+                :sel.sector==='rpa'?`Pós-op → ${sel.dest.toUpperCase()}`
                 :sel.sector==='porta'?'Aguardando PS'
                 :sel.sector==='corredor'?'No corredor':''}
             </div>
-            {sel.bMin>0&&<div style={{ fontSize:10, fontWeight:700, color:sel.bMin>=480?'#ef4444':sel.bMin>=240?'#f97316':'#eab308' }}>
+            {sel.bMin>0&&<div style={{ fontSize:10, fontWeight:700, color:sel.bMin>=BOARD_DEAD_MIN?'#ef4444':sel.bMin>=BOARD_DET_MIN?'#f97316':'#eab308' }}>
               Boarding: {Math.floor(sel.bMin/60)}h{String(sel.bMin%60).padStart(2,'0')}
-              {!sel.det&&sel.bMin<240&&` (deteriora em ${240-sel.bMin}min)`}
+              {!sel.det&&sel.bMin<BOARD_DET_MIN&&` (deteriora em ${BOARD_DET_MIN-sel.bMin}min)`}
             </div>}
           </div>
           <div style={{ display:'flex', gap:4, marginLeft:6, flexShrink:0, flexWrap:'wrap' }}>
             {tgts.map(t=>(
               <button key={t} onClick={()=>doMove(t)} className="btn"
                 style={{ background:t==='alta'?'#16a34a':t==='enf'?'#0f766e':t==='uti'?'#dc2626':t==='ps'?'#1e6091':'#475569', fontSize:10 }}>
-                &gt; {secN[t]||t.toUpperCase()}{sel.dest==='uti'&&t==='enf'&&sel.sector!=='uti'?' [OFF]':''}
+                → {secN[t]||t.toUpperCase()}{sel.dest==='uti'&&t==='enf'&&sel.sector!=='uti'?' [OFF]':''}
               </button>
             ))}
             {isR2&&sel.sector==='ps'&&sel.ready&&sel.dest!=='alta_ps'&&nirUses<3&&nirCd<=0&&(
@@ -977,11 +1074,44 @@ function Game() {
             )}
             {tgts.length===0&&!(isR2&&sel.sector==='ps'&&sel.ready)&&(
               <span style={{ color:'#ef4444', fontSize:10, fontStyle:'italic' }}>
-                {sel.ready||(sel.dischReady&&sel.prep<=0)?'Sem vaga!':sel.blocked?'Bloqueado':sel.social?'Social':'Aguardando...'}
+                {sel.ready||(sel.dischReady&&sel.prep<=0)?'Sem vaga!':sel.blocked?'Bloqueado':sel.social?'Atraso familiar':'Aguardando...'}
               </span>
             )}
           </div>
           <button onClick={()=>setSel(null)} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer', fontSize:16, marginLeft:4 }}>&#x2715;</button>
+        </div>
+      )}
+
+      {/* ── Color legend (bottom-right) ── */}
+      {!sel && run && (
+        <div style={{ position:'fixed', bottom:10, right:10, background:'rgba(15,23,42,.92)', border:'1px solid #1e293b', borderRadius:10, padding:'8px 12px', zIndex:40, backdropFilter:'blur(8px)' }}>
+          <div style={{ fontSize:8, fontWeight:700, color:'#475569', letterSpacing:'.1em', marginBottom:5 }}>LEGENDA</div>
+          {[
+            { c:'#22c55e', l:'Verde — baixa complexidade' },
+            { c:'#eab308', l:'Amarelo — média complexidade' },
+            { c:'#f97316', l:'Laranja — alta complexidade' },
+            { c:'#ef4444', l:'Vermelho — crítico / UTI' },
+          ].map(({ c, l }) => (
+            <div key={c} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
+              <PSvg color={c} sz={10}/>
+              <span style={{ fontSize:9, color:'#94a3b8' }}>{l}</span>
+            </div>
+          ))}
+          <div style={{ borderTop:'1px solid #1e293b', marginTop:4, paddingTop:4 }}>
+            {[
+              { icon:'OK', c:'#22c55e', l:'Pronto para mover' },
+              { icon:'!',  c:'#f97316', l:'Deteriorou' },
+              { icon:'X',  c:'#ef4444', l:'Óbito' },
+              { icon:'BL', c:'#eab308', l:'Bloqueado / Social' },
+              { icon:'OFF',c:'#f97316', l:'Fora da especialidade' },
+              { icon:'LAB',c:'#06b6d4', l:'Aguardando exames' },
+            ].map(({ icon, c, l }) => (
+              <div key={icon} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
+                <span style={{ fontSize:8, fontWeight:800, color:c, width:18, textAlign:'center' }}>{icon}</span>
+                <span style={{ fontSize:9, color:'#94a3b8' }}>{l}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
