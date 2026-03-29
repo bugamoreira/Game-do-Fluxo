@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instrutor — Plantao Travado | FLAME 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:#060a13;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.btn{border:none;color:#fff;padding:8px 20px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;transition:all .2s}
+.btn:hover{filter:brightness(1.15)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+input{background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;outline:none;transition:border-color .2s}
+input:focus{border-color:#00d4ff}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="js/supabase-config.js"></script>
+<script type="text/babel">
+const {useState, useEffect, useRef} = React;
+
+const TEAM_COLORS = ['#FF3B3B','#00d4ff','#22c55e','#eab308','#f97316','#a855f7','#ec4899','#14b8a6'];
+
+function fmt(m) {
+  if (!m && m !== 0) return '--:--';
+  return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+}
+
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  return Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+// ── Score bar ─────────────────────────────────────────────────
+function ScoreBar({score, max=1000}) {
+  const pct = Math.min(score/max*100, 100);
+  const c = score > 700 ? '#22c55e' : score > 400 ? '#eab308' : '#ef4444';
+  return (
+    <div style={{height:6, background:'#1e293b', borderRadius:3, overflow:'hidden', marginTop:4}}>
+      <div style={{width:`${pct}%`, height:'100%', background:c, borderRadius:3, transition:'width .5s'}}/>
+    </div>
+  );
+}
+
+// ── Team row in ranking ───────────────────────────────────────
+function TeamRow({team, gs, rank, prevRank}) {
+  const score   = gs?.score ?? 1000;
+  const metrics = gs?.metrics ?? {};
+  const moved   = prevRank && prevRank !== rank;
+  const scoreC  = score > 700 ? '#22c55e' : score > 400 ? '#eab308' : '#ef4444';
+
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', gap:10,
+      padding:'10px 14px', borderRadius:10, marginBottom:6,
+      background: rank === 1 ? 'rgba(234,179,8,.07)' : 'rgba(255,255,255,.02)',
+      border: `1px solid ${rank === 1 ? '#eab30833' : '#1e293b'}`,
+      animation: moved ? 'slideIn .4s' : 'none',
+      transition: 'all .4s',
+    }}>
+      {/* Rank */}
+      <div style={{width:28, textAlign:'center', fontSize:18, fontWeight:900, color: rank === 1 ? '#eab308' : rank === 2 ? '#94a3b8' : rank === 3 ? '#b45309' : '#475569', flexShrink:0}}>
+        {rank}
+      </div>
+
+      {/* Color dot */}
+      <div style={{width:10, height:10, borderRadius:'50%', background: team.color || '#64748b', flexShrink:0}}/>
+
+      {/* Name */}
+      <div style={{flex:1, fontWeight:700, fontSize:14, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+        {team.name}
+      </div>
+
+      {/* Metrics */}
+      <div style={{display:'flex', gap:16, alignItems:'center', flexShrink:0}}>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:9, color:'#64748b'}}>Boarding</div>
+          <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color: (metrics.boarding||0) > 3 ? '#ef4444' : (metrics.boarding||0) > 0 ? '#eab308' : '#64748b'}}>{metrics.boarding ?? '—'}</div>
+        </div>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:9, color:'#64748b'}}>Obitos</div>
+          <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color: (metrics.dth||0) > 0 ? '#ef4444' : '#64748b'}}>{metrics.dth ?? '—'}</div>
+        </div>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:9, color:'#64748b'}}>Altas</div>
+          <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#22c55e'}}>{metrics.dis ?? '—'}</div>
+        </div>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:9, color:'#64748b'}}>PS%</div>
+          <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color: (metrics.psOcc||0) >= 15 ? '#ef4444' : (metrics.psOcc||0) >= 12 ? '#eab308' : '#64748b'}}>{metrics.psOcc != null ? `${Math.round(metrics.psOcc/15*100)}%` : '—'}</div>
+        </div>
+      </div>
+
+      {/* Score */}
+      <div style={{minWidth:90, textAlign:'right', flexShrink:0}}>
+        <div style={{fontSize:22, fontWeight:900, fontFamily:'monospace', color:scoreC}}>{score}</div>
+        <ScoreBar score={score}/>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Instructor component ─────────────────────────────────
+function Instructor() {
+  const [phase,    setPhase]   = useState('setup');  // setup | lobby | round1 | debrief | round2 | done
+  const [roomCode, setRoomCode] = useState('FLAME');
+  const [roomId,   setRoomId]  = useState(null);
+  const [teams,    setTeams]   = useState([]);
+  const [gameStates, setGameStates] = useState({});  // { teamId: { round1: gs, round2: gs } }
+  const [simMin,   setSimMin]  = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [err,      setErr]     = useState('');
+  const subRef = useRef(null);
+
+  // ── Create room ──────────────────────────────────────────────
+  const createRoom = async () => {
+    const code = roomCode.trim().toUpperCase() || genCode();
+    setCreating(true); setErr('');
+    // Check if code already exists
+    const { data: existing } = await sb.from('rooms').select('id').eq('code', code).maybeSingle();
+    if (existing) { setErr(`Codigo "${code}" ja existe. Escolha outro.`); setCreating(false); return; }
+    const { data: room, error } = await sb.from('rooms').insert({ code, status:'waiting', round:0 }).select('id,code').single();
+    if (error || !room) { setErr('Erro ao criar sala. Tente novamente.'); setCreating(false); return; }
+    setRoomId(room.id);
+    setRoomCode(room.code);
+    setPhase('lobby');
+    setCreating(false);
+    subscribeRoom(room.id);
+  };
+
+  // ── Supabase subscriptions ───────────────────────────────────
+  const subscribeRoom = (rid) => {
+    // Teams joining
+    const teamSub = sb.channel(`teams-${rid}`)
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'teams', filter:`room_id=eq.${rid}` },
+        p => setTeams(prev => [...prev, p.new]))
+      .subscribe();
+
+    // Game state updates
+    const gsSub = sb.channel(`gs-${rid}`)
+      .on('postgres_changes', { event:'*', schema:'public', table:'game_state', filter:`room_id=eq.${rid}` },
+        p => {
+          const gs = p.new;
+          setGameStates(prev => ({
+            ...prev,
+            [gs.team_id]: { ...(prev[gs.team_id] || {}), [`round${gs.round}`]: gs }
+          }));
+          if (gs.sim_minute) setSimMin(gs.sim_minute);
+        })
+      .subscribe();
+
+    subRef.current = { teamSub, gsSub };
+  };
+
+  // ── Round control ────────────────────────────────────────────
+  const setStatus = async (status, roundNum) => {
+    await sb.from('rooms').update({ status, round: roundNum }).eq('id', roomId);
+  };
+
+  const startRound1 = async () => {
+    await setStatus('round1', 1);
+    setPhase('round1');
+    setSimMin(7 * 60);
+  };
+
+  const endRound1 = async () => {
+    await setStatus('debrief', 1);
+    setPhase('debrief');
+  };
+
+  const startRound2 = async () => {
+    await setStatus('round2', 2);
+    setPhase('round2');
+    setSimMin(7 * 60);
+  };
+
+  const endRound2 = async () => {
+    await setStatus('finished', 2);
+    setPhase('done');
+  };
+
+  // ── Compute ranking ──────────────────────────────────────────
+  const getRanking = (roundKey) => {
+    return [...teams]
+      .map(t => ({ team:t, gs: gameStates[t.id]?.[roundKey] }))
+      .sort((a, b) => (b.gs?.score ?? 1000) - (a.gs?.score ?? 1000));
+  };
+
+  const r1Ranking = getRanking('round1');
+  const r2Ranking = getRanking('round2');
+  const activeRanking = phase === 'round2' || phase === 'done' ? r2Ranking : r1Ranking;
+
+  // ── Consolidated metrics ─────────────────────────────────────
+  const activeRound = phase === 'round2' || phase === 'done' ? 'round2' : 'round1';
+  const allGS = teams.map(t => gameStates[t.id]?.[activeRound]).filter(Boolean);
+  const avgScore   = allGS.length ? Math.round(allGS.reduce((a,g) => a + (g.score||1000), 0) / allGS.length) : null;
+  const totalDeaths = allGS.reduce((a,g) => a + (g.metrics?.dth||0), 0);
+  const totalCxCan  = allGS.reduce((a,g) => a + (g.metrics?.cxC||0), 0);
+  const avgBoarding = allGS.length ? Math.round(allGS.reduce((a,g) => a + (g.metrics?.boarding||0), 0) / allGS.length) : null;
+
+  // ── Phase: Setup ─────────────────────────────────────────────
+  if (phase === 'setup') return (
+    <div style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20}}>
+      <div style={{textAlign:'center', maxWidth:440, width:'100%'}}>
+        <div style={{fontSize:12, fontWeight:700, color:'#64748b', letterSpacing:'.12em', marginBottom:8, textTransform:'uppercase'}}>Tela do Instrutor</div>
+        <div style={{fontSize:30, fontWeight:900, color:'#FF3B3B', marginBottom:4}}>PLANTAO TRAVADO</div>
+        <div style={{fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:32}}>ED Leaders x FLAME 2026</div>
+
+        <div style={{background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b', marginBottom:14}}>
+          <div style={{fontSize:12, fontWeight:700, color:'#64748b', marginBottom:16, letterSpacing:'.08em', textTransform:'uppercase'}}>Criar Sala</div>
+          <div style={{marginBottom:14}}>
+            <input
+              value={roomCode}
+              onChange={e => setRoomCode(e.target.value.toUpperCase())}
+              placeholder="Codigo da sala (ex: FLAME)"
+              maxLength={8}
+              style={{textTransform:'uppercase', letterSpacing:'.12em', fontWeight:800, textAlign:'center', fontSize:20}}
+            />
+            <div style={{fontSize:10, color:'#475569', marginTop:6}}>Os grupos digitarao este codigo para entrar na sala</div>
+          </div>
+          {err && <div style={{color:'#fca5a5', fontSize:11, marginBottom:10}}>{err}</div>}
+          <button onClick={createRoom} disabled={creating} className="btn"
+            style={{background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'13px 32px', fontSize:15, fontWeight:800, width:'100%', boxShadow:'0 0 24px rgba(255,59,59,.25)'}}>
+            {creating ? 'Criando...' : 'Criar Sala'}
+          </button>
+        </div>
+        <div style={{fontSize:11, color:'#475569'}}>Abra esta pagina no notebook conectado ao projetor</div>
+      </div>
+    </div>
+  );
+
+  // ── Game phases ───────────────────────────────────────────────
+  const phaseLabel = {
+    lobby:   { label:'Aguardando grupos', color:'#64748b' },
+    round1:  { label:'Plantao Travado (R1)', color:'#FF3B3B' },
+    debrief: { label:'Debrief R1', color:'#eab308' },
+    round2:  { label:'Plantao Lean (R2)', color:'#00d4ff' },
+    done:    { label:'Finalizado', color:'#22c55e' },
+  }[phase] || { label:'', color:'#64748b' };
+
+  return (
+    <div style={{height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden'}}>
+
+      {/* ── Header ── */}
+      <div style={{background:'#0a0f1a', borderBottom:'1px solid #1e293b', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0}}>
+        <div style={{display:'flex', alignItems:'center', gap:16}}>
+          <div>
+            <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>INSTRUTOR</div>
+            <div style={{fontSize:20, fontWeight:900, color:'#FF3B3B'}}>PLANTAO TRAVADO</div>
+          </div>
+          <div style={{width:1, height:36, background:'#1e293b'}}/>
+          <div>
+            <div style={{fontSize:11, color:'#64748b'}}>Codigo da sala</div>
+            <div style={{fontSize:24, fontWeight:900, color:'#00d4ff', letterSpacing:'.12em'}}>{roomCode}</div>
+          </div>
+          <div style={{width:1, height:36, background:'#1e293b'}}/>
+          <div>
+            <div style={{fontSize:11, color:'#64748b'}}>Status</div>
+            <div style={{fontSize:14, fontWeight:700, color:phaseLabel.color}}>{phaseLabel.label}</div>
+          </div>
+          {(phase === 'round1' || phase === 'round2') && simMin && (
+            <>
+              <div style={{width:1, height:36, background:'#1e293b'}}/>
+              <div style={{fontFamily:'monospace', fontSize:32, fontWeight:900, color:'#00d4ff'}}>{fmt(simMin)}</div>
+            </>
+          )}
+        </div>
+
+        {/* Controls */}
+        <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+          {phase === 'lobby' && (
+            <button onClick={startRound1} disabled={teams.length === 0} className="btn"
+              style={{background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'10px 22px', fontSize:13}}>
+              Iniciar Plantao Travado (R1)
+            </button>
+          )}
+          {phase === 'round1' && (
+            <button onClick={endRound1} className="btn"
+              style={{background:'#374151', padding:'10px 22px', fontSize:13}}>
+              Encerrar R1 / Iniciar Debrief
+            </button>
+          )}
+          {phase === 'debrief' && (
+            <button onClick={startRound2} className="btn"
+              style={{background:'linear-gradient(135deg,#00d4ff,#0891b2)', padding:'10px 22px', fontSize:13}}>
+              Iniciar Plantao Lean (R2)
+            </button>
+          )}
+          {phase === 'round2' && (
+            <button onClick={endRound2} className="btn"
+              style={{background:'#374151', padding:'10px 22px', fontSize:13}}>
+              Encerrar R2 / Ver Comparacao
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Consolidated metrics ── */}
+      {allGS.length > 0 && (
+        <div style={{background:'#0d1117', borderBottom:'1px solid #1e293b', padding:'6px 20px', display:'flex', gap:20, alignItems:'center', justifyContent:'center', flexShrink:0}}>
+          {[
+            {l:'Score medio',    v: avgScore != null ? avgScore : '—',    c: avgScore > 700 ? '#22c55e' : avgScore > 400 ? '#eab308' : '#ef4444'},
+            {l:'Obitos total',   v: totalDeaths, c: totalDeaths > 0 ? '#ef4444' : '#22c55e'},
+            {l:'Cx canceladas',  v: totalCxCan,  c: totalCxCan > 0 ? '#f97316' : '#22c55e'},
+            {l:'Boarding medio', v: avgBoarding != null ? avgBoarding : '—', c: avgBoarding > 3 ? '#ef4444' : avgBoarding > 0 ? '#eab308' : '#22c55e'},
+          ].map(({l,v,c}) => (
+            <div key={l} style={{display:'flex', alignItems:'center', gap:6, padding:'2px 10px', background:'rgba(255,255,255,.02)', borderRadius:6}}>
+              <span style={{fontSize:10, color:'#64748b'}}>{l}:</span>
+              <span style={{fontSize:14, fontWeight:800, fontFamily:'monospace', color:c}}>{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Main content ── */}
+      <div style={{flex:1, overflow:'hidden', display:'flex', gap:0, minHeight:0}}>
+
+        {/* Left: Ranking */}
+        <div style={{flex:1, padding:16, overflowY:'auto', minHeight:0}}>
+
+          {/* Waiting for teams */}
+          {phase === 'lobby' && (
+            <div style={{textAlign:'center', padding:32}}>
+              <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:12}}>
+                <div style={{width:10, height:10, borderRadius:'50%', background:'#22c55e', animation:'pulse 1.5s infinite'}}/>
+                <span style={{color:'#94a3b8', fontSize:14}}>Aguardando grupos entrarem...</span>
+              </div>
+              <div style={{fontSize:48, fontWeight:900, color:'#00d4ff', letterSpacing:'.12em', marginBottom:4}}>{roomCode}</div>
+              <div style={{fontSize:12, color:'#475569'}}>Grupos: abrir index.html e digitar este codigo</div>
+            </div>
+          )}
+
+          {/* Ranking header */}
+          {teams.length > 0 && (
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:10, textTransform:'uppercase'}}>
+                {phase === 'done' ? 'Resultado Final' : phase === 'round2' ? 'Plantao Lean — Ranking ao Vivo' : 'Plantao Travado — Ranking ao Vivo'}
+              </div>
+              {activeRanking.map(({team, gs}, i) => (
+                <TeamRow key={team.id} team={team} gs={gs} rank={i+1} prevRank={null}/>
+              ))}
+            </div>
+          )}
+
+          {/* Comparison table (done phase) */}
+          {phase === 'done' && teams.some(t => gameStates[t.id]?.round1 || gameStates[t.id]?.round2) && (
+            <div style={{marginTop:20}}>
+              <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:10, textTransform:'uppercase'}}>
+                Comparacao R1 vs R2
+              </div>
+              <div style={{background:'#0f172a', borderRadius:10, border:'1px solid #1e293b', overflow:'hidden'}}>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 100px 100px 80px', padding:'8px 14px', borderBottom:'1px solid #1e293b', fontSize:10, color:'#64748b', fontWeight:700, letterSpacing:'.06em'}}>
+                  <span>TIME</span><span style={{textAlign:'right', color:'#FF3B3B'}}>R1 TRAVADO</span><span style={{textAlign:'right', color:'#00d4ff'}}>R2 LEAN</span><span style={{textAlign:'right', color:'#22c55e'}}>DELTA</span>
+                </div>
+                {[...teams]
+                  .sort((a,b) => (gameStates[b.id]?.round2?.score??0) - (gameStates[a.id]?.round2?.score??0))
+                  .map(t => {
+                    const r1 = gameStates[t.id]?.round1?.score;
+                    const r2 = gameStates[t.id]?.round2?.score;
+                    const delta = r1 != null && r2 != null ? r2 - r1 : null;
+                    return (
+                      <div key={t.id} style={{display:'grid', gridTemplateColumns:'1fr 100px 100px 80px', padding:'10px 14px', borderBottom:'1px solid #1e293b'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:8}}>
+                          <div style={{width:8, height:8, borderRadius:'50%', background:t.color||'#64748b'}}/>
+                          <span style={{fontWeight:700}}>{t.name}</span>
+                        </div>
+                        <span style={{textAlign:'right', fontFamily:'monospace', fontWeight:700, color: r1 > 700 ? '#22c55e' : r1 > 400 ? '#eab308' : '#ef4444'}}>{r1 ?? '—'}</span>
+                        <span style={{textAlign:'right', fontFamily:'monospace', fontWeight:700, color: r2 > 700 ? '#22c55e' : r2 > 400 ? '#eab308' : '#ef4444'}}>{r2 ?? '—'}</span>
+                        <span style={{textAlign:'right', fontFamily:'monospace', fontWeight:800, color: delta > 0 ? '#22c55e' : delta < 0 ? '#ef4444' : '#64748b'}}>
+                          {delta != null ? `${delta > 0 ? '+' : ''}${delta}` : '—'}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right sidebar: Teams list */}
+        <div style={{width:220, background:'#0a0f1a', borderLeft:'1px solid #1e293b', padding:12, overflowY:'auto'}}>
+          <div style={{fontSize:10, fontWeight:700, color:'#475569', letterSpacing:'.1em', marginBottom:10, textTransform:'uppercase'}}>
+            Grupos ({teams.length})
+          </div>
+          {teams.length === 0 && (
+            <div style={{color:'#333', fontSize:11, fontStyle:'italic', textAlign:'center', marginTop:20}}>Nenhum grupo ainda</div>
+          )}
+          {teams.map(t => {
+            const r1 = gameStates[t.id]?.round1;
+            const r2 = gameStates[t.id]?.round2;
+            return (
+              <div key={t.id} style={{padding:'8px 10px', borderRadius:8, marginBottom:6, background:'rgba(255,255,255,.02)', border:'1px solid #1e293b'}}>
+                <div style={{display:'flex', alignItems:'center', gap:7, marginBottom:4}}>
+                  <div style={{width:8, height:8, borderRadius:'50%', background:t.color||'#64748b', animation:'pulse 2s infinite'}}/>
+                  <span style={{fontWeight:700, fontSize:12}}>{t.name}</span>
+                </div>
+                {r1 && <div style={{fontSize:10, color:'#64748b'}}>R1: <span style={{color:'#FF3B3B', fontWeight:700}}>{r1.score}</span></div>}
+                {r2 && <div style={{fontSize:10, color:'#64748b'}}>R2: <span style={{color:'#00d4ff', fontWeight:700}}>{r2.score}</span></div>}
+                {!r1 && !r2 && <div style={{fontSize:10, color:'#333'}}>Aguardando...</div>}
+              </div>
+            );
+          })}
+
+          {/* Pedagogical cues */}
+          {phase === 'round1' && (
+            <div style={{marginTop:16, padding:10, background:'rgba(239,68,68,.06)', borderRadius:8, border:'1px solid rgba(239,68,68,.2)'}}>
+              <div style={{fontSize:9, fontWeight:700, color:'#ef4444', marginBottom:6, letterSpacing:'.06em'}}>PONTOS PARA COMENTAR</div>
+              <ul style={{fontSize:10, color:'#fca5a5', lineHeight:1.7, paddingLeft:12}}>
+                <li>PS acima de 85%?</li>
+                <li>Boarding acumulando?</li>
+                <li>Cirurgia cancelada?</li>
+                <li>UTI travada?</li>
+              </ul>
+            </div>
+          )}
+          {phase === 'debrief' && (
+            <div style={{marginTop:16, padding:10, background:'rgba(234,179,8,.06)', borderRadius:8, border:'1px solid rgba(234,179,8,.2)'}}>
+              <div style={{fontSize:9, fontWeight:700, color:'#eab308', marginBottom:6, letterSpacing:'.06em'}}>PERGUNTAS DE DEBRIEF</div>
+              <ul style={{fontSize:10, color:'#fde047', lineHeight:1.7, paddingLeft:12}}>
+                <li>"O que aconteceu?"</li>
+                <li>"Onde travou?"</li>
+                <li>"Foi falta de leito?"</li>
+                <li>"Quando o PS congestionou?"</li>
+              </ul>
+              <div style={{fontSize:10, color:'#eab308', marginTop:8, fontWeight:700}}>
+                Fechar: "O problema nao esta na entrada. Esta na SAIDA."
+              </div>
+            </div>
+          )}
+          {phase === 'round2' && (
+            <div style={{marginTop:16, padding:10, background:'rgba(0,212,255,.06)', borderRadius:8, border:'1px solid rgba(0,212,255,.2)'}}>
+              <div style={{fontSize:9, fontWeight:700, color:'#00d4ff', marginBottom:6, letterSpacing:'.06em'}}>FERRAMENTAS ATIVAS</div>
+              <ul style={{fontSize:10, color:'#7dd3fc', lineHeight:1.7, paddingLeft:12}}>
+                <li>Alta precoce (8h)</li>
+                <li>Fast Track</li>
+                <li>Discharge Lounge</li>
+                <li>Surgical Smoothing</li>
+                <li>Fluxista + NIR</li>
+              </ul>
+            </div>
+          )}
+          {phase === 'done' && (
+            <div style={{marginTop:16, padding:10, background:'rgba(34,197,94,.06)', borderRadius:8, border:'1px solid rgba(34,197,94,.2)'}}>
+              <div style={{fontSize:9, fontWeight:700, color:'#22c55e', marginBottom:6, letterSpacing:'.06em'}}>FECHAMENTO</div>
+              <div style={{fontSize:10, color:'#86efac', lineHeight:1.7}}>
+                "O problema nunca foi falta de leito. Era falta de <strong>gestao do fluxo de saida</strong>."
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<Instructor/>, document.getElementById('root'));
+</script>
+</body>
+</html>
