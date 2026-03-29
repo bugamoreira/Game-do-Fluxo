@@ -476,6 +476,8 @@ function Game() {
   const [musicMuted,setMusicMuted] = useState(false);
   const [ccBlocked, setCcBlocked]  = useState(s0?.ccBlocked || false);
   const [showCcModal, setShowCcModal] = useState(null);
+  const [fcUses,    setFcUses]     = useState(s0?.fcUses || 0);
+  const [fcApproved,setFcApproved] = useState(false);
 
   // Multiplayer
   const [tName,  setTName]  = useState(s0?.tName || '');
@@ -957,11 +959,26 @@ function Game() {
 
   const doFullCap = () => {
     if (!isR2||!sel) return;
-    if (sel.sector!=='ps'||!sel.ready||sel.dest==='uti'||sel.dest==='alta_de') return;
+    if (!fcApproved) { addL('FULL CAPACITY negado — aguardando autorização da Diretoria.','warning'); return; }
+    if (fcUses >= 2) { addL('FULL CAPACITY esgotado — limite de 2 pacientes atingido.','warning'); return; }
+    if (sel.sector!=='de'||!sel.ready||sel.sev!=='green') { addL('FULL CAPACITY apenas para pacientes VERDES prontos no DE.','warning'); return; }
     setPts(prev=>prev.map(pt=>pt.id!==sel.id?pt:{...pt,sector:'corredor',bStart:null,bMin:0}));
-    setSel(null);
-    addL(`FULL CAPACITY: ${sel.name} ao corredor da enfermaria. Maca liberada no DE.`,'success');
+    setFcUses(n=>n+1); setSel(null);
+    addL(`FULL CAPACITY: ${sel.name} ao corredor da enfermaria. Maca liberada. (${fcUses+1}/2 usos)`,'success');
   };
+
+  // Polling para autorização Full Capacity do facilitador
+  useEffect(() => {
+    if (!isR2 || !roomId) return;
+    const iv = setInterval(async () => {
+      const { data } = await sb.from('rooms').select('full_cap_approved').eq('id', roomId).single();
+      if (data?.full_cap_approved && !fcApproved) {
+        setFcApproved(true);
+        addL('DIRETORIA AUTORIZOU Full Capacity! 2 pacientes verdes podem ir ao corredor.','success');
+      }
+    }, 3000);
+    return () => clearInterval(iv);
+  }, [isR2, roomId, fcApproved]);
 
   const clk = p => run && setSel(s=>s?.id===p.id?null:p);
 
@@ -1308,8 +1325,8 @@ function Game() {
             {isR2&&sel.sector==='de'&&sel.ready&&sel.dest!=='alta_de'&&nirUses<3&&nirCd<=0&&(
               <button onClick={doNIR} className="btn" style={{ background:'#7c3aed', fontSize:10 }}>NIR</button>
             )}
-            {isR2&&sel.sector==='de'&&sel.ready&&sel.dest==='enf'&&(
-              <button onClick={doFullCap} className="btn" style={{ background:'#0369a1', fontSize:10 }}>Full Capacity</button>
+            {isR2&&sel.sector==='de'&&sel.ready&&sel.sev==='green'&&fcApproved&&fcUses<2&&(
+              <button onClick={doFullCap} className="btn" style={{ background:'#0369a1', fontSize:10 }}>Full Cap ({2-fcUses})</button>
             )}
             {tgts.length===0&&!(isR2&&sel.sector==='de'&&sel.ready)&&(
               <span style={{ color:'#ef4444', fontSize:10, fontStyle:'italic' }}>

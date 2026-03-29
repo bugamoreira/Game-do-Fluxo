@@ -652,6 +652,12 @@ function Instructor() {
                 <li>Fluxista + NIR</li>
                 <li>Alta Segura (social reduzido)</li>
               </ul>
+              <button onClick={async()=>{
+                await sb.from('rooms').update({full_cap_approved:true}).eq('id',roomId);
+              }} className="btn"
+                style={{marginTop:8, width:'100%', background:'linear-gradient(135deg,#0369a1,#0e7490)', padding:'8px 0', fontSize:11}}>
+                Autorizar Full Capacity (Diretoria)
+              </button>
             </div>
           )}
           {phase === 'done' && (
