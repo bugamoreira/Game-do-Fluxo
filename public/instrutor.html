@@ -86,8 +86,8 @@ function TeamRow({team, gs, rank}) {
           <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color:'#22c55e'}}>{metrics.dis ?? '—'}</div>
         </div>
         <div style={{textAlign:'center'}}>
-          <div style={{fontSize:9, color:'#64748b'}}>PS%</div>
-          <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color: (metrics.psOcc||0) >= 15 ? '#ef4444' : (metrics.psOcc||0) >= 12 ? '#eab308' : '#64748b'}}>{metrics.psOcc != null ? `${Math.round(metrics.psOcc/15*100)}%` : '—'}</div>
+          <div style={{fontSize:9, color:'#64748b'}}>Hosp%</div>
+          <div style={{fontSize:13, fontWeight:700, fontFamily:'monospace', color: (metrics.deOcc||0) >= 15 ? '#ef4444' : (metrics.deOcc||0) >= 12 ? '#eab308' : '#64748b'}}>{metrics.deOcc != null ? `${Math.round(metrics.deOcc/15*100)}%` : '—'}</div>
         </div>
       </div>
       <div style={{minWidth:90, textAlign:'right', flexShrink:0}}>
@@ -463,6 +463,12 @@ function Instructor() {
               🏆 Gerar Pódio
             </button>
           )}
+          {phase !== 'setup' && (
+            <button onClick={()=>window.open('projetor.html','_blank')} className="btn"
+              style={{background:'#1e293b', padding:'10px 18px', fontSize:12, border:'1px solid #334155'}}>
+              📺 Abrir Projeção
+            </button>
+          )}
         </div>
       </div>
 
@@ -573,7 +579,7 @@ function Instructor() {
             <div style={{marginTop:16, padding:10, background:'rgba(239,68,68,.06)', borderRadius:8, border:'1px solid rgba(239,68,68,.2)'}}>
               <div style={{fontSize:9, fontWeight:700, color:'#ef4444', marginBottom:6, letterSpacing:'.06em'}}>PONTOS PARA COMENTAR</div>
               <ul style={{fontSize:10, color:'#fca5a5', lineHeight:1.7, paddingLeft:12}}>
-                <li>PS acima de 85%?</li>
+                <li>Hospital acima de 85%?</li>
                 <li>Boarding acumulando?</li>
                 <li>Cirurgia cancelada?</li>
                 <li>UTI travada?</li>
@@ -589,7 +595,7 @@ function Instructor() {
                 <li>"O que aconteceu?"</li>
                 <li>"Onde travou primeiro?"</li>
                 <li>"Foi falta de leito ou falta de gestão?"</li>
-                <li>"Quando o PS congestionou?"</li>
+                <li>"Quando o hospital congestionou?"</li>
                 <li>"As altas saíram no horário?"</li>
               </ul>
               <div style={{fontSize:10, color:'#eab308', marginTop:8, fontWeight:700}}>

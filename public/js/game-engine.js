@@ -4,7 +4,8 @@
 // ============================================================
 
 const TICK = 1000, SH = 7, EH = 19;
-const CAP = { ps: 15, enf: 85, uti: 15, rpa: 3 };
+const CAP = { de: 15, enf: 85, uti: 15, rpa: 3 };
+const HOSP_BEDS = CAP.enf + CAP.uti;  // 100 leitos de internação
 const SEV = {
   green:  { c: '#22c55e', l: 'Verde' },
   yellow: { c: '#eab308', l: 'Amarelo' },
@@ -54,10 +55,10 @@ function mkSxR2() {
 }
 
 // ── Criar paciente ─────────────────────────────────────────
-function mkPt(sector, dest, sev, ready = false, psT = 120) {
+function mkPt(sector, dest, sev, ready = false, deT = 120) {
   return {
     id: ++_id, name: mkN(), sector, dest, sev, ready,
-    dischReady: false, prep: 0, psNeed: psT, psSpent: ready ? psT : 0,
+    dischReady: false, prep: 0, deNeed: deT, deSpent: ready ? deT : 0,
     bStart: null, bMin: 0, det: false, dead: false, postOp: false,
     blocked: false, offSvc: false, social: false, socialDelay: 0,
     obsProlong: false, obsEnd: 0, arrMin: SH * 60,
@@ -65,42 +66,38 @@ function mkPt(sector, dest, sev, ready = false, psT = 120) {
 }
 
 // ── Estado inicial ─────────────────────────────────────────
-// PS  8/15  (53%) — pressão desde o início
-// ENF 72/85 (85%) — quase sem folga
+// DE   8/15  (53%) — pressão desde o início
+// ENF 72/85 (85%) — quase sem folga → ocupação (72+13)/100 = 85%
 // UTI 13/15 (87%) — gargalo imediato
 function mkInit() {
   _id = 0;
   const P = [];
-  // PS: 8 pacientes (3 ready+boarding, 2 em avaliação, 2 alta_ps, 1 avaliando para UTI)
+  // DE: 8 pacientes (3 ready+boarding, 2 em avaliação, 2 alta_de, 1 avaliando para UTI)
   [
     { dest:'enf',     sev:'orange', r:true  },
     { dest:'uti',     sev:'red',    r:true  },
     { dest:'enf',     sev:'yellow', r:true  },
-    { dest:'alta_ps', sev:'green',  r:true  },
-    { dest:'alta_ps', sev:'green',  r:true  },
+    { dest:'alta_de', sev:'green',  r:true  },
+    { dest:'alta_de', sev:'green',  r:true  },
     { dest:'enf',     sev:'yellow', r:false },
     { dest:'uti',     sev:'red',    r:false },
-    { dest:'alta_ps', sev:'green',  r:false },
+    { dest:'alta_de', sev:'green',  r:false },
   ].forEach(c => {
-    const p = mkPt('ps', c.dest, c.sev, c.r, c.r ? 120 : 120 + rnd(0, 60));
-    if (!c.r) p.psSpent = rnd(40, 90);
-    // Pacientes ready já com boarding acumulado (entraram antes das 7h)
-    if (c.r && c.dest !== 'alta_ps') {
+    const p = mkPt('de', c.dest, c.sev, c.r, c.r ? 120 : 120 + rnd(0, 60));
+    if (!c.r) p.deSpent = rnd(40, 90);
+    if (c.r && c.dest !== 'alta_de') {
       p.bStart = SH * 60 - rnd(60, 120);
       p.bMin = SH * 60 - p.bStart;
     }
     P.push(p);
   });
-  // ENF: 72 pacientes
   for (let i = 0; i < 72; i++) P.push(mkPt('enf', 'alta_enf', Math.random() < .6 ? 'green' : 'yellow'));
-  // UTI: 13 pacientes
   for (let i = 0; i < 13; i++) P.push(mkPt('uti', 'step_down', 'red'));
   return P;
 }
 
 // ── Taxa de chegada por hora ───────────────────────────────
 function arrRate(h, isR2) {
-  // R1: pico mais intenso com +2/h (11h-14h) = 7 pacientes/hora
   const bonus = (!isR2 && h >= 11 && h < 14) ? 2 : 0;
   if (h < 9)  return 2 + bonus;
   if (h < 11) return 3 + bonus;
@@ -110,36 +107,42 @@ function arrRate(h, isR2) {
 }
 
 // ── Destino do paciente novo ───────────────────────────────
-// R1: 50% alta_ps, 35% ENF, 15% UTI
+// 50% alta_de, 35% ENF, 15% UTI
 function rollDest() {
   const r = Math.random();
-  if (r < .50) return { dest:'alta_ps', sev: Math.random() < .7 ? 'green' : 'yellow', ps: rnd(60,  120) };
-  if (r < .85) return { dest:'enf',     sev: Math.random() < .5 ? 'yellow': 'orange', ps: rnd(120, 180) };
-  return             { dest:'uti',     sev:'red',                                      ps: rnd(90,  150) };
+  if (r < .50) return { dest:'alta_de', sev: Math.random() < .7 ? 'green' : 'yellow', de: rnd(60,  120) };
+  if (r < .85) return { dest:'enf',     sev: Math.random() < .5 ? 'yellow': 'orange', de: rnd(120, 180) };
+  return             { dest:'uti',     sev:'red',                                      de: rnd(90,  150) };
 }
 
-// ── Multiplicador de congestão PS ──────────────────────────
-// Quanto mais lotado, mais rápido o paciente termina avaliação
-// (avaliação rápida → ready → mas sem leito → boarding)
-function psMult(n) {
-  const p = n / CAP.ps * 100;
-  if (p <= 50) return 1;
-  if (p <= 70) return 1.2;
-  if (p <= 85) return 1.5;
+// ── Multiplicador de congestão hospitalar ──────────────────
+// Baseado na ocupação de INTERNAÇÃO (ENF + UTI) / 100 leitos
+// Quanto mais lotado o hospital, mais rápido pacientes ficam
+// ready no DE → mas sem leito → boarding
+function hospMult(enfN, utiN) {
+  const p = (enfN + utiN) / HOSP_BEDS * 100;
+  if (p <= 75) return 1;
+  if (p <= 85) return 1.2;
+  if (p <= 92) return 1.5;
   return 2;
+}
+
+// Ocupação hospitalar (internação)
+function hospOcc(enfN, utiN) {
+  return pctOf(enfN + utiN, HOSP_BEDS);
 }
 
 // ── Cálculo de score ───────────────────────────────────────
 function calcScore(s) {
   let sc = 1000;
-  sc -= Math.round(s.boardHrs * 12);   // boarding é o mal central
-  sc -= s.dets   * 50;                 // deterioração
-  sc -= s.deaths * 250;                // óbito evitável = catástrofe
-  sc -= s.cxCan  * 100;                // cirurgia cancelada = cascata
-  sc -= s.lwbs   * 50;                 // saiu sem atendimento
-  sc -= s.offS   * 30;                 // fora da especialidade
-  sc -= s.socB   * 20;                 // bloqueio social
-  sc += s.disc   * 5;                  // cada alta pontua
-  if (s.deaths === 0) sc += 100;       // bônus zero óbitos
+  sc -= Math.round(s.boardHrs * 12);
+  sc -= s.dets   * 50;
+  sc -= s.deaths * 250;
+  sc -= s.cxCan  * 100;
+  sc -= s.lwbs   * 50;
+  sc -= s.offS   * 30;
+  sc -= s.socB   * 20;
+  sc += s.disc   * 5;
+  if (s.deaths === 0) sc += 100;
   return Math.max(0, Math.round(sc));
 }

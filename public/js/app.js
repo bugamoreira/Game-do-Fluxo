@@ -302,7 +302,7 @@ function MenuScreen({ onStart }) {
 
 // ── Game over modal ───────────────────────────────────────────
 function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
-  const boarding = pts.filter(p => p.sector==='ps'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
+  const boarding = pts.filter(p => p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
   const corredor = pts.filter(p => p.sector==='corredor');
   const maxB     = pts.reduce((a, p) => Math.max(a, p.bMin), 0);
   const msg = isR2
@@ -404,28 +404,29 @@ function Game() {
 
   // Derived
   const byS      = s => pts.filter(p => p.sector===s);
-  const psOcc    = byS('ps').length;
+  const deOcc    = byS('ps').length;
   const enfOcc   = byS('enf').length;
   const utiOcc   = byS('uti').length;
   const rpaOcc   = byS('rpa').length;
-  const boarding = pts.filter(p => p.sector==='ps'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
+  const boarding = pts.filter(p => p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
   const avgB     = boarding.length>0 ? Math.round(boarding.reduce((a,p)=>a+p.bMin,0)/boarding.length) : 0;
   const score    = calcScore(st);
   const prog     = ((sm-SH*60)/((EH-SH)*60))*100;
-  const psEval   = byS('ps').filter(p=>!p.ready&&!p.obsProlong);
-  const psBoard  = byS('ps').filter(p=>p.ready&&(p.dest==='enf'||p.dest==='uti'));
-  const psAlta   = byS('ps').filter(p=>p.ready&&p.dest==='alta_ps');
-  const psObs    = byS('ps').filter(p=>p.obsProlong);
+  const deEval   = byS('ps').filter(p=>!p.ready&&!p.obsProlong);
+  const deBoard  = byS('ps').filter(p=>p.ready&&(p.dest==='enf'||p.dest==='uti'));
+  const deAlta   = byS('ps').filter(p=>p.ready&&p.dest==='alta_de');
+  const deObs    = byS('ps').filter(p=>p.obsProlong);
   const enfReady = byS('enf').filter(p=>p.dischReady&&p.prep<=0&&!p.social&&!p.blocked);
   const utiReady = byS('uti').filter(p=>p.dischReady&&p.prep<=0);
-  const psPct    = pctOf(psOcc, CAP.ps);
+  const dePct    = pctOf(deOcc, CAP.de);
+  const hospPct  = hospOcc(enfOcc, utiOcc);  // (ENF+UTI)/100 leitos
 
   // ── Music update ──────────────────────────────────────────
   useEffect(() => {
     if (ph === 'play') {
-      SimsMusic.update({ psOcc, boarding: boarding.length, deaths: st.deaths, isR2, run });
+      SimsMusic.update({ deOcc, boarding: boarding.length, deaths: st.deaths, isR2, run });
     }
-  }, [psOcc, boarding.length, st.deaths, isR2, run, ph]);
+  }, [deOcc, boarding.length, st.deaths, isR2, run, ph]);
 
   const toggleMusic = () => setMusicMuted(SimsMusic.toggleMute());
 
@@ -473,7 +474,7 @@ function Game() {
     const title = roundNum===2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO';
     const ccMsg = blocked ? ' Sala 4 reservada para emergências.' : ' Todas as 4 salas em uso eletivo.';
     const r2Msg = roundNum===2 ? ' FERRAMENTAS LEAN ATIVAS: Alta precoce, Fast Track, Discharge Lounge, Surgical Smoothing, Fluxista, NIR, Full Capacity, Alta Segura.' : '';
-    const initLogs = [{ msg:`${title} iniciado! PS 8/15, Enf 72/85 (85%), UTI 13/15 (87%).${ccMsg}${r2Msg}`, type:'info', t:SH*60 }];
+    const initLogs = [{ msg:`${title} iniciado! DE 8/15, Enf 72/85, UTI 13/15. Ocupação hospitalar: 85%.${ccMsg}${r2Msg}`, type:'info', t:SH*60 }];
     if (roundNum===1) {
       const delayMin = Math.round((sxList.find(s=>s.sala===1)?.stH - 7.5) * 60);
       if (delayMin > 0) initLogs.push({ msg:`ATRASO: Primeira cirurgia atrasou ${delayMin}min. Efeito cascata na Sala 1.`, type:'warning', t:SH*60 });
@@ -522,13 +523,13 @@ function Game() {
     if (!teamId||!roomId) return;
     const iv = setInterval(() => {
       const P=ref.current.pts, S=ref.current.st, m=ref.current.sm, r=ref.current.rnd2;
-      const brd = P.filter(p=>p.sector==='ps'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
+      const brd = P.filter(p=>p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
       const avgBrd = brd.length>0 ? Math.round(brd.reduce((a,p)=>a+p.bMin,0)/brd.length) : 0;
       sb.from('game_state').upsert({
         team_id:teamId, room_id:roomId, round:r, sim_minute:m, score:calcScore(S),
         metrics:{
           dis:S.disc, det:S.dets, dth:S.deaths, cxC:S.cxCan, lw:S.lwbs, off:S.offS, soc:S.socB, bH:S.boardHrs,
-          psOcc:P.filter(p=>p.sector==='ps').length, enfOcc:P.filter(p=>p.sector==='enf').length,
+          deOcc:P.filter(p=>p.sector==='de').length, enfOcc:P.filter(p=>p.sector==='enf').length,
           utiOcc:P.filter(p=>p.sector==='uti').length, rpaOcc:P.filter(p=>p.sector==='rpa').length,
           boarding:brd.length, avgB:avgBrd, corredor:P.filter(p=>p.sector==='corredor').length,
         },
@@ -557,22 +558,22 @@ function Game() {
       // Parada cardíaca — mais frequente em R1
       if (ch>=9&&ch<16&&!E.pcr&&Math.random()<(isR2local?.004:.008)) {
         E.pcr=true; E.pcrEnd=cm+60;
-        addL('PARADA CARDÍACA no PS! 1 maca bloqueada por 1h.','danger');
+        addL('PARADA CARDÍACA no DE! 1 maca bloqueada por 1h.','danger');
       }
       if (E.pcr&&cm>=E.pcrEnd) { E.pcr=false; addL('Parada resolvida. Maca liberada.','success'); }
 
       // Tomógrafo quebrado
       if (ch>=8&&ch<14&&!E.tomo&&Math.random()<.005) {
         E.tomo=true; E.tomoEnd=cm+120;
-        addL('TOMÓGRAFO QUEBROU! Decisão +120min para todos no PS.','danger');
+        addL('TOMÓGRAFO QUEBROU! Decisão +120min para todos no DE.','danger');
       }
       if (E.tomo&&cm>=E.tomoEnd) { E.tomo=false; addL('Tomógrafo reparado.','success'); }
 
       // Exames com atraso (NOVO — Teoria das Restrições)
       if (ch>=9&&ch<16&&!E.lab&&Math.random()<(isR2local?.002:.006)) {
         E.lab=true; E.labEnd=cm+(isR2local?45:90);
-        const affected=P.filter(p=>p.sector==='ps'&&!p.ready&&!p.obsProlong).slice(0,rnd(2,4));
-        affected.forEach(p => { p.psNeed+=isR2local?30:60; p.labDelay=true; });
+        const affected=P.filter(p=>p.sector==='de'&&!p.ready&&!p.obsProlong).slice(0,rnd(2,4));
+        affected.forEach(p => { p.deNeed+=isR2local?30:60; p.labDelay=true; });
         addL(`ATRASO NO LABORATÓRIO! ${affected.length} pacientes aguardando resultados (+${isR2local?30:60}min).`,'warning');
       }
       if (E.lab&&cm>=E.labEnd) { E.lab=false; P.forEach(p => { if(p.labDelay) p.labDelay=false; }); addL('Laboratório normalizado.','success'); }
@@ -584,7 +585,7 @@ function Game() {
         E.surto=true;
         for (let i=0;i<3;i++) {
           const d = i<2 ? rollDest() : { dest:'uti', sev:'red', ps:rnd(90,150) };
-          const np=mkPt('porta',d.dest,d.sev,false,d.ps); np.arrMin=cm; P.push(np);
+          const np=mkPt('triagem',d.dest,d.sev,false,d.de); np.arrMin=cm; P.push(np);
         }
         addL('SURTO! 3 pacientes simultâneos chegando!','danger');
         SimsMusic.sfx('cascade');
@@ -612,7 +613,7 @@ function Game() {
 
       // Cirurgia de emergência do PS
       if (ch>=9&&ch<16&&Math.random()<(isR2local?.003:.005)) {
-        const emgCandidate = P.find(p=>p.sector==='ps'&&p.sev==='red'&&!p.dead&&!p.postOp);
+        const emgCandidate = P.find(p=>p.sector==='de'&&p.sev==='red'&&!p.dead&&!p.postOp);
         if (emgCandidate) {
           // Contar salas ocupadas
           const activeSx = (prevSx => {
@@ -641,47 +642,46 @@ function Game() {
 
       // Observação prolongada
       if (ch>=9&&ch<15&&Math.random()<.004) {
-        const pp=P.find(p=>p.sector==='ps'&&!p.ready&&!p.obsProlong);
-        if (pp) { pp.obsProlong=true; pp.obsEnd=cm+rnd(300,480); pp.psNeed=99999; addL(`OBS PROLONGADA: ${pp.name} — maca presa por ${Math.round((pp.obsEnd-cm)/60)}h.`,'warning'); }
+        const pp=P.find(p=>p.sector==='de'&&!p.ready&&!p.obsProlong);
+        if (pp) { pp.obsProlong=true; pp.obsEnd=cm+rnd(300,480); pp.deNeed=99999; addL(`OBS PROLONGADA: ${pp.name} — maca presa por ${Math.round((pp.obsEnd-cm)/60)}h.`,'warning'); }
       }
-      P.forEach(p => { if (p.obsProlong&&cm>=p.obsEnd) { p.obsProlong=false; p.ready=true; p.dest='alta_ps'; addL(`${p.name} (obs) liberado.`,'success'); }});
+      P.forEach(p => { if (p.obsProlong&&cm>=p.obsEnd) { p.obsProlong=false; p.ready=true; p.dest='alta_de'; addL(`${p.name} (obs) liberado.`,'success'); }});
       setEvts(E);
 
       // ── Arrivals ─────────────────────────────────────────
       if (cm>=ref.current.nx) {
         const d=rollDest();
-        const np=mkPt('porta',d.dest,d.sev,false,d.ps);
-        np.arrMin=cm; if (E.tomo) np.psNeed+=120;
-        if (E.lab) { np.psNeed+=30; np.labDelay=true; }
+        const np=mkPt('triagem',d.dest,d.sev,false,d.de);
+        np.arrMin=cm; if (E.tomo) np.deNeed+=120;
+        if (E.lab) { np.deNeed+=30; np.labDelay=true; }
         const pcrB=E.pcr?1:0;
-        if (P.filter(x=>x.sector==='ps').length<CAP.ps-pcrB) np.sector='ps';
+        if (P.filter(x=>x.sector==='de').length<CAP.de-pcrB) np.sector='ps';
         P.push(np);
         const rate=arrRate(ch, isR2local);
         ref.current.nx=cm+Math.max(3,Math.round(60/rate)+rnd(-4,4));
       }
 
       // Auto-move porta → PS
-      const porta=P.filter(p=>p.sector==='porta').sort((a,b)=>a.arrMin-b.arrMin);
+      const porta=P.filter(p=>p.sector==='triagem').sort((a,b)=>a.arrMin-b.arrMin);
       const pcrB=E.pcr?1:0;
-      const space=CAP.ps-pcrB-P.filter(p=>p.sector==='ps').length;
+      const space=CAP.de-pcrB-P.filter(p=>p.sector==='de').length;
       for (let i=0;i<Math.min(space,porta.length);i++) porta[i].sector='ps';
 
       // PS processing with congestion multiplier
-      const psN=P.filter(p=>p.sector==='ps').length;
-      const psEffective=isR2local?P.filter(p=>p.sector==='ps'&&p.dest!=='alta_ps').length:psN;
-      const mult=psMult(isR2local?Math.round(psEffective/CAP.ps*15):psN);
-      P.forEach(p => { if (p.sector==='ps'&&!p.ready&&!p.obsProlong) { p.psSpent+=mult; if (p.psSpent>=p.psNeed) { p.ready=true; if(p.labDelay) p.labDelay=false; }}});
+      const eN=P.filter(p=>p.sector==='enf').length, uN=P.filter(p=>p.sector==='uti').length;
+      const mult=hospMult(eN, uN);
+      P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong) { p.deSpent+=mult; if (p.deSpent>=p.deNeed) { p.ready=true; if(p.labDelay) p.labDelay=false; }}});
 
       // R2: Fluxista auto-discharge alta_ps every 20 sim-min (was 30)
       if (isR2local&&cm%20===0) {
-        const fluxPts=P.filter(p=>p.sector==='ps'&&p.ready&&p.dest==='alta_ps');
+        const fluxPts=P.filter(p=>p.sector==='de'&&p.ready&&p.dest==='alta_de');
         fluxPts.forEach(p => { p.sector='alta'; S.disc++; addL(`Fluxista: ${p.name} — alta automática.`,'success'); });
         if (fluxPts.length>0) SimsMusic.sfx('fluxista');
       }
 
       // R2: Fast Track — green patients process 40% faster
       if (isR2local) {
-        P.forEach(p => { if (p.sector==='ps'&&!p.ready&&!p.obsProlong&&p.sev==='green') p.psSpent+=0.4; });
+        P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong&&p.sev==='green') p.deSpent+=0.4; });
       }
 
       // NIR cooldown
@@ -689,7 +689,7 @@ function Game() {
 
       // ── Boarding consequences ─────────────────────────────
       P.forEach(p => {
-        if (p.sector==='ps'&&p.ready&&(p.dest==='enf'||p.dest==='uti')) {
+        if (p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')) {
           if (!p.bStart) p.bStart=cm;
           p.bMin=cm-p.bStart;
           S.boardHrs+=(1/60);
@@ -711,13 +711,13 @@ function Game() {
       P.forEach(p => { if (p.offSvc&&p.sector==='enf'&&!p.dead&&!p.det&&Math.random()<OFFSVC_DET_PROB) { p.det=true; S.dets++; addL(`${p.name} deteriorou OFF-SERVICE!`,'warning'); SimsMusic.sfx('det'); }});
 
       // Corridor overflow — LWBS dispara mais cedo em R1 (corredor > 2)
-      if (P.filter(p=>p.sector==='ps').length>=CAP.ps-pcrB&&P.filter(p=>p.sector==='porta').length>2) {
-        const tc=P.find(p=>p.sector==='porta');
+      if (P.filter(p=>p.sector==='de').length>=CAP.de-pcrB&&P.filter(p=>p.sector==='triagem').length>2) {
+        const tc=P.find(p=>p.sector==='triagem');
         if (tc&&Math.random()<.4) { tc.sector='corredor'; addL(`${tc.name} → CORREDOR — sem macas disponíveis!`,'warning'); }
       }
       const corredorLimit = isR2local ? 5 : 2;
       if (P.filter(p=>p.sector==='corredor').length>corredorLimit) {
-        const lw=P.find(p=>p.sector==='corredor'&&p.dest==='alta_ps'&&!p.dead);
+        const lw=P.find(p=>p.sector==='corredor'&&p.dest==='alta_de'&&!p.dead);
         if (lw&&Math.random()<.3) { lw.sector='alta'; S.lwbs++; addL(`${lw.name} SAIU SEM ATENDIMENTO! (LWBS)`,'danger'); }
       }
 
@@ -794,9 +794,9 @@ function Game() {
   const getT = p => {
     if (!p) return [];
     const t=[];
-    if (p.sector==='porta'||p.sector==='corredor') t.push('ps');
-    if (p.sector==='ps'&&p.ready) {
-      if (p.dest==='alta_ps') t.push('alta');
+    if (p.sector==='triagem'||p.sector==='corredor') t.push('ps');
+    if (p.sector==='de'&&p.ready) {
+      if (p.dest==='alta_de') t.push('alta');
       if (p.dest==='enf')     t.push('enf');
       if (p.dest==='uti')     { t.push('uti'); t.push('enf'); }
     }
@@ -810,7 +810,7 @@ function Game() {
   const doMove = sid => {
     if (!run||!sel) return;
     if (!tgts.includes(sid)) { setFl(sid); setTimeout(()=>setFl(null),500); return; }
-    const cap2=sid==='enf'?CAP.enf:sid==='uti'?CAP.uti:sid==='ps'?CAP.ps-(evts.pcr?1:0):999;
+    const cap2=sid==='enf'?CAP.enf:sid==='uti'?CAP.uti:sid==='ps'?CAP.de-(evts.pcr?1:0):999;
     const cnt=pts.filter(p=>p.sector===sid).length;
     if (sid!=='alta'&&cnt>=cap2) { setFl(sid); addL(`${sid.toUpperCase()} LOTADO!`,'danger'); setTimeout(()=>setFl(null),600); return; }
     const isOff=sel.dest==='uti'&&sid==='enf'&&sel.sector!=='uti';
@@ -835,10 +835,10 @@ function Game() {
 
   const doFullCap = () => {
     if (!isR2||!sel) return;
-    if (sel.sector!=='ps'||!sel.ready||sel.dest==='uti'||sel.dest==='alta_ps') return;
+    if (sel.sector!=='ps'||!sel.ready||sel.dest==='uti'||sel.dest==='alta_de') return;
     setPts(prev=>prev.map(pt=>pt.id!==sel.id?pt:{...pt,sector:'corredor',bStart:null,bMin:0}));
     setSel(null);
-    addL(`FULL CAPACITY: ${sel.name} ao corredor da enfermaria. Maca liberada no PS.`,'success');
+    addL(`FULL CAPACITY: ${sel.name} ao corredor da enfermaria. Maca liberada no DE.`,'success');
   };
 
   const clk = p => run && setSel(s=>s?.id===p.id?null:p);
@@ -847,7 +847,7 @@ function Game() {
   const logC   = { danger:'#fca5a5', warning:'#fde047', success:'#86efac', info:'#94a3b8' };
   const logBg  = { danger:'rgba(239,68,68,.06)', warning:'rgba(234,179,8,.05)', success:'rgba(34,197,94,.05)', info:'rgba(255,255,255,.02)' };
   const logBrd = { danger:'#ef4444', warning:'#eab308', success:'#22c55e', info:'#1e293b' };
-  const secN   = { ps:'PS', enf:'ENF', uti:'UTI', rpa:'RPA', alta:'ALTA' };
+  const secN   = { de:'DE', enf:'ENF', uti:'UTI', rpa:'RPA', alta:'ALTA' };
 
   // Phase routing
   if (ph==='role')       return <RoleSelector onJogador={()=>setPh('lobby')} onFacilitador={()=>setPh('facilLogin')}/>;
@@ -900,8 +900,8 @@ function Game() {
   // ── Game UI ───────────────────────────────────────────────
   const allEnf = byS('enf');
   const allUti = byS('uti');
-  const psDanger = psPct >= 85;
-  const psColapso = psPct >= 100;
+  const hospDanger = hospPct >= 85;
+  const hospColapso = hospPct >= 95;
 
   return (
     <div style={{ height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden', background:'#060a13' }}>
@@ -910,8 +910,8 @@ function Game() {
       {deathFlash && <div style={{ position:'fixed', inset:0, background:'rgba(239,68,68,.3)', zIndex:300, pointerEvents:'none', animation:'fadeIn .1s' }}/>}
 
       {/* ── Header ── */}
-      <div style={{ background:'#0a0f1a', borderBottom:`1px solid ${psColapso?'#ef4444':'#1e293b'}`, padding:'5px 14px', flexShrink:0,
-        boxShadow: psColapso ? '0 2px 20px rgba(239,68,68,.3)' : 'none', transition:'box-shadow .5s' }}>
+      <div style={{ background:'#0a0f1a', borderBottom:`1px solid ${hospColapso?'#ef4444':'#1e293b'}`, padding:'5px 14px', flexShrink:0,
+        boxShadow: hospColapso ? '0 2px 20px rgba(239,68,68,.3)' : 'none', transition:'box-shadow .5s' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <span style={{ fontSize:14, fontWeight:900, color:isR2?'#00d4ff':'#FF3B3B' }}>
@@ -928,10 +928,10 @@ function Game() {
             </div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            {psDanger && !isR2 && (
+            {hospDanger && !isR2 && (
               <div style={{ fontSize:10, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite',
                 padding:'2px 8px', background:'rgba(239,68,68,.12)', borderRadius:4, border:'1px solid #ef444433' }}>
-                {psColapso ? 'PS COLAPSADO' : 'PS CRÍTICO'}
+                {hospColapso ? 'HOSPITAL COLAPSADO' : 'HOSPITAL CRÍTICO'}
               </div>
             )}
             <div style={{ background:'rgba(255,255,255,.03)', padding:'4px 12px', borderRadius:6, display:'flex', alignItems:'center', gap:5 }}>
@@ -965,6 +965,7 @@ function Game() {
       <div style={{ background:'#0d1117', borderBottom:'1px solid #1e293b', padding:'4px 14px', overflowX:'auto', flexShrink:0 }}>
         <div style={{ display:'flex', gap:5, justifyContent:'center', minWidth:600 }}>
           {[
+            { l:'Hospital',  v:`${hospPct}%`, c:hospPct>=95?'#ef4444':hospPct>=85?'#eab308':hospPct>=75?'#f97316':'#22c55e' },
             { l:'Boarding',  v:boarding.length, c:boarding.length>3?'#ef4444':boarding.length>0?'#eab308':'#64748b' },
             { l:'Board.méd', v:`${Math.floor(avgB/60)}h${String(avgB%60).padStart(2,'0')}`, c:avgB>BOARD_DET_MIN?'#ef4444':avgB>60?'#eab308':'#64748b' },
             { l:'Corredor',  v:byS('corredor').length, c:byS('corredor').length>0?'#ef4444':'#64748b' },
@@ -999,50 +1000,50 @@ function Game() {
           {/* Porta */}
           <div className="sector" style={{ background:'#0f172a', border:'1px solid #1e293b', flexShrink:0 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:3 }}>
-              <span style={{ fontSize:10, fontWeight:700, color:'#64748b', letterSpacing:'.08em' }}>PORTA</span>
-              <span style={{ fontSize:11, fontFamily:'monospace', color:byS('porta').length>0?'#eab308':'#475569' }}>{byS('porta').length} aguardando</span>
+              <span style={{ fontSize:10, fontWeight:700, color:'#64748b', letterSpacing:'.08em' }}>TRIAGEM</span>
+              <span style={{ fontSize:11, fontFamily:'monospace', color:byS('triagem').length>0?'#eab308':'#475569' }}>{byS('triagem').length} aguardando</span>
             </div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:3, minHeight:16 }}>
-              {byS('porta').map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}
-              {byS('porta').length===0&&<span style={{ fontSize:10, color:'#333', fontStyle:'italic' }}>Vazia</span>}
+              {byS('triagem').map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}
+              {byS('triagem').length===0&&<span style={{ fontSize:10, color:'#333', fontStyle:'italic' }}>Vazia</span>}
             </div>
           </div>
 
           {/* PS */}
           <div className={`sector${tgts.includes('ps')?' valid-target':''}${fl==='ps'?' flash':''}`}
             onClick={()=>doMove('ps')}
-            style={{ flex:1, background: psColapso?'#1a0505':'#0f172a',
-              border:`1px solid ${psColapso?'#ef4444':psDanger&&!isR2?'#eab30888':'#1e293b'}`,
+            style={{ flex:1, background: hospColapso?'#1a0505':'#0f172a',
+              border:`1px solid ${hospColapso?'#ef4444':hospDanger&&!isR2?'#eab30888':'#1e293b'}`,
               cursor:tgts.includes('ps')?'pointer':'default', display:'flex', flexDirection:'column', minHeight:0,
-              boxShadow: psColapso&&!isR2?'inset 0 0 30px rgba(239,68,68,.15)':'none', transition:'all .5s' }}>
+              boxShadow: hospColapso&&!isR2?'inset 0 0 30px rgba(239,68,68,.15)':'none', transition:'all .5s' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6, flexShrink:0 }}>
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                <span style={{ fontSize:11, fontWeight:700, color:'#94a3b8' }}>PRONTO-SOCORRO</span>
-                {psDanger&&!isR2&&<span style={{ fontSize:9, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite' }}>ZONA DE PERIGO</span>}
+                <span style={{ fontSize:11, fontWeight:700, color:'#94a3b8' }}>DEPARTAMENTO DE EMERGÊNCIA</span>
+                {hospDanger&&!isR2&&<span style={{ fontSize:9, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite' }}>OCUPAÇÃO >85%</span>}
               </div>
               <span style={{ fontSize:12, fontFamily:'monospace', fontWeight:700,
-                color:psPct>=100?'#ef4444':psPct>=85?'#eab308':'#64748b' }}>
-                {psOcc}/{CAP.ps} ({psPct}%){psMult(psOcc)>1?` [×${psMult(psOcc)}]`:''}
+                color:dePct>=100?'#ef4444':dePct>=85?'#eab308':'#64748b' }}>
+                {deOcc}/{CAP.de} ({dePct}%)
               </span>
             </div>
             <div style={{ flex:1, display:'flex', flexDirection:'column', gap:5, minHeight:0, overflow:'hidden' }}>
               <div className="subarea" style={{ background:'rgba(100,116,139,.06)', border:'1px dashed #33415566' }}>
-                <div style={{ fontSize:9, color:'#64748b', marginBottom:3 }}>Em Avaliação ({psEval.length})</div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{psEval.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
+                <div style={{ fontSize:9, color:'#64748b', marginBottom:3 }}>Em Avaliação ({deEval.length})</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{deEval.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>
-              <div className="subarea" style={{ background:psBoard.length>5?'rgba(239,68,68,.06)':'rgba(234,179,8,.04)', border:`1px solid ${psBoard.length>5?'#ef444433':'#eab30822'}` }}>
-                <div style={{ fontSize:9, color:psBoard.length>5?'#ef4444':'#eab308', marginBottom:3, fontWeight:psBoard.length>5?700:400 }}>
-                  Boarding ({psBoard.length}){psBoard.length>5?' CRÍTICO!':''}
+              <div className="subarea" style={{ background:deBoard.length>5?'rgba(239,68,68,.06)':'rgba(234,179,8,.04)', border:`1px solid ${deBoard.length>5?'#ef444433':'#eab30822'}` }}>
+                <div style={{ fontSize:9, color:deBoard.length>5?'#ef4444':'#eab308', marginBottom:3, fontWeight:deBoard.length>5?700:400 }}>
+                  Boarding ({deBoard.length}){deBoard.length>5?' CRÍTICO!':''}
                 </div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{psBoard.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{deBoard.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>
               <div className="subarea" style={{ background:'rgba(34,197,94,.04)', border:'1px solid #22c55e22' }}>
-                <div style={{ fontSize:9, color:'#22c55e', marginBottom:3 }}>Alta Pronta ({psAlta.length})</div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{psAlta.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
+                <div style={{ fontSize:9, color:'#22c55e', marginBottom:3 }}>Alta Pronta ({deAlta.length})</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{deAlta.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>
-              {psObs.length>0&&<div className="subarea" style={{ background:'rgba(168,85,247,.04)', border:'1px solid #a855f722' }}>
-                <div style={{ fontSize:9, color:'#a855f7', marginBottom:3 }}>Obs Prolongada ({psObs.length})</div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{psObs.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
+              {deObs.length>0&&<div className="subarea" style={{ background:'rgba(168,85,247,.04)', border:'1px solid #a855f722' }}>
+                <div style={{ fontSize:9, color:'#a855f7', marginBottom:3 }}>Obs Prolongada ({deObs.length})</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{deObs.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>}
             </div>
           </div>
@@ -1160,18 +1161,18 @@ function Game() {
           <div style={{ minWidth:0 }}>
             <div style={{ fontWeight:700, fontSize:12 }}>{sel.name}</div>
             <div style={{ fontSize:10, color:'#94a3b8' }}>
-              {sel.sector==='ps'&&!sel.ready&&!sel.obsProlong?`Avaliando... ${Math.max(0,Math.round(sel.psNeed-sel.psSpent))}min${sel.labDelay?' (lab)':''}`
+              {sel.sector==='de'&&!sel.ready&&!sel.obsProlong?`Avaliando... ${Math.max(0,Math.round(sel.deNeed-sel.deSpent))}min${sel.labDelay?' (lab)':''}`
                 :sel.obsProlong?'Obs prolongada'
-                :sel.sector==='ps'&&sel.ready&&sel.dest==='alta_ps'?'Pronto para alta PS'
-                :sel.sector==='ps'&&sel.ready&&sel.dest==='enf'?'Precisa de ENF'
-                :sel.sector==='ps'&&sel.ready&&sel.dest==='uti'?'Precisa de UTI (ou off-svc→ENF)'
+                :sel.sector==='de'&&sel.ready&&sel.dest==='alta_de'?'Pronto para alta DE'
+                :sel.sector==='de'&&sel.ready&&sel.dest==='enf'?'Precisa de ENF'
+                :sel.sector==='de'&&sel.ready&&sel.dest==='uti'?'Precisa de UTI (ou off-svc→ENF)'
                 :sel.sector==='enf'&&sel.dischReady&&sel.prep>0?`Preparo: ${sel.prep}min`
                 :sel.sector==='enf'&&sel.dischReady&&sel.prep<=0&&!sel.social?'Pronto ALTA!'
                 :sel.sector==='enf'&&sel.social?`Atraso familiar: ${sel.socialDelay}min`
                 :sel.sector==='enf'&&sel.blocked?'Bloqueado (Cx cancel.)'
                 :sel.sector==='uti'&&sel.dischReady&&sel.prep<=0?'Step-down → ENF'
                 :sel.sector==='rpa'?`Pós-op → ${sel.dest.toUpperCase()}`
-                :sel.sector==='porta'?'Aguardando PS'
+                :sel.sector==='triagem'?'Aguardando DE'
                 :sel.sector==='corredor'?'No corredor':''}
             </div>
             {sel.bMin>0&&<div style={{ fontSize:10, fontWeight:700, color:sel.bMin>=BOARD_DEAD_MIN?'#ef4444':sel.bMin>=BOARD_DET_MIN?'#f97316':'#eab308' }}>
@@ -1186,13 +1187,13 @@ function Game() {
                 → {secN[t]||t.toUpperCase()}{sel.dest==='uti'&&t==='enf'&&sel.sector!=='uti'?' [OFF]':''}
               </button>
             ))}
-            {isR2&&sel.sector==='ps'&&sel.ready&&sel.dest!=='alta_ps'&&nirUses<3&&nirCd<=0&&(
+            {isR2&&sel.sector==='de'&&sel.ready&&sel.dest!=='alta_de'&&nirUses<3&&nirCd<=0&&(
               <button onClick={doNIR} className="btn" style={{ background:'#7c3aed', fontSize:10 }}>NIR</button>
             )}
-            {isR2&&sel.sector==='ps'&&sel.ready&&sel.dest==='enf'&&(
+            {isR2&&sel.sector==='de'&&sel.ready&&sel.dest==='enf'&&(
               <button onClick={doFullCap} className="btn" style={{ background:'#0369a1', fontSize:10 }}>Full Capacity</button>
             )}
-            {tgts.length===0&&!(isR2&&sel.sector==='ps'&&sel.ready)&&(
+            {tgts.length===0&&!(isR2&&sel.sector==='de'&&sel.ready)&&(
               <span style={{ color:'#ef4444', fontSize:10, fontStyle:'italic' }}>
                 {sel.ready||(sel.dischReady&&sel.prep<=0)?'Sem vaga!':sel.blocked?'Bloqueado':sel.social?'Atraso familiar':'Aguardando...'}
               </span>

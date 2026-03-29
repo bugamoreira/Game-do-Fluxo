@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projeção — FLAME 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:#060a13;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes trophyPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="js/supabase-config.js"></script>
+<script type="text/babel">
+const {useState, useEffect, useRef} = React;
+
+function fmt(m) {
+  if (!m && m !== 0) return '--:--';
+  return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+}
+
+function ScoreBar({score, max=1000}) {
+  const pct = Math.min(score/max*100, 100);
+  const c = score > 700 ? '#22c55e' : score > 400 ? '#eab308' : '#ef4444';
+  return (
+    <div style={{height:8, background:'#1e293b', borderRadius:4, overflow:'hidden', marginTop:6}}>
+      <div style={{width:`${pct}%`, height:'100%', background:c, borderRadius:4, transition:'width .5s'}}/>
+    </div>
+  );
+}
+
+function TeamRow({team, gs, rank}) {
+  const score   = gs?.score ?? 1000;
+  const metrics = gs?.metrics ?? {};
+  const scoreC  = score > 700 ? '#22c55e' : score > 400 ? '#eab308' : '#ef4444';
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', gap:14,
+      padding:'14px 20px', borderRadius:12, marginBottom:8,
+      background: rank === 1 ? 'rgba(234,179,8,.07)' : 'rgba(255,255,255,.02)',
+      border: `1px solid ${rank === 1 ? '#eab30833' : '#1e293b'}`,
+      animation:'slideIn .4s',
+    }}>
+      <div style={{width:36, textAlign:'center', fontSize:24, fontWeight:900, color: rank===1?'#eab308':rank===2?'#94a3b8':rank===3?'#b45309':'#475569', flexShrink:0}}>
+        {rank}
+      </div>
+      <div style={{width:14, height:14, borderRadius:'50%', background: team.color || '#64748b', flexShrink:0}}/>
+      <div style={{flex:1, fontWeight:700, fontSize:18, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+        {team.name}
+      </div>
+      <div style={{display:'flex', gap:20, alignItems:'center', flexShrink:0}}>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:10, color:'#64748b'}}>Boarding</div>
+          <div style={{fontSize:16, fontWeight:700, fontFamily:'monospace', color: (metrics.boarding||0) > 3 ? '#ef4444' : (metrics.boarding||0) > 0 ? '#eab308' : '#64748b'}}>{metrics.boarding ?? '—'}</div>
+        </div>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:10, color:'#64748b'}}>Óbitos</div>
+          <div style={{fontSize:16, fontWeight:700, fontFamily:'monospace', color: (metrics.dth||0) > 0 ? '#ef4444' : '#64748b'}}>{metrics.dth ?? '—'}</div>
+        </div>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:10, color:'#64748b'}}>Altas</div>
+          <div style={{fontSize:16, fontWeight:700, fontFamily:'monospace', color:'#22c55e'}}>{metrics.dis ?? '—'}</div>
+        </div>
+      </div>
+      <div style={{minWidth:110, textAlign:'right', flexShrink:0}}>
+        <div style={{fontSize:28, fontWeight:900, fontFamily:'monospace', color:scoreC}}>{score}</div>
+        <ScoreBar score={score}/>
+      </div>
+    </div>
+  );
+}
+
+function Podium({teams, gameStates}) {
+  const ranked = [...teams]
+    .map(t => ({
+      team: t,
+      r1: gameStates[t.id]?.round1?.score ?? null,
+      r2: gameStates[t.id]?.round2?.score ?? null,
+      best: gameStates[t.id]?.round2?.score ?? gameStates[t.id]?.round1?.score ?? 0,
+      delta: (gameStates[t.id]?.round2?.score??0) - (gameStates[t.id]?.round1?.score??0),
+    }))
+    .sort((a,b) => b.best - a.best);
+
+  const top3 = ranked.slice(0, 3);
+  const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
+  const heights = [160, 210, 130];
+  const medals = ['🥈', '🥇', '🥉'];
+  const bgGrad = [
+    'linear-gradient(180deg, #94a3b8 0%, #64748b 100%)',
+    'linear-gradient(180deg, #eab308 0%, #ca8a04 100%)',
+    'linear-gradient(180deg, #b45309 0%, #92400e 100%)',
+  ];
+
+  return (
+    <div style={{textAlign:'center', padding:40}}>
+      <div style={{fontSize:14, fontWeight:700, color:'#64748b', letterSpacing:'.2em', marginBottom:8, textTransform:'uppercase'}}>ED Leaders × FLAME 2026</div>
+      <div style={{fontSize:48, fontWeight:900, color:'#eab308', marginBottom:8, animation:'trophyPulse 2s infinite'}}>PÓDIO FINAL</div>
+      <div style={{fontSize:15, color:'#94a3b8', marginBottom:40}}>Classificação com base no score do Plantão Lean (R2)</div>
+      <div style={{display:'flex', alignItems:'flex-end', justifyContent:'center', gap:16, marginBottom:32}}>
+        {podiumOrder.map((entry, i) => {
+          if (!entry) return null;
+          return (
+            <div key={entry.team.id} style={{display:'flex', flexDirection:'column', alignItems:'center', width:220}}>
+              <div style={{fontSize:40, marginBottom:10}}>{medals[i]}</div>
+              <div style={{fontWeight:800, fontSize:20, color:'#e2e8f0', marginBottom:4, maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                {entry.team.name}
+              </div>
+              <div style={{fontSize:13, color:'#94a3b8', marginBottom:10}}>
+                R1: <span style={{color:'#FF3B3B', fontWeight:700}}>{entry.r1 ?? '—'}</span>
+                {' → '}
+                R2: <span style={{color:'#00d4ff', fontWeight:700}}>{entry.r2 ?? '—'}</span>
+                {entry.delta !== 0 && (
+                  <span style={{color: entry.delta > 0 ? '#22c55e' : '#ef4444', fontWeight:800, marginLeft:4}}>
+                    ({entry.delta > 0 ? '+' : ''}{entry.delta})
+                  </span>
+                )}
+              </div>
+              <div style={{
+                width:'100%', height:heights[i], background:bgGrad[i],
+                borderRadius:'14px 14px 0 0', display:'flex', alignItems:'center', justifyContent:'center',
+                boxShadow:'0 -4px 20px rgba(0,0,0,.4)',
+              }}>
+                <div style={{fontSize:48, fontWeight:900, fontFamily:'monospace', color:'#fff', textShadow:'0 2px 10px rgba(0,0,0,.5)'}}>
+                  {entry.best}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{fontSize:18, color:'#94a3b8', lineHeight:1.7, padding:'20px 30px', background:'rgba(34,197,94,.06)', borderRadius:12, border:'1px solid rgba(34,197,94,.2)', maxWidth:600, margin:'0 auto'}}>
+        "O problema nunca foi falta de leito. Era falta de <strong style={{color:'#22c55e'}}>gestão do fluxo de saída</strong>."
+      </div>
+    </div>
+  );
+}
+
+function Projecao() {
+  const [room, setRoom] = useState(null);
+  const [teams, setTeams] = useState([]);
+  const [gameStates, setGameStates] = useState({});
+  const [simMin, setSimMin] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Conectar à sala FLAME
+  useEffect(() => {
+    const connect = async () => {
+      const { data } = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
+      if (data) {
+        setRoom(data);
+        // Buscar teams e game_state iniciais
+        const { data: t } = await sb.from('teams').select('*').eq('room_id', data.id);
+        if (t) setTeams(t);
+        const { data: gs } = await sb.from('game_state').select('*').eq('room_id', data.id);
+        if (gs) {
+          const map = {};
+          gs.forEach(g => { if (!map[g.team_id]) map[g.team_id] = {}; map[g.team_id][`round${g.round}`] = g; });
+          setGameStates(map);
+        }
+      }
+      setLoading(false);
+    };
+    connect();
+
+    // Polling a cada 3s
+    const iv = setInterval(async () => {
+      const { data: r } = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
+      if (r) {
+        setRoom(r);
+        const { data: t } = await sb.from('teams').select('*').eq('room_id', r.id);
+        if (t) setTeams(t);
+        const { data: gs } = await sb.from('game_state').select('*').eq('room_id', r.id);
+        if (gs) {
+          const map = {};
+          gs.forEach(g => { if (!map[g.team_id]) map[g.team_id] = {}; map[g.team_id][`round${g.round}`] = g; });
+          setGameStates(map);
+          const latest = gs.reduce((a, g) => g.sim_minute > (a?.sim_minute||0) ? g : a, null);
+          if (latest?.sim_minute) setSimMin(latest.sim_minute);
+        }
+      }
+    }, 3000);
+    return () => clearInterval(iv);
+  }, []);
+
+  if (loading) return (
+    <div style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh'}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontSize:24, fontWeight:900, color:'#FF3B3B', marginBottom:8}}>FLAME 2026</div>
+        <div style={{color:'#64748b', animation:'pulse 1.5s infinite'}}>Conectando...</div>
+      </div>
+    </div>
+  );
+
+  if (!room) return (
+    <div style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh'}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontSize:32, fontWeight:900, color:'#FF3B3B', marginBottom:8}}>FLAME 2026</div>
+        <div style={{fontSize:14, color:'#64748b'}}>Aguardando o facilitador iniciar a dinâmica...</div>
+        <div style={{fontSize:12, color:'#475569', marginTop:12, animation:'pulse 2s infinite'}}>A tela atualizará automaticamente</div>
+      </div>
+    </div>
+  );
+
+  const phase = room.status;
+  const isRound = phase === 'round1' || phase === 'round2';
+  const isDone = phase === 'finished';
+
+  const phaseLabel = {
+    waiting: { label:'Aguardando grupos', color:'#64748b' },
+    round1:  { label:'Plantão Travado (R1)', color:'#FF3B3B' },
+    debrief: { label:'Debrief', color:'#eab308' },
+    round2:  { label:'Plantão Lean (R2)', color:'#00d4ff' },
+    finished:{ label:'Finalizado', color:'#22c55e' },
+  }[phase] || { label:'', color:'#64748b' };
+
+  const activeRound = phase === 'round2' || isDone ? 'round2' : 'round1';
+  const ranking = [...teams]
+    .map(t => ({ team:t, gs: gameStates[t.id]?.[activeRound] }))
+    .sort((a, b) => (b.gs?.score ?? 1000) - (a.gs?.score ?? 1000));
+
+  const allGS = teams.map(t => gameStates[t.id]?.[activeRound]).filter(Boolean);
+  const avgScore = allGS.length ? Math.round(allGS.reduce((a,g) => a + (g.score||1000), 0) / allGS.length) : null;
+  const totalDeaths = allGS.reduce((a,g) => a + (g.metrics?.dth||0), 0);
+
+  // Pódio automático na fase done
+  if (isDone) return <Podium teams={teams} gameStates={gameStates}/>;
+
+  return (
+    <div style={{height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden'}}>
+
+      {/* Header */}
+      <div style={{background:'#0a0f1a', borderBottom:'1px solid #1e293b', padding:'14px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0}}>
+        <div style={{display:'flex', alignItems:'center', gap:20}}>
+          <div>
+            <div style={{fontSize:12, color:'#64748b', fontWeight:600, letterSpacing:'.1em'}}>FLAME 2026</div>
+            <div style={{fontSize:22, fontWeight:900, color:phaseLabel.color}}>{phaseLabel.label}</div>
+          </div>
+          {isRound && simMin && (
+            <>
+              <div style={{width:1, height:40, background:'#1e293b'}}/>
+              <div style={{fontFamily:'monospace', fontSize:40, fontWeight:900, color:'#00d4ff'}}>{fmt(simMin)}</div>
+            </>
+          )}
+        </div>
+        {allGS.length > 0 && (
+          <div style={{display:'flex', gap:20}}>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:10, color:'#64748b'}}>Score médio</div>
+              <div style={{fontSize:22, fontWeight:900, fontFamily:'monospace', color: avgScore > 700 ? '#22c55e' : avgScore > 400 ? '#eab308' : '#ef4444'}}>{avgScore}</div>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:10, color:'#64748b'}}>Óbitos total</div>
+              <div style={{fontSize:22, fontWeight:900, fontFamily:'monospace', color: totalDeaths > 0 ? '#ef4444' : '#22c55e'}}>{totalDeaths}</div>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:10, color:'#64748b'}}>Times</div>
+              <div style={{fontSize:22, fontWeight:900, fontFamily:'monospace', color:'#00d4ff'}}>{teams.length}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1, padding:24, overflowY:'auto', minHeight:0}}>
+
+        {/* Waiting for teams */}
+        {phase === 'waiting' && (
+          <div style={{textAlign:'center', padding:60}}>
+            <div style={{fontSize:14, fontWeight:700, color:'#64748b', letterSpacing:'.2em', marginBottom:12, textTransform:'uppercase'}}>ED Leaders × FLAME 2026</div>
+            <div style={{fontSize:42, fontWeight:900, marginBottom:6,
+              background:'linear-gradient(135deg, #FF3B3B, #f97316, #eab308)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent'}}>
+              SIMULADOR PLANTÃO TRAVADO
+            </div>
+            <div style={{fontSize:16, color:'#94a3b8', marginBottom:40}}>Curso de Gestão de Fluxo Hospitalar</div>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:12, marginBottom:16}}>
+              <div style={{width:12, height:12, borderRadius:'50%', background:'#22c55e', animation:'pulse 1.5s infinite'}}/>
+              <span style={{color:'#94a3b8', fontSize:18}}>{teams.length} grupo{teams.length!==1?'s':''} conectado{teams.length!==1?'s':''}</span>
+            </div>
+            {teams.length > 0 && (
+              <div style={{display:'flex', flexWrap:'wrap', gap:10, justifyContent:'center', maxWidth:600, margin:'0 auto'}}>
+                {teams.map(t => (
+                  <div key={t.id} style={{display:'flex', alignItems:'center', gap:6, padding:'6px 14px', background:'rgba(255,255,255,.04)', borderRadius:8, border:'1px solid #1e293b'}}>
+                    <div style={{width:8, height:8, borderRadius:'50%', background:t.color||'#64748b'}}/>
+                    <span style={{fontWeight:700, fontSize:14}}>{t.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Debrief */}
+        {phase === 'debrief' && (
+          <div style={{textAlign:'center', padding:40}}>
+            <div style={{fontSize:32, fontWeight:900, color:'#eab308', marginBottom:12}}>DEBRIEF — PLANTÃO TRAVADO</div>
+            <div style={{fontSize:16, color:'#94a3b8', lineHeight:1.8, maxWidth:500, margin:'0 auto'}}>
+              O que aconteceu?<br/>
+              Onde travou primeiro?<br/>
+              Foi falta de leito ou falta de gestão?
+            </div>
+          </div>
+        )}
+
+        {/* Live ranking */}
+        {(isRound || phase === 'debrief') && teams.length > 0 && (
+          <div>
+            <div style={{fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:14, textTransform:'uppercase'}}>
+              {phase === 'round2' ? 'Plantão Lean — Ranking ao Vivo' : 'Plantão Travado — Ranking ao Vivo'}
+            </div>
+            {ranking.map(({team, gs}, i) => (
+              <TeamRow key={team.id} team={team} gs={gs} rank={i+1}/>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<Projecao/>, document.getElementById('root'));
+</script>
+</body>
+</html>
