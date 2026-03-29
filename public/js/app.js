@@ -65,18 +65,20 @@ function MiniChip({ p, sel, onClick }) {
       onClick={e => { e.stopPropagation(); onClick(p); }}
       title={`${p.name} (${s.l})${ready ? ' — PRONTO ALTA' : ''}${p.blocked ? ' — BLOQUEADO' : ''}${p.social ? ' — SOCIAL' : ''}${p.det ? ' — DETERIOROU' : ''}`}
       style={{
-        width:22, height:28, borderRadius:4, cursor:'pointer', flexShrink:0,
+        width:26, height:34, borderRadius:5, cursor:'pointer', flexShrink:0,
+        display:'flex', alignItems:'center', justifyContent:'center',
         background: selected ? 'rgba(0,212,255,.22)' : ready ? `${s.c}35`
           : p.det ? 'rgba(239,68,68,.25)' : p.blocked ? 'rgba(234,179,8,.12)' : p.social ? 'rgba(168,85,247,.12)'
-          : `${s.c}15`,
+          : `${s.c}12`,
         border: selected ? '2px solid #00d4ff' : ready ? `1px solid ${s.c}99`
           : p.blocked ? '1px solid #eab30888' : p.social ? '1px solid #a855f788'
-          : p.det ? '1px solid #ef444499' : `1px solid ${s.c}44`,
+          : p.det ? '1px solid #ef444499' : `1px solid ${s.c}33`,
         transition:'all .15s', position:'relative',
       }}>
-      {ready && <div style={{ position:'absolute', top:2, right:2, width:5, height:5, borderRadius:'50%', background:s.c }}/>}
-      {p.det  && <div style={{ position:'absolute', top:1, left:2,  fontSize:8, color:'#ef4444', fontWeight:900, lineHeight:1 }}>!</div>}
-      {p.social && <div style={{ position:'absolute', bottom:1, right:2, fontSize:6, color:'#a855f7', fontWeight:900 }}>S</div>}
+      <PSvg color={s.c} sz={11} dead={p.dead} det={p.det}/>
+      {ready && <div style={{ position:'absolute', top:1, right:1, width:5, height:5, borderRadius:'50%', background:s.c }}/>}
+      {p.det  && <div style={{ position:'absolute', top:0, left:1, fontSize:7, color:'#ef4444', fontWeight:900, lineHeight:1 }}>!</div>}
+      {p.social && <div style={{ position:'absolute', bottom:0, right:1, fontSize:5, color:'#a855f7', fontWeight:900 }}>S</div>}
     </div>
   );
 }
@@ -1221,7 +1223,7 @@ function Game() {
               <div style={{ width:`${Math.min(pctOf(utiOcc,CAP.uti),100)}%`, height:'100%', borderRadius:4, transition:'width .5s',
                 background:pctOf(utiOcc,CAP.uti)>=100?'#ef4444':pctOf(utiOcc,CAP.uti)>=85?'#eab308':'#22c55e' }}/>
             </div>
-            <div style={{ flex:1, display:'flex', flexWrap:'wrap', gap:4, alignContent:'flex-start', overflowY:'auto', minHeight:0 }}>
+            <div style={{ flex:1, display:'flex', flexWrap:'wrap', gap:4, alignContent:'flex-start', overflowY:'auto', minHeight:0, paddingTop:4 }}>
               {allUti.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}
             </div>
             {utiReady.length>0&&<div style={{ fontSize:9, color:'#22c55e', marginTop:4, flexShrink:0, fontWeight:600 }}>
