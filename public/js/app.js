@@ -368,6 +368,8 @@ function Game() {
   const [nirCd,     setNirCd]    = useState(0);
   const [deathFlash,setDeathFlash] = useState(false);
   const [musicMuted,setMusicMuted] = useState(false);
+  const [ccBlocked, setCcBlocked]  = useState(false);
+  const [showCcModal, setShowCcModal] = useState(null); // null | roundNum
 
   // Multiplayer
   const [tName,  setTName]  = useState('');
@@ -376,13 +378,14 @@ function Game() {
   const [teamId, setTeamId] = useState(null);
 
   const isR2 = rnd2 === 2;
-  const ref  = useRef({ pts:[], st:{}, sm:0, nx:SH*60+rnd(5,12), rd:{}, evts:{}, rnd2:1 });
+  const ref  = useRef({ pts:[], st:{}, sm:0, nx:SH*60+rnd(5,12), rd:{}, evts:{}, rnd2:1, ccBlocked:false });
 
   useEffect(() => { ref.current.pts  = pts  }, [pts]);
   useEffect(() => { ref.current.st   = st   }, [st]);
   useEffect(() => { ref.current.sm   = sm   }, [sm]);
   useEffect(() => { ref.current.evts = evts }, [evts]);
   useEffect(() => { ref.current.rnd2 = rnd2 }, [rnd2]);
+  useEffect(() => { ref.current.ccBlocked = ccBlocked }, [ccBlocked]);
 
   const addL = useCallback((msg, type='info') => {
     setLog(prev => [{ msg, type, t:ref.current.sm }, ...prev].slice(0, 60));
@@ -416,12 +419,32 @@ function Game() {
   const toggleMusic = () => setMusicMuted(SimsMusic.toggleMute());
 
   // ── Start round ───────────────────────────────────────────
+  // startR agora mostra modal de bloqueio CC; o jogo real começa em doStartR
   const startR = useCallback((roundNum) => {
+    setShowCcModal(roundNum);
+  }, []);
+
+  const doStartR = useCallback((roundNum, blocked) => {
     SimsMusic.init();
     _id = 0;
+    setShowCcModal(null);
     setRnd2(roundNum);
+    setCcBlocked(blocked);
+    ref.current.ccBlocked = blocked;
     setPts(mkInit());
-    setSx(roundNum===2 ? mkSxR2() : mkSx());
+
+    // Cirurgias — em R1, atraso da primeira cirurgia na sala 1
+    const sxList = roundNum===2 ? mkSxR2() : mkSx();
+    if (roundNum===1) {
+      const delay = rnd(30,60)/60; // 0.5-1h de atraso
+      sxList.forEach(s => { if (s.sala === 1) s.stH += delay; });
+    }
+    // Se bloqueou sala 4 para emergências, remove cirurgias da sala 4 ou realocar
+    if (blocked) {
+      sxList.forEach(s => { if (s.sala === 4) s.sala = 3; }); // reagrupa na sala 3
+    }
+    setSx(sxList);
+
     setSm(SH*60);
     setRun(true);
     setPh('play');
@@ -430,9 +453,15 @@ function Game() {
     setNirCd(0);
     setDeathFlash(false);
     const title = roundNum===2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO';
+    const ccMsg = blocked ? ' Sala 4 reservada para emergências.' : ' Todas as 4 salas em uso eletivo.';
     const r2Msg = roundNum===2 ? ' FERRAMENTAS LEAN ATIVAS: Alta precoce, Fast Track, Discharge Lounge, Surgical Smoothing, Fluxista, NIR, Full Capacity, Alta Segura.' : '';
-    setLog([{ msg:`${title} iniciado! PS 8/15, Enf 72/85 (85%), UTI 13/15 (87%).${r2Msg}`, type:'info', t:SH*60 }]);
-    if (roundNum===2) setLog(prev => [{ msg:'BED HUDDLE 7h: Previsão ~40 pacientes. 7 cirurgias redistribuídas. Pico 11h-14h.', type:'info', t:SH*60 }, ...prev]);
+    const initLogs = [{ msg:`${title} iniciado! PS 8/15, Enf 72/85 (85%), UTI 13/15 (87%).${ccMsg}${r2Msg}`, type:'info', t:SH*60 }];
+    if (roundNum===1) {
+      const delayMin = Math.round((sxList.find(s=>s.sala===1)?.stH - 7.5) * 60);
+      if (delayMin > 0) initLogs.push({ msg:`ATRASO: Primeira cirurgia atrasou ${delayMin}min. Efeito cascata na Sala 1.`, type:'warning', t:SH*60 });
+    }
+    if (roundNum===2) initLogs.push({ msg:'BED HUDDLE 7h: Previsão ~40 pacientes. 7 cirurgias redistribuídas. Pico 11h-14h.', type:'info', t:SH*60 });
+    setLog(initLogs);
     setSt({ disc:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
     setEvts({ pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
     setCascade(null);
@@ -484,7 +513,7 @@ function Game() {
         },
         updated_at: new Date().toISOString(),
       }, { onConflict:'team_id,round' });
-    }, 10000);
+    }, 3000);
     return () => clearInterval(iv);
   }, [teamId, roomId]);
 
@@ -557,6 +586,35 @@ function Game() {
         if (ef) {
           ef.social=true; ef.socialDelay=rnd(120,240); S.socB++;
           addL(`BLOQUEIO SOCIAL: ${ef.name} — sem responsável, leito preso ~${Math.round(ef.socialDelay/60)}h!`,'warning');
+        }
+      }
+
+      // Cirurgia de emergência do PS
+      if (ch>=9&&ch<16&&Math.random()<(isR2local?.003:.005)) {
+        const emgCandidate = P.find(p=>p.sector==='ps'&&p.sev==='red'&&!p.dead&&!p.postOp);
+        if (emgCandidate) {
+          // Contar salas ocupadas
+          const activeSx = (prevSx => {
+            try { return ref.current._sx || []; } catch(e) { return []; }
+          })();
+          const rpaCount = P.filter(p=>p.sector==='rpa').length;
+          const blocked = ref.current.ccBlocked;
+          // Simplificado: se RPA tem vaga, pode operar
+          if (rpaCount < CAP.rpa) {
+            emgCandidate.sector='rpa'; emgCandidate.postOp=true; emgCandidate.ready=true; emgCandidate.dest='uti';
+            emgCandidate.name=`EMG-${emgCandidate.name.split(' ')[0]}`;
+            addL(`EMERGÊNCIA CIRÚRGICA: ${emgCandidate.name} → CC${blocked?' (sala reservada)':''} → RPA.`,'danger');
+            SimsMusic.sfx('cascade');
+          } else if (!blocked) {
+            // RPA lotada e sem sala reservada → óbito
+            emgCandidate.dead=true; S.deaths++;
+            addL(`SEM SALA CIRÚRGICA! ${emgCandidate.name} — óbito evitável. RPA lotada, sem sala reservada.`,'danger');
+            SimsMusic.sfx('death');
+            setDeathFlash(true); setTimeout(()=>setDeathFlash(false),600);
+          } else {
+            // Bloqueou sala mas RPA lotada — opera mas precisa esperar RPA
+            addL(`EMERGÊNCIA: ${emgCandidate.name} operado na sala reservada. Aguardando vaga na RPA.`,'warning');
+          }
         }
       }
 
@@ -776,6 +834,47 @@ function Game() {
   if (ph==='lobby')      return <LobbyScreen onJoin={joinRoom} onSolo={()=>{ SimsMusic.init(); setPh('menu'); }} onBack={()=>setPh('role')}/>;
   if (ph==='waiting')    return <WaitingScreen tName={tName} rCode={rCode}/>;
   if (ph==='menu')       return <MenuScreen onStart={startR}/>;
+
+  // CC Block modal (aparece antes do jogo começar)
+  if (showCcModal !== null) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
+      <div style={{ textAlign:'center', maxWidth:480, width:'100%' }}>
+        <div style={{ fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.14em', marginBottom:6, textTransform:'uppercase' }}>
+          {showCcModal===2 ? 'Plantão Lean (R2)' : 'Plantão Travado (R1)'}
+        </div>
+        <div style={{ fontSize:28, fontWeight:900, color:showCcModal===2?'#00d4ff':'#FF3B3B', marginBottom:20 }}>CENTRO CIRÚRGICO</div>
+        <div style={{ background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b' }}>
+          <div style={{ fontSize:14, fontWeight:800, color:'#e2e8f0', marginBottom:8 }}>
+            O hospital tem 4 salas cirúrgicas.
+          </div>
+          <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.7, marginBottom:20 }}>
+            Emergências cirúrgicas podem chegar a qualquer momento.<br/>
+            Sem sala disponível = <strong style={{ color:'#ef4444' }}>óbito evitável</strong>.
+          </div>
+          <div style={{ fontSize:15, fontWeight:800, color:'#e2e8f0', marginBottom:20 }}>
+            Bloquear 1 sala para emergências?
+          </div>
+          <div style={{ display:'flex', gap:12, marginBottom:12 }}>
+            <button onClick={()=>doStartR(showCcModal, true)} className="btn"
+              style={{ flex:1, background:'linear-gradient(135deg,#22c55e,#16a34a)', padding:'14px 0', fontSize:14, fontWeight:800, borderRadius:10 }}>
+              Sim, reservar sala 4
+              <div style={{ fontSize:10, fontWeight:400, opacity:.8, marginTop:2 }}>3 eletivas + 1 emergência</div>
+            </button>
+            <button onClick={()=>doStartR(showCcModal, false)} className="btn"
+              style={{ flex:1, background:'linear-gradient(135deg,#ef4444,#dc2626)', padding:'14px 0', fontSize:14, fontWeight:800, borderRadius:10 }}>
+              Não, usar todas
+              <div style={{ fontSize:10, fontWeight:400, opacity:.8, marginTop:2 }}>4 eletivas (risco!)</div>
+            </button>
+          </div>
+          {showCcModal===2 && (
+            <div style={{ fontSize:11, color:'#00d4ff', padding:'8px 12px', background:'rgba(0,212,255,.06)', borderRadius:8, border:'1px solid rgba(0,212,255,.15)' }}>
+              Bed Huddle recomenda: reservar 1 sala para emergências.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   // ── Game UI ───────────────────────────────────────────────
   const allEnf = byS('enf');

@@ -246,9 +246,13 @@ function Instructor() {
   };
 
   const subscribeRoom = (rid) => {
+    // Realtime subscription
     const teamSub = sb.channel(`teams-${rid}`)
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'teams', filter:`room_id=eq.${rid}` },
-        p => setTeams(prev => [...prev, p.new]))
+        p => setTeams(prev => {
+          if (prev.find(t => t.id === p.new.id)) return prev;
+          return [...prev, p.new];
+        }))
       .subscribe();
     const gsSub = sb.channel(`gs-${rid}`)
       .on('postgres_changes', { event:'*', schema:'public', table:'game_state', filter:`room_id=eq.${rid}` },
@@ -261,7 +265,26 @@ function Instructor() {
           if (gs.sim_minute) setSimMin(gs.sim_minute);
         })
       .subscribe();
-    subRef.current = { teamSub, gsSub };
+
+    // Polling fallback — garante que times apareçam mesmo se Realtime falhar
+    const pollIv = setInterval(async () => {
+      const { data } = await sb.from('teams').select('*').eq('room_id', rid);
+      if (data) setTeams(data);
+      // Também poll game_state
+      const { data: gsData } = await sb.from('game_state').select('*').eq('room_id', rid);
+      if (gsData) {
+        const map = {};
+        gsData.forEach(gs => {
+          if (!map[gs.team_id]) map[gs.team_id] = {};
+          map[gs.team_id][`round${gs.round}`] = gs;
+        });
+        setGameStates(map);
+        const latest = gsData.reduce((a, g) => g.sim_minute > (a?.sim_minute||0) ? g : a, null);
+        if (latest?.sim_minute) setSimMin(latest.sim_minute);
+      }
+    }, 4000);
+
+    subRef.current = { teamSub, gsSub, pollIv };
   };
 
   const setStatus = async (status, roundNum, allowLateJoin=false) => {
