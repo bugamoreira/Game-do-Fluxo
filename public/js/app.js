@@ -386,7 +386,7 @@ function MenuScreen({ onStart }) {
 }
 
 // ── Game over modal ───────────────────────────────────────────
-function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
+function GameOverModal({ isR2, score, st, pts, moves, onRestart, onMenu }) {
   const boarding = pts.filter(p => p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
   const corredor = pts.filter(p => p.sector==='corredor');
   const maxB     = pts.reduce((a, p) => Math.max(a, p.bMin), 0);
@@ -435,6 +435,24 @@ function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
           background:isR2?'rgba(0,212,255,.05)':'rgba(255,59,59,.06)' }}>
           <p style={{ color:isR2?'#7dd3fc':'#fca5a5', fontSize:12, lineHeight:1.6 }}>{msg}</p>
         </div>
+        {/* Painel de decisões */}
+        {moves && moves.total > 0 && (
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:16 }}>
+            <div style={{ background:'rgba(255,255,255,.03)', padding:'6px 10px', borderRadius:6, textAlign:'center' }}>
+              <div style={{ fontSize:9, color:'#64748b' }}>Movimentos</div>
+              <div style={{ fontSize:18, fontWeight:800, color:'#00d4ff', fontFamily:'monospace' }}>{moves.total}</div>
+            </div>
+            <div style={{ background:'rgba(34,197,94,.05)', padding:'6px 10px', borderRadius:6, textAlign:'center' }}>
+              <div style={{ fontSize:9, color:'#64748b' }}>Produtivos</div>
+              <div style={{ fontSize:18, fontWeight:800, color:'#22c55e', fontFamily:'monospace' }}>{moves.produtivo}</div>
+            </div>
+            <div style={{ background:'rgba(239,68,68,.05)', padding:'6px 10px', borderRadius:6, textAlign:'center' }}>
+              <div style={{ fontSize:9, color:'#64748b' }}>Reativos</div>
+              <div style={{ fontSize:18, fontWeight:800, color:'#ef4444', fontFamily:'monospace' }}>{moves.reativo}</div>
+            </div>
+          </div>
+        )}
+
         <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
           <button onClick={() => onRestart(1)} className="btn" style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'10px 22px', fontSize:13, fontWeight:800 }}>Plantão Travado</button>
           <button onClick={() => onRestart(2)} className="btn" style={{ background:'linear-gradient(135deg,#00d4ff,#0891b2)', padding:'10px 22px', fontSize:13, fontWeight:800 }}>Plantão Lean</button>
@@ -473,7 +491,8 @@ function Game() {
   const [nirUses,   setNirUses]  = useState(s0?.nirUses || 0);
   const [nirCd,     setNirCd]    = useState(s0?.nirCd || 0);
   const [deathFlash,setDeathFlash] = useState(false);
-  const [musicMuted,setMusicMuted] = useState(false);
+  // Contadores de decisão para painel pós-rodada
+  const [moves, setMoves] = useState({ total:0, produtivo:0, reativo:0 });
   const [ccBlocked, setCcBlocked]  = useState(s0?.ccBlocked || false);
   const [showCcModal, setShowCcModal] = useState(null);
   const [fcUses,    setFcUses]     = useState(s0?.fcUses || 0);
@@ -552,8 +571,6 @@ function Game() {
     }
   }, [deOcc, boarding.length, st.deaths, isR2, run, ph]);
 
-  const toggleMusic = () => setMusicMuted(SimsMusic.toggleMute());
-
   // ── Start round ───────────────────────────────────────────
   // Multiplayer: inicia direto (sem modal CC — facilitador já decidiu)
   // Solo: mostra modal de bloqueio CC
@@ -592,7 +609,8 @@ function Game() {
     setRun(true);
     setPh('play');
     setSel(null);
-    setNirUses(0);
+    setNirUses(0); setFcUses(0); setFcApproved(false);
+    setMoves({ total:0, produtivo:0, reativo:0 });
     setNirCd(0);
     setDeathFlash(false);
     const title = roundNum===2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO';
@@ -659,7 +677,7 @@ function Game() {
         },
         updated_at: new Date().toISOString(),
       }, { onConflict:'team_id,round' });
-    }, 3000);
+    }, 2000);
     return () => clearInterval(iv);
   }, [teamId, roomId]);
 
@@ -688,8 +706,10 @@ function Game() {
 
       // Tomógrafo quebrado
       if (ch>=8&&ch<14&&!E.tomo&&Math.random()<.005) {
-        E.tomo=true; E.tomoEnd=cm+120;
-        addL('TOMÓGRAFO QUEBROU! Decisão +120min para todos no DE.','danger');
+        const tomoDur = isR2local ? 60 : 120;
+        E.tomo=true; E.tomoEnd=cm+tomoDur;
+        if (isR2local) addL('TOMÓGRAFO: manutenção preventiva, retorno em 1h.','warning');
+        else addL('TOMÓGRAFO QUEBROU! Decisão +120min para todos no DE.','danger');
       }
       if (E.tomo&&cm>=E.tomoEnd) { E.tomo=false; addL('Tomógrafo reparado.','success'); }
 
@@ -708,7 +728,7 @@ function Game() {
       if (surtoForced||surtoRandom) {
         E.surto=true;
         for (let i=0;i<3;i++) {
-          const d = i<2 ? rollDest() : { dest:'uti', sev:'red', ps:rnd(90,150) };
+          const d = i<2 ? rollDest(isR2local) : { dest:'uti', sev:'red', de:rnd(90,150) };
           const np=mkPt('triagem',d.dest,d.sev,false,d.de); np.arrMin=cm; P.push(np);
         }
         addL('SURTO! 3 pacientes simultâneos chegando!','danger');
@@ -774,7 +794,7 @@ function Game() {
 
       // ── Arrivals ─────────────────────────────────────────
       if (cm>=ref.current.nx) {
-        const d=rollDest();
+        const d=rollDest(isR2local);
         const np=mkPt('triagem',d.dest,d.sev,false,d.de);
         np.arrMin=cm; if (E.tomo) np.deNeed+=120;
         if (E.lab) { np.deNeed+=30; np.labDelay=true; }
@@ -793,7 +813,7 @@ function Game() {
 
       // PS processing with congestion multiplier
       const eN=P.filter(p=>p.sector==='enf').length, uN=P.filter(p=>p.sector==='uti').length;
-      const mult=hospMult(eN, uN);
+      const mult=hospMult(eN, uN, isR2local);
       P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong) { p.deSpent+=mult; if (p.deSpent>=p.deNeed) { p.ready=true; if(p.labDelay) p.labDelay=false; }}});
 
       // R2: Fluxista auto-discharge alta_ps every 20 sim-min (was 30)
@@ -806,6 +826,13 @@ function Game() {
       // R2: Fast Track — green patients process 40% faster
       if (isR2local) {
         P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong&&p.sev==='green') p.deSpent+=0.4; });
+      }
+
+      // R2: Fluxo puxado — DE lotado ACELERA decisões (pull system)
+      const deCount = P.filter(p=>p.sector==='de').length;
+      if (isR2local && deCount >= Math.round(CAP.de*0.8)) {
+        P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong) p.deSpent+=0.5; });
+        if (!R.pullLog) { R.pullLog=true; addL('PROTOCOLO DE FLUXO RÁPIDO ATIVO — decisões aceleradas no DE.','success'); }
       }
 
       // NIR cooldown
@@ -832,7 +859,13 @@ function Game() {
       });
 
       // Off-service deterioration
-      P.forEach(p => { if (p.offSvc&&p.sector==='enf'&&!p.dead&&!p.det&&Math.random()<OFFSVC_DET_PROB) { p.det=true; S.dets++; addL(`${p.name} deteriorou OFF-SERVICE!`,'warning'); SimsMusic.sfx('det'); }});
+      P.forEach(p => { if (p.offSvc&&p.sector==='enf'&&!p.dead&&!p.det&&Math.random()<OFFSVC_DET_PROB) { p.det=true; S.dets++; addL(`${p.name} deteriorou FORA DO PERFIL!`,'warning'); SimsMusic.sfx('det'); }});
+
+      // Dados reais — overlay educativo (1x cada)
+      if (S.boardHrs>=2 && !R.factBoard) { R.factBoard=true; addL('Dados reais: boarding >2h aumenta risco de eventos adversos em 20%.','fact'); }
+      if (S.dets>=1 && !R.factDet) { R.factDet=true; addL('Estudos mostram: cada hora de boarding >4h aumenta mortalidade em 2%.','fact'); }
+      if (S.deaths>=1 && !R.factDeath) { R.factDeath=true; addL('Em hospitais com ocupação >95%, mortalidade cresce 8% por cada 10% de boarding adicional.','fact'); }
+      if (S.cxCan>=1 && !R.factCx) { R.factCx=true; addL('Cirurgias canceladas por falta de leito custam em média R$15.000 por caso.','fact'); }
 
       // Corridor overflow — LWBS dispara mais cedo em R1 (corredor > 2)
       if (P.filter(p=>p.sector==='de').length>=CAP.de-pcrB&&P.filter(p=>p.sector==='triagem').length>2) {
@@ -934,17 +967,19 @@ function Game() {
   const doMove = sid => {
     if (!run||!sel) return;
     if (!tgts.includes(sid)) { setFl(sid); setTimeout(()=>setFl(null),500); return; }
-    const cap2=sid==='enf'?CAP.enf:sid==='uti'?CAP.uti:sid==='ps'?CAP.de-(evts.pcr?1:0):999;
+    const cap2=sid==='enf'?CAP.enf:sid==='uti'?CAP.uti:sid==='de'?CAP.de-(evts.pcr?1:0):999;
     const cnt=pts.filter(p=>p.sector===sid).length;
     if (sid!=='alta'&&cnt>=cap2) { setFl(sid); addL(`${sid.toUpperCase()} LOTADO!`,'danger'); setTimeout(()=>setFl(null),600); return; }
     const isOff=sel.dest==='uti'&&sid==='enf'&&sel.sector!=='uti';
+    const isProd = sid==='alta'||(sid==='enf'&&!isOff)||(sid==='uti'&&sel.dest==='uti');
     setPts(prev=>prev.map(p=>{
       if (p.id!==sel.id) return p;
       if (sid==='alta') { setSt(s=>({...s,disc:s.disc+1})); addL(`${p.name} — alta.`,'success'); SimsMusic.sfx('disc'); }
-      else if (isOff)   { setSt(s=>({...s,offS:s.offS+1})); addL(`OFF-SERVICE: ${p.name} UTI→ENF. Risco elevado!`,'warning'); }
+      else if (isOff)   { setSt(s=>({...s,offS:s.offS+1})); addL(`FORA DO PERFIL: ${p.name} UTI→ENF. Risco elevado!`,'warning'); }
       else addL(`${p.name} → ${sid.toUpperCase()}`,'info');
       return {...p,sector:sid,ready:false,dischReady:false,bStart:null,bMin:0,offSvc:isOff};
     }));
+    setMoves(m => ({ total:m.total+1, produtivo:m.produtivo+(isProd?1:0), reativo:m.reativo+(isProd?0:1) }));
     setSel(null);
   };
 
@@ -983,9 +1018,9 @@ function Game() {
   const clk = p => run && setSel(s=>s?.id===p.id?null:p);
 
   // Color helpers
-  const logC   = { danger:'#fca5a5', warning:'#fde047', success:'#86efac', info:'#94a3b8' };
-  const logBg  = { danger:'rgba(239,68,68,.06)', warning:'rgba(234,179,8,.05)', success:'rgba(34,197,94,.05)', info:'rgba(255,255,255,.02)' };
-  const logBrd = { danger:'#ef4444', warning:'#eab308', success:'#22c55e', info:'#1e293b' };
+  const logC   = { danger:'#fca5a5', warning:'#fde047', success:'#86efac', info:'#94a3b8', fact:'#c4b5fd' };
+  const logBg  = { danger:'rgba(239,68,68,.06)', warning:'rgba(234,179,8,.05)', success:'rgba(34,197,94,.05)', info:'rgba(255,255,255,.02)', fact:'rgba(167,139,250,.08)' };
+  const logBrd = { danger:'#ef4444', warning:'#eab308', success:'#22c55e', info:'#1e293b', fact:'#a78bfa' };
   const secN   = { de:'DE', enf:'ENF', uti:'UTI', rpa:'RPA', alta:'ALTA' };
 
   // Phase routing
@@ -1372,7 +1407,7 @@ function Game() {
       )}
 
       {/* ── Game over modal ── */}
-      {ph==='over'&&<GameOverModal isR2={isR2} score={score} st={st} pts={pts} onRestart={startR} onMenu={()=>{clearSession();setPh('menu');}}/>}
+      {ph==='over'&&<GameOverModal isR2={isR2} score={score} st={st} pts={pts} moves={moves} onRestart={startR} onMenu={()=>{clearSession();setPh('menu');}}/>}
     </div>
   );
 }

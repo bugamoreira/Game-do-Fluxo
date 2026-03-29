@@ -108,8 +108,14 @@ function arrRate(h, isR2) {
 
 // ── Destino do paciente novo ───────────────────────────────
 // 50% alta_de, 35% ENF, 15% UTI
-function rollDest() {
+// R2: tempo porta-decisão ~40% menor (protocolos Lean, Fast Track)
+function rollDest(isR2 = false) {
   const r = Math.random();
+  if (isR2) {
+    if (r < .50) return { dest:'alta_de', sev: Math.random() < .7 ? 'green' : 'yellow', de: rnd(30,  60)  };
+    if (r < .85) return { dest:'enf',     sev: Math.random() < .5 ? 'yellow': 'orange', de: rnd(80,  120) };
+    return             { dest:'uti',     sev:'red',                                      de: rnd(60,  100) };
+  }
   if (r < .50) return { dest:'alta_de', sev: Math.random() < .7 ? 'green' : 'yellow', de: rnd(60,  120) };
   if (r < .85) return { dest:'enf',     sev: Math.random() < .5 ? 'yellow': 'orange', de: rnd(120, 180) };
   return             { dest:'uti',     sev:'red',                                      de: rnd(90,  150) };
@@ -117,10 +123,17 @@ function rollDest() {
 
 // ── Multiplicador de congestão hospitalar ──────────────────
 // Baseado na ocupação de INTERNAÇÃO (ENF + UTI) / 100 leitos
-// Quanto mais lotado o hospital, mais rápido pacientes ficam
-// ready no DE → mas sem leito → boarding
-function hospMult(enfN, utiN) {
+// R1: multiplicador agressivo → boarding se acumula
+// R2: multiplicador atenuado → ferramentas Lean reduzem impacto
+function hospMult(enfN, utiN, isR2 = false) {
   const p = (enfN + utiN) / HOSP_BEDS * 100;
+  if (isR2) {
+    // R2: ferramentas Lean reduzem o impacto da congestão
+    if (p <= 80) return 1;
+    if (p <= 90) return 1.1;
+    return 1.3;
+  }
+  // R1: sem ferramentas, congestão é devastadora
   if (p <= 75) return 1;
   if (p <= 85) return 1.2;
   if (p <= 92) return 1.5;
