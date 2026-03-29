@@ -116,23 +116,38 @@ function SxPan({ surgeries, sm }) {
 // ── Role Selector (entry point único) ─────────────────────────
 function RoleSelector({ onJogador, onFacilitador }) {
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
-      <div style={{ textAlign:'center', maxWidth:500, width:'100%' }}>
-        <div style={{ fontSize:36, fontWeight:900, color:'#FF3B3B', letterSpacing:'.04em', marginBottom:4 }}>PLANTÃO TRAVADO</div>
-        <div style={{ fontSize:14, color:'#00d4ff', fontWeight:600, marginBottom:40 }}>Simulador de Fluxo Hospitalar — ED Leaders × FLAME 2026</div>
-        <div style={{ display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'linear-gradient(180deg, #060a13 0%, #0a1628 50%, #060a13 100%)', padding:20 }}>
+      <div style={{ textAlign:'center', maxWidth:540, width:'100%' }}>
+        {/* Logo / Brand */}
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.2em', textTransform:'uppercase', marginBottom:8 }}>ED Leaders apresenta</div>
+          <div style={{ fontSize:42, fontWeight:900, letterSpacing:'.02em', marginBottom:2,
+            background:'linear-gradient(135deg, #FF3B3B, #f97316, #eab308)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+            FLAME 2026
+          </div>
+          <div style={{ fontSize:15, color:'#94a3b8', fontWeight:500, marginBottom:6 }}>Curso de Gestão de Fluxo Hospitalar</div>
+          <div style={{ width:80, height:2, background:'linear-gradient(90deg, transparent, #00d4ff, transparent)', margin:'0 auto', marginTop:12, marginBottom:28 }}/>
+        </div>
+
+        {/* Subtitle */}
+        <div style={{ fontSize:20, fontWeight:800, color:'#e2e8f0', marginBottom:6 }}>Simulador Plantão Travado</div>
+        <div style={{ fontSize:12, color:'#64748b', marginBottom:32 }}>Experimente na pele o impacto da gestão (ou da falta dela) no fluxo hospitalar</div>
+
+        {/* Buttons */}
+        <div style={{ display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap', marginBottom:20 }}>
           <button onClick={onJogador} className="btn"
-            style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'18px 40px', fontSize:17, fontWeight:800, borderRadius:12, boxShadow:'0 0 30px rgba(255,59,59,.25)', minWidth:180 }}>
+            style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'18px 44px', fontSize:17, fontWeight:800, borderRadius:12, boxShadow:'0 4px 30px rgba(255,59,59,.3)', minWidth:200, letterSpacing:'.02em' }}>
             Sou Jogador
           </button>
           <button onClick={onFacilitador} className="btn"
-            style={{ background:'linear-gradient(135deg,#0891b2,#0e7490)', padding:'18px 40px', fontSize:17, fontWeight:800, borderRadius:12, boxShadow:'0 0 30px rgba(0,212,255,.2)', minWidth:180 }}>
+            style={{ background:'linear-gradient(135deg,#0891b2,#0e7490)', padding:'18px 44px', fontSize:17, fontWeight:800, borderRadius:12, boxShadow:'0 4px 30px rgba(0,212,255,.25)', minWidth:200, letterSpacing:'.02em' }}>
             Sou Facilitador
           </button>
         </div>
-        <div style={{ fontSize:11, color:'#475569', marginTop:24, lineHeight:1.6 }}>
-          <strong>Jogadores:</strong> entrem com o nome do time e o código da sala.<br/>
-          <strong>Facilitadores:</strong> criem e controlem a sala do jogo.
+
+        <div style={{ fontSize:11, color:'#475569', lineHeight:1.7 }}>
+          <strong style={{ color:'#94a3b8' }}>Jogadores:</strong> entrem com o nome do time.<br/>
+          <strong style={{ color:'#94a3b8' }}>Facilitadores:</strong> controlem a dinâmica do jogo.
         </div>
       </div>
     </div>
@@ -176,39 +191,35 @@ function FacilitadorLogin({ onAuth, onBack }) {
   );
 }
 
-// ── Lobby (Jogador) ──────────────────────────────────────────
+// ── Lobby (Jogador) — sala fixa FLAME ────────────────────────
 function LobbyScreen({ onJoin, onSolo, onBack }) {
   const [tName,   setTName]   = useState('');
-  const [rCode,   setRCode]   = useState('FLAME');
   const [err,     setErr]     = useState('');
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
     if (!tName.trim()) { setErr('Digite o nome do seu time.'); return; }
-    if (!rCode.trim()) { setErr('Digite o código da sala.');   return; }
+    if (tName.trim().length < 2) { setErr('Nome precisa ter pelo menos 2 caracteres.'); return; }
     setLoading(true); setErr('');
-    const result = await onJoin(tName.trim(), rCode.trim().toUpperCase());
+    const result = await onJoin(tName.trim(), 'FLAME');
     if (result?.error) { setErr(result.error); setLoading(false); }
   };
 
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'linear-gradient(180deg, #060a13 0%, #0a1628 50%, #060a13 100%)', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:440, width:'100%' }}>
-        <div style={{ fontSize:32, fontWeight:900, color:'#FF3B3B', letterSpacing:'.04em', marginBottom:2 }}>PLANTÃO TRAVADO</div>
-        <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:32 }}>Simulador de Fluxo Hospitalar — ED Leaders × FLAME 2026</div>
+        <div style={{ fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.2em', textTransform:'uppercase', marginBottom:6 }}>FLAME 2026</div>
+        <div style={{ fontSize:26, fontWeight:900, color:'#FF3B3B', letterSpacing:'.02em', marginBottom:2 }}>Simulador Plantão Travado</div>
+        <div style={{ fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28 }}>ED Leaders × Curso de Gestão de Fluxo</div>
         <div style={{ background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b', marginBottom:14 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:'#64748b', marginBottom:18, letterSpacing:'.08em', textTransform:'uppercase' }}>Entrar na Sala Multiplayer</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
-            <input placeholder="Nome do time (ex: Grupo Alpha)" value={tName}
-              onChange={e => setTName(e.target.value)} onKeyDown={e => e.key==='Enter'&&submit()} maxLength={30} autoFocus/>
-            <input placeholder="Código da sala" value={rCode}
-              onChange={e => setRCode(e.target.value.toUpperCase())} onKeyDown={e => e.key==='Enter'&&submit()}
-              maxLength={8} style={{ textTransform:'uppercase', letterSpacing:'.12em', fontWeight:700 }}/>
-          </div>
-          {err && <div style={{ color:'#fca5a5', fontSize:11, marginBottom:12, textAlign:'left' }}>{err}</div>}
+          <div style={{ fontSize:12, fontWeight:700, color:'#64748b', marginBottom:18, letterSpacing:'.08em', textTransform:'uppercase' }}>Entrar na Dinâmica</div>
+          <input placeholder="Nome do seu time (ex: Grupo Alpha)" value={tName}
+            onChange={e => setTName(e.target.value)} onKeyDown={e => e.key==='Enter'&&submit()} maxLength={30} autoFocus
+            style={{ width:'100%', marginBottom:14, fontSize:15, padding:'12px 16px', textAlign:'center', fontWeight:700 }}/>
+          {err && <div style={{ color:'#fca5a5', fontSize:11, marginBottom:12 }}>{err}</div>}
           <button onClick={submit} disabled={loading} className="btn"
-            style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'13px 32px', fontSize:15, fontWeight:800, width:'100%', boxShadow:'0 0 24px rgba(255,59,59,.25)', opacity:loading?.6:1 }}>
-            {loading ? 'Conectando...' : 'Entrar na Sala'}
+            style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'14px 32px', fontSize:16, fontWeight:800, width:'100%', boxShadow:'0 4px 24px rgba(255,59,59,.3)', opacity:loading?.6:1, borderRadius:10 }}>
+            {loading ? 'Conectando...' : 'Entrar'}
           </button>
         </div>
         <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
@@ -419,10 +430,17 @@ function Game() {
   const toggleMusic = () => setMusicMuted(SimsMusic.toggleMute());
 
   // ── Start round ───────────────────────────────────────────
-  // startR agora mostra modal de bloqueio CC; o jogo real começa em doStartR
+  // Multiplayer: inicia direto (sem modal CC — facilitador já decidiu)
+  // Solo: mostra modal de bloqueio CC
   const startR = useCallback((roundNum) => {
-    setShowCcModal(roundNum);
-  }, []);
+    if (roomId) {
+      // Multiplayer → iniciar direto sem modal
+      doStartR(roundNum, false);
+    } else {
+      // Solo → mostrar modal CC
+      setShowCcModal(roundNum);
+    }
+  }, [roomId]);
 
   const doStartR = useCallback((roundNum, blocked) => {
     SimsMusic.init();
@@ -475,8 +493,11 @@ function Game() {
   const joinRoom = async (name, code) => {
     SimsMusic.init();
     const { data:room } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle();
-    if (!room) return { error:`Sala "${code}" não encontrada. Verifique o código com o facilitador.` };
-    if (room.status === 'finished') return { error:`A sala "${code}" já foi encerrada.` };
+    if (!room) return { error:`Sala não encontrada. Verifique se o facilitador já criou a dinâmica.` };
+    if (room.status === 'finished') return { error:`A dinâmica já foi encerrada.` };
+    // Verificar nome duplicado
+    const { data: existing } = await sb.from('teams').select('id').eq('room_id', room.id).eq('name', name).maybeSingle();
+    if (existing) return { error:`Já existe um time chamado "${name}". Escolha outro nome.` };
     const cols = ['#FF3B3B','#00d4ff','#22c55e','#eab308','#f97316','#a855f7','#ec4899','#14b8a6'];
     const col  = cols[Math.floor(Math.random()*cols.length)];
     const { data:team, error } = await sb.from('teams').insert({ room_id:room.id, name, color:col }).select('id').single();

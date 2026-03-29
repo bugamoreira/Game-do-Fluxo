@@ -235,13 +235,23 @@ function Instructor() {
   const subRef = useRef(null);
 
   const createRoom = async () => {
-    const code = roomCode.trim().toUpperCase() || genCode();
+    const code = 'FLAME';
     setCreating(true); setErr('');
-    const { data: existing } = await sb.from('rooms').select('id').eq('code', code).maybeSingle();
-    if (existing) { setErr(`Código "${code}" já existe. Escolha outro.`); setCreating(false); return; }
-    const { data: room, error } = await sb.from('rooms').insert({ code, status:'waiting', round:0 }).select('id,code').single();
-    if (error || !room) { setErr('Erro ao criar sala. Tente novamente.'); setCreating(false); return; }
-    setRoomId(room.id); setRoomCode(room.code); setPhase('lobby'); setCreating(false);
+    // Se sala FLAME já existe, reseta ela; senão, cria nova
+    const { data: existing } = await sb.from('rooms').select('id,code').eq('code', code).maybeSingle();
+    let room;
+    if (existing) {
+      // Reseta a sala existente
+      await sb.from('game_state').delete().eq('room_id', existing.id);
+      await sb.from('teams').delete().eq('room_id', existing.id);
+      await sb.from('rooms').update({ status:'waiting', round:0, allow_late_join:false }).eq('id', existing.id);
+      room = existing;
+    } else {
+      const { data: newRoom, error } = await sb.from('rooms').insert({ code, status:'waiting', round:0 }).select('id,code').single();
+      if (error || !newRoom) { setErr('Erro ao criar sala. Tente novamente.'); setCreating(false); return; }
+      room = newRoom;
+    }
+    setRoomId(room.id); setRoomCode(code); setPhase('lobby'); setCreating(false);
     subscribeRoom(room.id);
   };
 
@@ -322,23 +332,24 @@ function Instructor() {
 
   // ── Setup phase ──
   if (phase === 'setup') return (
-    <div style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20}}>
+    <div style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'linear-gradient(180deg, #060a13 0%, #0a1628 50%, #060a13 100%)', padding:20}}>
       <div style={{textAlign:'center', maxWidth:440, width:'100%'}}>
-        <div style={{fontSize:12, fontWeight:700, color:'#64748b', letterSpacing:'.12em', marginBottom:8, textTransform:'uppercase'}}>Painel do Facilitador</div>
-        <div style={{fontSize:30, fontWeight:900, color:'#FF3B3B', marginBottom:4}}>PLANTÃO TRAVADO</div>
-        <div style={{fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:32}}>ED Leaders × FLAME 2026</div>
+        <div style={{fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.2em', marginBottom:8, textTransform:'uppercase'}}>ED Leaders apresenta</div>
+        <div style={{fontSize:36, fontWeight:900, marginBottom:4,
+          background:'linear-gradient(135deg, #FF3B3B, #f97316, #eab308)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent'}}>FLAME 2026</div>
+        <div style={{fontSize:14, color:'#94a3b8', fontWeight:500, marginBottom:6}}>Curso de Gestão de Fluxo Hospitalar</div>
+        <div style={{width:80, height:2, background:'linear-gradient(90deg, transparent, #00d4ff, transparent)', margin:'0 auto 28px'}}>
+        </div>
         <div style={{background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b', marginBottom:14}}>
-          <div style={{fontSize:12, fontWeight:700, color:'#64748b', marginBottom:16, letterSpacing:'.08em', textTransform:'uppercase'}}>Criar Sala</div>
-          <div style={{marginBottom:14}}>
-            <input value={roomCode} onChange={e => setRoomCode(e.target.value.toUpperCase())}
-              placeholder="Código da sala (ex: FLAME)" maxLength={8}
-              style={{textTransform:'uppercase', letterSpacing:'.12em', fontWeight:800, textAlign:'center', fontSize:20}}/>
-            <div style={{fontSize:10, color:'#475569', marginTop:6}}>Os grupos digitarão este código para entrar na sala</div>
+          <div style={{fontSize:12, fontWeight:700, color:'#64748b', marginBottom:12, letterSpacing:'.08em', textTransform:'uppercase'}}>Painel do Facilitador</div>
+          <div style={{fontSize:13, color:'#94a3b8', marginBottom:20, lineHeight:1.6}}>
+            Inicie a dinâmica para que os jogadores possam entrar.<br/>
+            A sala <strong style={{color:'#00d4ff', letterSpacing:'.1em'}}>FLAME</strong> será criada automaticamente.
           </div>
           {err && <div style={{color:'#fca5a5', fontSize:11, marginBottom:10}}>{err}</div>}
           <button onClick={createRoom} disabled={creating} className="btn"
-            style={{background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'13px 32px', fontSize:15, fontWeight:800, width:'100%', boxShadow:'0 0 24px rgba(255,59,59,.25)'}}>
-            {creating ? 'Criando...' : 'Criar Sala'}
+            style={{background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'14px 32px', fontSize:16, fontWeight:800, width:'100%', boxShadow:'0 4px 24px rgba(255,59,59,.3)', borderRadius:10}}>
+            {creating ? 'Preparando...' : 'Iniciar Dinâmica'}
           </button>
         </div>
         <div style={{fontSize:11, color:'#475569'}}>Abra esta página no notebook conectado ao projetor</div>
