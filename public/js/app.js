@@ -501,12 +501,12 @@ function Game() {
     if (s0?.roomId && s0?.teamId && (s0?.ph === 'play' || s0?.ph === 'waiting')) {
       sb.channel(`rm-${s0.roomId}`)
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${s0.roomId}` }, p => {
-          if (p.new.status==='round1') startR(1);
-          else if (p.new.status==='round2') startR(2);
+          if (p.new.status==='round1') doStartR(1, false);
+          else if (p.new.status==='round2') doStartR(2, false);
         })
         .subscribe();
     }
-    saved.current = null; // limpar referência após usar
+    saved.current = null;
   }, []);
 
   useEffect(() => { ref.current.pts  = pts  }, [pts]);
@@ -623,14 +623,14 @@ function Game() {
     if (error||!team) return { error:'Erro ao registrar time. Tente novamente.' };
     setTName(name); setRCode(code); setRoomId(room.id); setTeamId(team.id);
     if (room.allow_late_join && (room.status==='round1'||room.status==='round2')) {
-      startR(room.status==='round1' ? 1 : 2);
+      doStartR(room.status==='round1' ? 1 : 2, false);
     } else {
       setPh('waiting');
     }
     sb.channel(`rm-${room.id}`)
       .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${room.id}` }, p => {
-        if (p.new.status==='round1') startR(1);
-        else if (p.new.status==='round2') startR(2);
+        if (p.new.status==='round1') doStartR(1, false);
+        else if (p.new.status==='round2') doStartR(2, false);
       })
       .subscribe();
     return {};

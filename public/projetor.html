@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden}
@@ -20,6 +21,7 @@ body{background:#060a13;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 <body>
 <div id="root"></div>
 <script src="js/supabase-config.js"></script>
+<script src="js/music.js"></script>
 <script type="text/babel">
 const {useState, useEffect, useRef} = React;
 
@@ -150,6 +152,38 @@ function Projecao() {
   const [gameStates, setGameStates] = useState({});
   const [simMin, setSimMin] = useState(null);
   const [loading, setLoading] = useState(true);
+  const musicStarted = useRef(false);
+
+  // Música: inicializar quando round começa, atualizar com métricas
+  useEffect(() => {
+    if (!room) return;
+    const isRound = room.status === 'round1' || room.status === 'round2';
+    if (isRound && !musicStarted.current) {
+      SimsMusic.init();
+      musicStarted.current = true;
+    }
+    if (musicStarted.current) {
+      // Mute/unmute controlado pelo facilitador via Supabase
+      const shouldMute = !!room.music_muted;
+      if (shouldMute !== SimsMusic.isMuted()) SimsMusic.toggleMute();
+
+      // Atualizar mood baseado nas métricas agregadas
+      const activeRound = room.status === 'round2' || room.status === 'finished' ? 'round2' : 'round1';
+      const allGS = teams.map(t => gameStates[t.id]?.[activeRound]).filter(Boolean);
+      const totalDeaths = allGS.reduce((a,g) => a + (g.metrics?.dth||0), 0);
+      const avgBoarding = allGS.length ? Math.round(allGS.reduce((a,g) => a + (g.metrics?.boarding||0), 0) / allGS.length) : 0;
+      SimsMusic.update({
+        psOcc: avgBoarding > 5 ? 14 : avgBoarding > 2 ? 10 : 6,
+        boarding: avgBoarding,
+        deaths: totalDeaths,
+        isR2: room.status === 'round2',
+        run: isRound,
+      });
+    }
+    if (room.status === 'finished' && musicStarted.current) {
+      musicStarted.current = false;
+    }
+  }, [room, teams, gameStates]);
 
   // Conectar à sala FLAME
   useEffect(() => {
