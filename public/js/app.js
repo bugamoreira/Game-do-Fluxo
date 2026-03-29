@@ -361,35 +361,72 @@ function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
 }
 
 // ── Main Game ─────────────────────────────────────────────────
+// ── Session persistence helpers ──────────────────────────────
+const SESSION_KEY = 'flame_session';
+function saveSession(data) { try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(e){} }
+function loadSession() { try { const s=localStorage.getItem(SESSION_KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch(e){} }
+
 function Game() {
-  const [ph,        setPh]       = useState('role');    // role | lobby | facilLogin | waiting | menu | play | over
-  const [pts,       setPts]      = useState([]);
-  const [sx,        setSx]       = useState([]);
-  const [sm,        setSm]       = useState(SH*60);
-  const [run,       setRun]      = useState(false);
+  // Tentar restaurar sessão do localStorage
+  const saved = useRef(loadSession());
+  const s0 = saved.current;
+
+  const [ph,        setPh]       = useState(s0?.ph || 'role');
+  const [pts,       setPts]      = useState(s0?.pts || []);
+  const [sx,        setSx]       = useState(s0?.sx || []);
+  const [sm,        setSm]       = useState(s0?.sm ?? SH*60);
+  const [run,       setRun]      = useState(s0?.ph === 'play' ? true : false);
   const [sel,       setSel]      = useState(null);
   const [fl,        setFl]       = useState(null);
-  const [log,       setLog]      = useState([]);
-  const [st,        setSt]       = useState({ disc:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
-  const [evts,      setEvts]     = useState({ pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
+  const [log,       setLog]      = useState(s0?.log || []);
+  const [st,        setSt]       = useState(s0?.st || { disc:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
+  const [evts,      setEvts]     = useState(s0?.evts || { pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
   const [cascade,   setCascade]  = useState(null);
   const [rpaW,      setRpaW]     = useState(null);
-  const [rnd2,      setRnd2]     = useState(1);
-  const [nirUses,   setNirUses]  = useState(0);
-  const [nirCd,     setNirCd]    = useState(0);
+  const [rnd2,      setRnd2]     = useState(s0?.rnd2 || 1);
+  const [nirUses,   setNirUses]  = useState(s0?.nirUses || 0);
+  const [nirCd,     setNirCd]    = useState(s0?.nirCd || 0);
   const [deathFlash,setDeathFlash] = useState(false);
   const [musicMuted,setMusicMuted] = useState(false);
-  const [ccBlocked, setCcBlocked]  = useState(false);
-  const [showCcModal, setShowCcModal] = useState(null); // null | roundNum
+  const [ccBlocked, setCcBlocked]  = useState(s0?.ccBlocked || false);
+  const [showCcModal, setShowCcModal] = useState(null);
 
   // Multiplayer
-  const [tName,  setTName]  = useState('');
-  const [rCode,  setRCode]  = useState('');
-  const [roomId, setRoomId] = useState(null);
-  const [teamId, setTeamId] = useState(null);
+  const [tName,  setTName]  = useState(s0?.tName || '');
+  const [rCode,  setRCode]  = useState(s0?.rCode || '');
+  const [roomId, setRoomId] = useState(s0?.roomId || null);
+  const [teamId, setTeamId] = useState(s0?.teamId || null);
 
   const isR2 = rnd2 === 2;
-  const ref  = useRef({ pts:[], st:{}, sm:0, nx:SH*60+rnd(5,12), rd:{}, evts:{}, rnd2:1, ccBlocked:false });
+  const ref  = useRef({ pts:s0?.pts||[], st:s0?.st||{}, sm:s0?.sm||0, nx:s0?.nx||SH*60+rnd(5,12), rd:s0?.rd||{}, evts:s0?.evts||{}, rnd2:s0?.rnd2||1, ccBlocked:s0?.ccBlocked||false });
+
+  // Salvar sessão a cada 3s durante o jogo
+  useEffect(() => {
+    if (ph !== 'play' && ph !== 'over' && ph !== 'waiting') return;
+    const iv = setInterval(() => {
+      saveSession({
+        ph, pts:ref.current.pts, sx, sm:ref.current.sm, st:ref.current.st,
+        evts:ref.current.evts, rnd2:ref.current.rnd2, log:log.slice(0,20),
+        nirUses, nirCd, ccBlocked, tName, rCode, roomId, teamId,
+        nx:ref.current.nx, rd:ref.current.rd,
+      });
+    }, 3000);
+    return () => clearInterval(iv);
+  }, [ph, sx, log, nirUses, nirCd, ccBlocked, tName, rCode, roomId, teamId]);
+
+  // Restaurar subscriptions multiplayer se estava em jogo
+  useEffect(() => {
+    if (s0?.roomId && s0?.teamId && (s0?.ph === 'play' || s0?.ph === 'waiting')) {
+      sb.channel(`rm-${s0.roomId}`)
+        .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${s0.roomId}` }, p => {
+          if (p.new.status==='round1') startR(1);
+          else if (p.new.status==='round2') startR(2);
+        })
+        .subscribe();
+    }
+    saved.current = null; // limpar referência após usar
+  }, []);
 
   useEffect(() => { ref.current.pts  = pts  }, [pts]);
   useEffect(() => { ref.current.st   = st   }, [st]);
@@ -1237,7 +1274,7 @@ function Game() {
       )}
 
       {/* ── Game over modal ── */}
-      {ph==='over'&&<GameOverModal isR2={isR2} score={score} st={st} pts={pts} onRestart={startR} onMenu={()=>setPh('menu')}/>}
+      {ph==='over'&&<GameOverModal isR2={isR2} score={score} st={st} pts={pts} onRestart={startR} onMenu={()=>{clearSession();setPh('menu');}}/>}
     </div>
   );
 }

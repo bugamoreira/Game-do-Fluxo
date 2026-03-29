@@ -220,11 +220,17 @@ function LoginScreen({ onAuth }) {
   );
 }
 
+// ── Session persistence ───────────────────────────────────────
+const INST_KEY = 'flame_instructor';
+function saveInst(d) { try { localStorage.setItem(INST_KEY, JSON.stringify(d)); } catch(e){} }
+function loadInst() { try { const s=localStorage.getItem(INST_KEY); return s?JSON.parse(s):null; } catch(e){ return null; } }
+
 // ── Main Instructor component ─────────────────────────────────
 function Instructor() {
-  const [phase,    setPhase]   = useState('setup');
+  const s0 = useRef(loadInst()).current;
+  const [phase,    setPhase]   = useState(s0?.phase || 'setup');
   const [roomCode, setRoomCode] = useState('FLAME');
-  const [roomId,   setRoomId]  = useState(null);
+  const [roomId,   setRoomId]  = useState(s0?.roomId || null);
   const [teams,    setTeams]   = useState([]);
   const [gameStates, setGameStates] = useState({});
   const [simMin,   setSimMin]  = useState(null);
@@ -233,6 +239,18 @@ function Instructor() {
   const [pendingRound, setPendingRound] = useState(null);
   const [showPodium, setShowPodium] = useState(false);
   const subRef = useRef(null);
+
+  // Salvar estado a cada mudança de fase
+  useEffect(() => {
+    if (roomId) saveInst({ phase, roomId });
+  }, [phase, roomId]);
+
+  // Restaurar subscriptions após F5
+  useEffect(() => {
+    if (s0?.roomId && s0?.phase !== 'setup') {
+      subscribeRoom(s0.roomId);
+    }
+  }, []);
 
   const createRoom = async () => {
     const code = 'FLAME';
