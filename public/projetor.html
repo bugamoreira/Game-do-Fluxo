@@ -104,7 +104,7 @@ function Podium({teams, gameStates}) {
     <div style={{textAlign:'center', padding:40}}>
       <div style={{fontSize:14, fontWeight:700, color:'#64748b', letterSpacing:'.2em', marginBottom:8, textTransform:'uppercase'}}>ED Leaders × FLAME 2026</div>
       <div style={{fontSize:48, fontWeight:900, color:'#eab308', marginBottom:8, animation:'trophyPulse 2s infinite'}}>PÓDIO FINAL</div>
-      <div style={{fontSize:15, color:'#94a3b8', marginBottom:40}}>Classificação com base no score do Plantão Lean (R2)</div>
+      <div style={{fontSize:15, color:'#94a3b8', marginBottom:40}}>Classificação com base no score do Simulador do Plantão Lean (R2)</div>
       <div style={{display:'flex', alignItems:'flex-end', justifyContent:'center', gap:16, marginBottom:32}}>
         {podiumOrder.map((entry, i) => {
           if (!entry) return null;
@@ -216,9 +216,9 @@ function Projecao() {
 
   const phaseLabel = {
     waiting: { label:'Aguardando grupos', color:'#64748b' },
-    round1:  { label:'Plantão Travado (R1)', color:'#FF3B3B' },
+    round1:  { label:'Simulador do Plantão Travado (R1)', color:'#FF3B3B' },
     debrief: { label:'Debrief', color:'#eab308' },
-    round2:  { label:'Plantão Lean (R2)', color:'#00d4ff' },
+    round2:  { label:'Simulador do Plantão Lean (R2)', color:'#00d4ff' },
     finished:{ label:'Finalizado', color:'#22c55e' },
   }[phase] || { label:'', color:'#64748b' };
 
@@ -278,7 +278,7 @@ function Projecao() {
             <div style={{fontSize:14, fontWeight:700, color:'#64748b', letterSpacing:'.2em', marginBottom:12, textTransform:'uppercase'}}>ED Leaders × FLAME 2026</div>
             <div style={{fontSize:42, fontWeight:900, marginBottom:6,
               background:'linear-gradient(135deg, #FF3B3B, #f97316, #eab308)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent'}}>
-              SIMULADOR PLANTÃO TRAVADO
+              SIMULADOR DO PLANTÃO
             </div>
             <div style={{fontSize:16, color:'#94a3b8', marginBottom:40}}>Curso de Gestão de Fluxo Hospitalar</div>
             <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:12, marginBottom:16}}>
@@ -301,7 +301,7 @@ function Projecao() {
         {/* Debrief */}
         {phase === 'debrief' && (
           <div style={{textAlign:'center', padding:40}}>
-            <div style={{fontSize:32, fontWeight:900, color:'#eab308', marginBottom:12}}>DEBRIEF — PLANTÃO TRAVADO</div>
+            <div style={{fontSize:32, fontWeight:900, color:'#eab308', marginBottom:12}}>DEBRIEF — SIMULADOR DO PLANTÃO TRAVADO</div>
             <div style={{fontSize:16, color:'#94a3b8', lineHeight:1.8, maxWidth:500, margin:'0 auto'}}>
               O que aconteceu?<br/>
               Onde travou primeiro?<br/>
@@ -314,7 +314,7 @@ function Projecao() {
         {(isRound || phase === 'debrief') && teams.length > 0 && (
           <div>
             <div style={{fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:14, textTransform:'uppercase'}}>
-              {phase === 'round2' ? 'Plantão Lean — Ranking ao Vivo' : 'Plantão Travado — Ranking ao Vivo'}
+              {phase === 'round2' ? 'Simulador do Plantão Lean — Ranking ao Vivo' : 'Simulador do Plantão Travado — Ranking ao Vivo'}
             </div>
             {ranking.map(({team, gs}, i) => (
               <TeamRow key={team.id} team={team} gs={gs} rank={i+1}/>

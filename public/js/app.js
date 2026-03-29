@@ -115,6 +115,7 @@ function SxPan({ surgeries, sm }) {
 
 // ── Role Selector (entry point único) ─────────────────────────
 function RoleSelector({ onJogador, onFacilitador }) {
+  const [showRules, setShowRules] = useState(false);
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'linear-gradient(180deg, #060a13 0%, #0a1628 50%, #060a13 100%)', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:540, width:'100%' }}>
@@ -129,8 +130,7 @@ function RoleSelector({ onJogador, onFacilitador }) {
           <div style={{ width:80, height:2, background:'linear-gradient(90deg, transparent, #00d4ff, transparent)', margin:'0 auto', marginTop:12, marginBottom:28 }}/>
         </div>
 
-        {/* Subtitle */}
-        <div style={{ fontSize:20, fontWeight:800, color:'#e2e8f0', marginBottom:6 }}>Simulador Plantão Travado</div>
+        <div style={{ fontSize:20, fontWeight:800, color:'#e2e8f0', marginBottom:6 }}>Simulador do Plantão</div>
         <div style={{ fontSize:12, color:'#64748b', marginBottom:32 }}>Experimente na pele o impacto da gestão (ou da falta dela) no fluxo hospitalar</div>
 
         {/* Buttons */}
@@ -145,11 +145,92 @@ function RoleSelector({ onJogador, onFacilitador }) {
           </button>
         </div>
 
-        <div style={{ fontSize:11, color:'#475569', lineHeight:1.7 }}>
-          <strong style={{ color:'#94a3b8' }}>Jogadores:</strong> entrem com o nome do time.<br/>
-          <strong style={{ color:'#94a3b8' }}>Facilitadores:</strong> controlem a dinâmica do jogo.
-        </div>
+        <button onClick={()=>setShowRules(true)} className="btn"
+          style={{ background:'rgba(255,255,255,.04)', border:'1px solid #334155', color:'#94a3b8', padding:'10px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em' }}>
+          Como Jogar
+        </button>
       </div>
+
+      {/* Modal: Como Jogar */}
+      {showRules && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.85)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}
+          onClick={()=>setShowRules(false)}>
+          <div style={{ background:'#0f172a', border:'1px solid #1e293b', borderRadius:16, padding:'32px 28px', maxWidth:520, width:'100%', maxHeight:'90vh', overflowY:'auto',
+            boxShadow:'0 20px 60px rgba(0,0,0,.6)' }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.14em', marginBottom:6, textTransform:'uppercase' }}>Orientações</div>
+            <div style={{ fontSize:22, fontWeight:900, color:'#e2e8f0', marginBottom:20 }}>Como Jogar</div>
+
+            {/* Missão */}
+            <div style={{ padding:'14px 16px', background:'rgba(0,212,255,.05)', border:'1px solid rgba(0,212,255,.15)', borderRadius:10, marginBottom:14 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#00d4ff', marginBottom:6, letterSpacing:'.06em' }}>SUA MISSÃO</div>
+              <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.7 }}>
+                Você é o <strong>gestor de fluxo</strong> do hospital. Controla todas as movimentações — entradas, internações e altas. Um NIR com superpoderes.
+              </div>
+            </div>
+
+            {/* Mecânica */}
+            <div style={{ padding:'14px 16px', background:'rgba(255,255,255,.02)', border:'1px solid #1e293b', borderRadius:10, marginBottom:14 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#94a3b8', marginBottom:6, letterSpacing:'.06em' }}>COMO MOVER PACIENTES</div>
+              <div style={{ fontSize:13, color:'#cbd5e1', lineHeight:1.7 }}>
+                1. Clique no paciente com badge <span style={{ color:'#22c55e', fontWeight:800 }}>OK</span><br/>
+                2. Clique no setor destino para movê-lo<br/>
+                3. Pacientes sem [OK] ainda estão em avaliação
+              </div>
+            </div>
+
+            {/* Cores */}
+            <div style={{ padding:'14px 16px', background:'rgba(255,255,255,.02)', border:'1px solid #1e293b', borderRadius:10, marginBottom:14 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#94a3b8', marginBottom:8, letterSpacing:'.06em' }}>GRAVIDADE DOS PACIENTES</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                {[
+                  { c:'#22c55e', l:'Verde', d:'Baixa complexidade' },
+                  { c:'#eab308', l:'Amarelo', d:'Média complexidade' },
+                  { c:'#f97316', l:'Laranja', d:'Alta complexidade' },
+                  { c:'#ef4444', l:'Vermelho', d:'Crítico / UTI' },
+                ].map(({c,l,d}) => (
+                  <div key={c} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ width:12, height:12, borderRadius:'50%', background:c, flexShrink:0 }}/>
+                    <div>
+                      <div style={{ fontSize:12, fontWeight:700, color:c }}>{l}</div>
+                      <div style={{ fontSize:10, color:'#64748b' }}>{d}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Boarding */}
+            <div style={{ padding:'14px 16px', background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.2)', borderRadius:10, marginBottom:14 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#ef4444', marginBottom:6, letterSpacing:'.06em' }}>ATENÇÃO: BOARDING</div>
+              <div style={{ fontSize:13, color:'#fca5a5', lineHeight:1.7 }}>
+                Paciente pronto para internar mas <strong>sem leito</strong> fica em boarding no DE.
+                Após <strong>3 horas</strong> ele deteriora. Após <strong>6 horas</strong>, óbito evitável.
+              </div>
+            </div>
+
+            {/* Tempo */}
+            <div style={{ padding:'14px 16px', background:'rgba(255,255,255,.02)', border:'1px solid #1e293b', borderRadius:10, marginBottom:20 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#94a3b8', marginBottom:6, letterSpacing:'.06em' }}>TEMPO</div>
+              <div style={{ fontSize:13, color:'#cbd5e1', lineHeight:1.7 }}>
+                <strong>1 segundo real = 1 minuto</strong> no hospital.<br/>
+                O plantão vai das <strong>7h às 19h</strong> — dura <strong>12 minutos</strong> reais.
+              </div>
+            </div>
+
+            {/* Objetivo */}
+            <div style={{ textAlign:'center', padding:'12px 16px', background:'linear-gradient(135deg, rgba(34,197,94,.08), rgba(0,212,255,.08))', borderRadius:10, marginBottom:16 }}>
+              <div style={{ fontSize:14, fontWeight:800, color:'#e2e8f0' }}>
+                Maximize altas. Minimize boarding. Evite óbitos.
+              </div>
+            </div>
+
+            <button onClick={()=>setShowRules(false)} className="btn"
+              style={{ background:'#374151', padding:'10px 0', width:'100%', fontSize:14, borderRadius:10 }}>
+              Entendi!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -167,7 +248,7 @@ function FacilitadorLogin({ onAuth, onBack }) {
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:380, width:'100%' }}>
         <div style={{ fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.14em', marginBottom:6, textTransform:'uppercase' }}>Acesso Facilitador</div>
-        <div style={{ fontSize:28, fontWeight:900, color:'#FF3B3B', marginBottom:4 }}>PLANTÃO TRAVADO</div>
+        <div style={{ fontSize:28, fontWeight:900, color:'#FF3B3B', marginBottom:4 }}>SIMULADOR DO PLANTÃO</div>
         <div style={{ fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28 }}>ED Leaders × FLAME 2026</div>
         <div style={{ background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b' }}>
           <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
@@ -209,7 +290,7 @@ function LobbyScreen({ onJoin, onSolo, onBack }) {
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'linear-gradient(180deg, #060a13 0%, #0a1628 50%, #060a13 100%)', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:440, width:'100%' }}>
         <div style={{ fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.2em', textTransform:'uppercase', marginBottom:6 }}>FLAME 2026</div>
-        <div style={{ fontSize:26, fontWeight:900, color:'#FF3B3B', letterSpacing:'.02em', marginBottom:2 }}>Simulador Plantão Travado</div>
+        <div style={{ fontSize:26, fontWeight:900, color:'#FF3B3B', letterSpacing:'.02em', marginBottom:2 }}>Simulador do Plantão</div>
         <div style={{ fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28 }}>ED Leaders × Curso de Gestão de Fluxo</div>
         <div style={{ background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b', marginBottom:14 }}>
           <div style={{ fontSize:12, fontWeight:700, color:'#64748b', marginBottom:18, letterSpacing:'.08em', textTransform:'uppercase' }}>Entrar na Dinâmica</div>
@@ -242,7 +323,7 @@ function WaitingScreen({ tName, rCode }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:440 }}>
-        <div style={{ fontSize:32, fontWeight:900, color:'#FF3B3B', marginBottom:2 }}>PLANTÃO TRAVADO</div>
+        <div style={{ fontSize:32, fontWeight:900, color:'#FF3B3B', marginBottom:2 }}>SIMULADOR DO PLANTÃO</div>
         <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:36 }}>ED Leaders × FLAME 2026</div>
         <div style={{ background:'#0f172a', borderRadius:14, padding:36, border:'1px solid #1e293b' }}>
           <div style={{ fontSize:18, fontWeight:800, color:'#e2e8f0', marginBottom:6 }}>{tName}</div>
@@ -267,8 +348,8 @@ function MenuScreen({ onStart }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:620 }}>
-        <div style={{ fontSize:30, fontWeight:900, color:'#FF3B3B', marginBottom:4 }}>PLANTÃO TRAVADO</div>
-        <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:24 }}>Simulador de Fluxo Hospitalar — ED Leaders</div>
+        <div style={{ fontSize:30, fontWeight:900, color:'#FF3B3B', marginBottom:4 }}>SIMULADOR DO PLANTÃO</div>
+        <div style={{ fontSize:13, color:'#00d4ff', fontWeight:600, marginBottom:24 }}>Curso de Gestão de Fluxo Hospitalar — ED Leaders</div>
         <div style={{ textAlign:'left', background:'#0f172a', borderRadius:12, padding:20, border:'1px solid #1e293b', marginBottom:22 }}>
           <p style={{ color:'#94a3b8', lineHeight:1.7, marginBottom:10 }}>
             Você é o <strong style={{ color:'#00d4ff' }}>coordenador de fluxo</strong> de um hospital com 100 leitos.
@@ -285,7 +366,7 @@ function MenuScreen({ onStart }) {
               style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'14px 32px', fontSize:16, fontWeight:800, width:'100%', boxShadow:'0 0 30px rgba(255,59,59,.3)', marginBottom:8 }}>
               PLANTÃO TRAVADO
             </button>
-            <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>Rodada 1 — sem ferramentas. O sistema congela. Você sente o caos.</div>
+            <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>Rodada 1 — sem ferramentas. O sistema congela.</div>
           </div>
           <div style={{ flex:1, minWidth:220 }}>
             <button onClick={() => onStart(2)} className="btn"
@@ -321,7 +402,7 @@ function GameOverModal({ isR2, score, st, pts, onRestart, onMenu }) {
       <div style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:16, padding:32, maxWidth:560, width:'92%', textAlign:'center', boxShadow:'0 20px 60px rgba(0,0,0,.6)' }}>
         <div style={{ fontSize:11, fontWeight:700, padding:'3px 12px', borderRadius:4, display:'inline-block', marginBottom:8,
           background:isR2?'rgba(0,212,255,.12)':'rgba(255,59,59,.12)', color:isR2?'#00d4ff':'#FF3B3B' }}>
-          {isR2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO'}
+          {isR2 ? 'SIMULADOR DO PLANTÃO LEAN' : 'SIMULADOR DO PLANTÃO TRAVADO'}
         </div>
         <div style={{ fontSize:20, fontWeight:900, color:isR2?'#00d4ff':'#FF3B3B', marginBottom:8 }}>PLANTÃO ENCERRADO</div>
         <div style={{ fontSize:48, fontWeight:900, fontFamily:'monospace', marginBottom:16,

@@ -377,9 +377,9 @@ function Instructor() {
 
   const phaseLabel = {
     lobby:   { label:'Aguardando grupos', color:'#64748b' },
-    round1:  { label:'Plantão Travado (R1)', color:'#FF3B3B' },
+    round1:  { label:'Simulador do Plantão Travado (R1)', color:'#FF3B3B' },
     debrief: { label:'Debrief R1', color:'#eab308' },
-    round2:  { label:'Plantão Lean (R2)', color:'#00d4ff' },
+    round2:  { label:'Simulador do Plantão Lean (R2)', color:'#00d4ff' },
     done:    { label:'Finalizado', color:'#22c55e' },
   }[phase] || { label:'', color:'#64748b' };
 
@@ -431,7 +431,7 @@ function Instructor() {
         <div style={{display:'flex', alignItems:'center', gap:16}}>
           <div>
             <div style={{fontSize:11, color:'#64748b', fontWeight:600}}>FACILITADOR</div>
-            <div style={{fontSize:20, fontWeight:900, color:'#FF3B3B'}}>PLANTÃO TRAVADO</div>
+            <div style={{fontSize:20, fontWeight:900, color:'#FF3B3B'}}>FLAME 2026</div>
           </div>
           <div style={{width:1, height:36, background:'#1e293b'}}/>
           <div>
@@ -454,7 +454,7 @@ function Instructor() {
           {phase === 'lobby' && (
             <button onClick={startRound1} disabled={teams.length === 0} className="btn"
               style={{background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'10px 22px', fontSize:13}}>
-              Iniciar Plantão Travado (R1)
+              Iniciar Simulador Plantão Travado (R1)
             </button>
           )}
           {phase === 'round1' && (
@@ -466,7 +466,7 @@ function Instructor() {
           {phase === 'debrief' && (
             <button onClick={startRound2} className="btn"
               style={{background:'linear-gradient(135deg,#00d4ff,#0891b2)', padding:'10px 22px', fontSize:13}}>
-              Iniciar Plantão Lean (R2)
+              Iniciar Simulador Plantão Lean (R2)
             </button>
           )}
           {phase === 'round2' && (
@@ -526,7 +526,7 @@ function Instructor() {
           {teams.length > 0 && (
             <div style={{marginBottom:12}}>
               <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.1em', marginBottom:10, textTransform:'uppercase'}}>
-                {phase === 'done' ? 'Resultado Final' : phase === 'round2' ? 'Plantão Lean — Ranking ao Vivo' : 'Plantão Travado — Ranking ao Vivo'}
+                {phase === 'done' ? 'Resultado Final' : phase === 'round2' ? 'Simulador do Plantão Lean — Ranking ao Vivo' : 'Simulador do Plantão Travado — Ranking ao Vivo'}
               </div>
               {activeRanking.map(({team, gs}, i) => (
                 <TeamRow key={team.id} team={team} gs={gs} rank={i+1}/>
