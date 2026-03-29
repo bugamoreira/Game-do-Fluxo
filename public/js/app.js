@@ -66,15 +66,17 @@ function MiniChip({ p, sel, onClick }) {
       title={`${p.name} (${s.l})${ready ? ' — PRONTO ALTA' : ''}${p.blocked ? ' — BLOQUEADO' : ''}${p.social ? ' — SOCIAL' : ''}${p.det ? ' — DETERIOROU' : ''}`}
       style={{
         width:22, height:28, borderRadius:4, cursor:'pointer', flexShrink:0,
-        background: selected ? 'rgba(0,212,255,.18)' : ready ? `${s.c}28`
-          : p.det ? 'rgba(239,68,68,.18)' : 'rgba(255,255,255,.03)',
-        border: selected ? '2px solid #00d4ff' : ready ? `1px solid ${s.c}88`
-          : p.blocked ? '1px solid #eab30866' : p.social ? '1px solid #a855f766'
-          : p.det ? '1px solid #ef444488' : `1px solid ${s.c}22`,
+        background: selected ? 'rgba(0,212,255,.22)' : ready ? `${s.c}35`
+          : p.det ? 'rgba(239,68,68,.25)' : p.blocked ? 'rgba(234,179,8,.12)' : p.social ? 'rgba(168,85,247,.12)'
+          : `${s.c}15`,
+        border: selected ? '2px solid #00d4ff' : ready ? `1px solid ${s.c}99`
+          : p.blocked ? '1px solid #eab30888' : p.social ? '1px solid #a855f788'
+          : p.det ? '1px solid #ef444499' : `1px solid ${s.c}44`,
         transition:'all .15s', position:'relative',
       }}>
       {ready && <div style={{ position:'absolute', top:2, right:2, width:5, height:5, borderRadius:'50%', background:s.c }}/>}
       {p.det  && <div style={{ position:'absolute', top:1, left:2,  fontSize:8, color:'#ef4444', fontWeight:900, lineHeight:1 }}>!</div>}
+      {p.social && <div style={{ position:'absolute', bottom:1, right:2, fontSize:6, color:'#a855f7', fontWeight:900 }}>S</div>}
     </div>
   );
 }
@@ -1057,10 +1059,6 @@ function Game() {
               <span style={{ fontSize:20, fontWeight:800, fontFamily:'monospace',
                 color:score>700?'#22c55e':score>400?'#eab308':'#ef4444' }}>{score}</span>
             </div>
-            <button onClick={toggleMusic} className="btn"
-              style={{ background:'#1e293b', padding:'4px 10px', fontSize:10, color: musicMuted?'#64748b':'#94a3b8' }}>
-              {musicMuted ? 'SOM OFF' : 'SOM ON'}
-            </button>
             <button onClick={()=>setRun(r=>!r)} className="btn"
               style={{ background:run?'#374151':'#16a34a' }}>{run?'PAUSAR':'RETOMAR'}</button>
           </div>
