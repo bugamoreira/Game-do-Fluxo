@@ -36,7 +36,7 @@ function Chip({ p, sel, onClick }) {
       <PSvg color={s.c} sz={16} dead={p.dead} det={p.det}/>
       {p.dead && <span className="badge badge-tr" style={{ color:'#ef4444' }}>X</span>}
       {p.det && !p.dead && <span className="badge badge-tr" style={{ color:'#f97316', animation:'pulse 1s infinite' }}>!</span>}
-      {isR && !p.dead && !p.det && <span className="badge badge-tr" style={{ color:'#fff', background:'#16a34a', padding:'1px 3px', borderRadius:3, fontSize:8, fontWeight:900, animation:'bounce 1.5s infinite' }}>OK</span>}
+      {isR && !p.dead && !p.det && <span className="badge badge-tr" style={{ color:'#22c55e', animation:'bounce 1.5s infinite', marginTop:4 }}>OK</span>}
       {p.offSvc && <span className="badge badge-bl" style={{ color:'#f97316', fontSize:7 }}>OFF</span>}
       {(p.social || p.blocked) && <span className="badge badge-br" style={{ color:'#eab308', fontSize:7 }}>BL</span>}
       {p.obsProlong && <span className="badge badge-bl" style={{ color:'#a855f7', fontSize:7 }}>OBS</span>}
