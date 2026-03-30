@@ -580,7 +580,7 @@ function Game() {
 
   // Derived
   const byS      = s => pts.filter(p => p.sector===s);
-  const deOcc    = byS('ps').length;
+  const deOcc    = byS('de').length;
   const enfOcc   = byS('enf').length;
   const utiOcc   = byS('uti').length;
   const rpaOcc   = byS('rpa').length;
@@ -588,10 +588,10 @@ function Game() {
   const avgB     = boarding.length>0 ? Math.round(boarding.reduce((a,p)=>a+p.bMin,0)/boarding.length) : 0;
   const score    = calcScore(st);
   const prog     = ((sm-SH*60)/((EH-SH)*60))*100;
-  const deEval   = byS('ps').filter(p=>!p.ready&&!p.obsProlong);
-  const deBoard  = byS('ps').filter(p=>p.ready&&(p.dest==='enf'||p.dest==='uti'));
-  const deAlta   = byS('ps').filter(p=>p.ready&&p.dest==='alta_de');
-  const deObs    = byS('ps').filter(p=>p.obsProlong);
+  const deEval   = byS('de').filter(p=>!p.ready&&!p.obsProlong);
+  const deBoard  = byS('de').filter(p=>p.ready&&(p.dest==='enf'||p.dest==='uti'));
+  const deAlta   = byS('de').filter(p=>p.ready&&p.dest==='alta_de');
+  const deObs    = byS('de').filter(p=>p.obsProlong);
   const enfReady = byS('enf').filter(p=>p.dischReady&&p.prep<=0&&!p.social&&!p.blocked);
   const utiReady = byS('uti').filter(p=>p.dischReady&&p.prep<=0);
   const dePct    = pctOf(deOcc, CAP.de);
@@ -840,7 +840,7 @@ function Game() {
         np.arrMin=cm; if (E.tomo) np.deNeed+=120;
         if (E.lab) { np.deNeed+=30; np.labDelay=true; }
         const pcrB=E.pcr?1:0;
-        if (P.filter(x=>x.sector==='de').length<CAP.de-pcrB) np.sector='ps';
+        if (P.filter(x=>x.sector==='de').length<CAP.de-pcrB) np.sector='de';
         P.push(np);
         const rate=arrRate(ch, isR2local);
         ref.current.nx=cm+Math.max(3,Math.round(60/rate)+rnd(-4,4));
@@ -850,7 +850,7 @@ function Game() {
       const porta=P.filter(p=>p.sector==='triagem').sort((a,b)=>a.arrMin-b.arrMin);
       const pcrB=E.pcr?1:0;
       const space=CAP.de-pcrB-P.filter(p=>p.sector==='de').length;
-      for (let i=0;i<Math.min(space,porta.length);i++) porta[i].sector='ps';
+      for (let i=0;i<Math.min(space,porta.length);i++) porta[i].sector='de';
 
       // PS processing with congestion multiplier
       const eN=P.filter(p=>p.sector==='enf').length, uN=P.filter(p=>p.sector==='uti').length;
@@ -992,7 +992,7 @@ function Game() {
   const getT = p => {
     if (!p) return [];
     const t=[];
-    if (p.sector==='triagem'||p.sector==='corredor') t.push('ps');
+    if (p.sector==='triagem'||p.sector==='corredor') t.push('de');
     if (p.sector==='de'&&p.ready) {
       if (p.dest==='alta_de') t.push('alta');
       if (p.dest==='enf')     t.push('enf');
@@ -1026,7 +1026,7 @@ function Game() {
 
   const doNIR = () => {
     if (!isR2||nirUses>=3||nirCd>0||!sel) return;
-    if (sel.sector!=='ps'||!sel.ready) return;
+    if (sel.sector!=='de'||!sel.ready) return;
     setPts(prev=>prev.filter(pt=>pt.id!==sel.id));
     setNirUses(n=>n+1); setNirCd(60); setSel(null);
     addL(`NIR: ${sel.name} transferido para outra unidade. (${nirUses+1}/3 usos)`,'success');
@@ -1221,11 +1221,11 @@ function Game() {
           </div>
 
           {/* PS */}
-          <div className={`sector${tgts.includes('ps')?' valid-target':''}${fl==='ps'?' flash':''}`}
-            onClick={()=>doMove('ps')}
+          <div className={`sector${tgts.includes('de')?' valid-target':''}${fl==='de'?' flash':''}`}
+            onClick={()=>doMove('de')}
             style={{ flex:1, background: hospColapso?'#1a0505':'#0f172a',
               border:`1px solid ${hospColapso?'#ef4444':hospDanger&&!isR2?'#eab30888':'#1e293b'}`,
-              cursor:tgts.includes('ps')?'pointer':'default', display:'flex', flexDirection:'column', minHeight:0,
+              cursor:tgts.includes('de')?'pointer':'default', display:'flex', flexDirection:'column', minHeight:0,
               boxShadow: hospColapso&&!isR2?'inset 0 0 30px rgba(239,68,68,.15)':'none', transition:'all .5s' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6, flexShrink:0 }}>
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
@@ -1394,7 +1394,7 @@ function Game() {
           <div style={{ display:'flex', gap:4, marginLeft:6, flexShrink:0, flexWrap:'wrap' }}>
             {tgts.map(t=>(
               <button key={t} onClick={()=>doMove(t)} className="btn"
-                style={{ background:t==='alta'?'#16a34a':t==='enf'?'#0f766e':t==='uti'?'#dc2626':t==='ps'?'#1e6091':'#475569', fontSize:10 }}>
+                style={{ background:t==='alta'?'#16a34a':t==='enf'?'#0f766e':t==='uti'?'#dc2626':t==='de'?'#1e6091':'#475569', fontSize:10 }}>
                 → {secN[t]||t.toUpperCase()}{sel.dest==='uti'&&t==='enf'&&sel.sector!=='uti'?' [OFF]':''}
               </button>
             ))}
