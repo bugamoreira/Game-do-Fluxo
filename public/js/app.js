@@ -386,7 +386,7 @@ function MenuScreen({ onStart }) {
 }
 
 // ── Game over modal ───────────────────────────────────────────
-function GameOverModal({ isR2, score, st, pts, moves, onRestart, onMenu }) {
+function GameOverModal({ isR2, score, st, pts, moves, r1Results, onRestart, onMenu }) {
   const boarding = pts.filter(p => p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
   const corredor = pts.filter(p => p.sector==='corredor');
   const maxB     = pts.reduce((a, p) => Math.max(a, p.bMin), 0);
@@ -435,6 +435,38 @@ function GameOverModal({ isR2, score, st, pts, moves, onRestart, onMenu }) {
           background:isR2?'rgba(0,212,255,.05)':'rgba(255,59,59,.06)' }}>
           <p style={{ color:isR2?'#7dd3fc':'#fca5a5', fontSize:12, lineHeight:1.6 }}>{msg}</p>
         </div>
+        {/* Comparativo R1 vs R2 */}
+        {isR2 && r1Results && (
+          <div style={{ background:'rgba(0,212,255,.05)', border:'1px solid rgba(0,212,255,.15)', borderRadius:10, padding:14, marginBottom:16 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'#00d4ff', marginBottom:10, letterSpacing:'.08em' }}>COMPARATIVO: PLANTÃO TRAVADO vs PLANTÃO LEAN</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 80px 60px', gap:4, fontSize:11 }}>
+              <div style={{ color:'#64748b', fontWeight:700 }}>Métrica</div>
+              <div style={{ color:'#FF3B3B', fontWeight:700, textAlign:'right' }}>R1</div>
+              <div style={{ color:'#00d4ff', fontWeight:700, textAlign:'right' }}>R2</div>
+              <div style={{ color:'#22c55e', fontWeight:700, textAlign:'right' }}>Delta</div>
+              {[
+                { l:'Score', r1:r1Results.score, r2:score, inv:false },
+                { l:'Óbitos', r1:r1Results.deaths, r2:st.deaths, inv:true },
+                { l:'Deteriorações', r1:r1Results.dets, r2:st.dets, inv:true },
+                { l:'Cx canceladas', r1:r1Results.cxCan, r2:st.cxCan, inv:true },
+                { l:'LWBS', r1:r1Results.lwbs, r2:st.lwbs, inv:true },
+                { l:'Altas', r1:r1Results.disc, r2:st.disc, inv:false },
+              ].map(({l,r1,r2,inv}) => {
+                const d = r2-r1;
+                const good = inv ? d<0 : d>0;
+                return [
+                  <div key={l+'l'} style={{ color:'#94a3b8' }}>{l}</div>,
+                  <div key={l+'r1'} style={{ textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#FF3B3B' }}>{r1}</div>,
+                  <div key={l+'r2'} style={{ textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#00d4ff' }}>{r2}</div>,
+                  <div key={l+'d'} style={{ textAlign:'right', fontFamily:'monospace', fontWeight:800, color: d===0?'#64748b':good?'#22c55e':'#ef4444' }}>
+                    {d>0?'+':''}{d!==0?d:'—'}
+                  </div>,
+                ];
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Painel de decisões */}
         {moves && moves.total > 0 && (
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:16 }}>
@@ -493,6 +525,7 @@ function Game() {
   const [deathFlash,setDeathFlash] = useState(false);
   // Contadores de decisão para painel pós-rodada
   const [moves, setMoves] = useState({ total:0, produtivo:0, reativo:0 });
+  const [r1Results, setR1Results] = useState(s0?.r1Results || null); // salva resultado R1 para comparativo
   const [ccBlocked, setCcBlocked]  = useState(s0?.ccBlocked || false);
   const [showCcModal, setShowCcModal] = useState(null);
   const [fcUses,    setFcUses]     = useState(s0?.fcUses || 0);
@@ -685,7 +718,15 @@ function Game() {
   const tick = useCallback(() => {
     setSm(prev => {
       const nm = prev+1;
-      if (nm>=EH*60) { setRun(false); setPh('over'); addL('Plantão encerrado!','success'); return EH*60; }
+      if (nm>=EH*60) {
+        setRun(false); setPh('over'); addL('Plantão encerrado!','success');
+        // Salvar resultado R1 para comparativo na R2
+        if (ref.current.rnd2 === 1) {
+          const S = ref.current.st;
+          setR1Results({ score: calcScore(S), ...S });
+        }
+        return EH*60;
+      }
       return nm;
     });
     setPts(prev => {
@@ -1407,7 +1448,7 @@ function Game() {
       )}
 
       {/* ── Game over modal ── */}
-      {ph==='over'&&<GameOverModal isR2={isR2} score={score} st={st} pts={pts} moves={moves} onRestart={startR} onMenu={()=>{clearSession();setPh('menu');}}/>}
+      {ph==='over'&&<GameOverModal isR2={isR2} score={score} st={st} pts={pts} moves={moves} r1Results={r1Results} onRestart={startR} onMenu={()=>{clearSession();setPh('menu');}}/>}
     </div>
   );
 }
