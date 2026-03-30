@@ -273,8 +273,20 @@ function Instructor() {
     subscribeRoom(room.id);
   };
 
-  const subscribeRoom = (rid) => {
-    // Realtime subscription
+  const subscribeRoom = async (rid) => {
+    // Fetch inicial — carrega dados existentes
+    const { data: initTeams } = await sb.from('teams').select('*').eq('room_id', rid);
+    if (initTeams?.length) setTeams(initTeams);
+    const { data: initGS } = await sb.from('game_state').select('*').eq('room_id', rid);
+    if (initGS?.length) {
+      const map = {};
+      initGS.forEach(gs => { if (!map[gs.team_id]) map[gs.team_id] = {}; map[gs.team_id][`round${gs.round}`] = gs; });
+      setGameStates(map);
+      const latest = initGS.reduce((a, g) => g.sim_minute > (a?.sim_minute||0) ? g : a, null);
+      if (latest?.sim_minute) setSimMin(latest.sim_minute);
+    }
+
+    // Realtime puro (Supabase Pro) — sem polling
     const teamSub = sb.channel(`teams-${rid}`)
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'teams', filter:`room_id=eq.${rid}` },
         p => setTeams(prev => {
@@ -294,25 +306,7 @@ function Instructor() {
         })
       .subscribe();
 
-    // Polling fallback — garante que times apareçam mesmo se Realtime falhar
-    const pollIv = setInterval(async () => {
-      const { data } = await sb.from('teams').select('*').eq('room_id', rid);
-      if (data) setTeams(data);
-      // Também poll game_state
-      const { data: gsData } = await sb.from('game_state').select('*').eq('room_id', rid);
-      if (gsData) {
-        const map = {};
-        gsData.forEach(gs => {
-          if (!map[gs.team_id]) map[gs.team_id] = {};
-          map[gs.team_id][`round${gs.round}`] = gs;
-        });
-        setGameStates(map);
-        const latest = gsData.reduce((a, g) => g.sim_minute > (a?.sim_minute||0) ? g : a, null);
-        if (latest?.sim_minute) setSimMin(latest.sim_minute);
-      }
-    }, 2000);
-
-    subRef.current = { teamSub, gsSub, pollIv };
+    subRef.current = { teamSub, gsSub };
   };
 
   const setStatus = async (status, roundNum, allowLateJoin=false) => {
