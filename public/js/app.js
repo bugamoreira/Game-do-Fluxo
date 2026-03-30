@@ -548,7 +548,7 @@ function Game() {
         ph, pts:ref.current.pts, sx, sm:ref.current.sm, st:ref.current.st,
         evts:ref.current.evts, rnd2:ref.current.rnd2, log:log.slice(0,20),
         nirUses, nirCd, ccBlocked, tName, rCode, roomId, teamId,
-        nx:ref.current.nx, rd:ref.current.rd,
+        nx:ref.current.nx, rd:ref.current.rd, r1Results,
       });
     }, 3000);
     return () => clearInterval(iv);
@@ -559,8 +559,9 @@ function Game() {
     if (s0?.roomId && s0?.teamId && (s0?.ph === 'play' || s0?.ph === 'waiting')) {
       sb.channel(`rm-${s0.roomId}`)
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${s0.roomId}` }, p => {
-          if (p.new.status==='round1') doStartR(1, false);
-          else if (p.new.status==='round2') doStartR(2, false);
+          const cur = ref.current.rnd2;
+          if (p.new.status==='round1' && cur !== 1) doStartR(1, false);
+          else if (p.new.status==='round2' && cur !== 2) doStartR(2, false);
         })
         .subscribe();
     }
