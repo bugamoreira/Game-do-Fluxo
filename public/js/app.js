@@ -668,8 +668,14 @@ function Game() {
   // ── Multiplayer: join room ────────────────────────────────
   const joinRoom = async (name, code) => {
     SimsMusic.init();
-    const { data:room } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle();
-    if (!room) return { error:`Sala não encontrada. Verifique se o facilitador já criou a dinâmica.` };
+    let room = null;
+    // Tentar até 30s (10 tentativas) — permite jogador entrar antes do facilitador
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const { data } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle();
+      if (data) { room = data; break; }
+      if (attempt < 9) await new Promise(r => setTimeout(r, 3000));
+    }
+    if (!room) return { error:`Sala não encontrada após 30s. Verifique se o facilitador iniciou a dinâmica.` };
     if (room.status === 'finished') return { error:`A dinâmica já foi encerrada.` };
     // Verificar nome duplicado
     const { data: existing } = await sb.from('teams').select('id').eq('room_id', room.id).eq('name', name).maybeSingle();
@@ -1156,6 +1162,8 @@ function Game() {
             </div>
             {!roomId && <button onClick={()=>setRun(r=>!r)} className="btn"
               style={{ background:run?'#374151':'#16a34a' }}>{run?'PAUSAR':'RETOMAR'}</button>}
+            <button onClick={()=>{clearSession();setRun(false);setPh('role');}} className="btn"
+              style={{ background:'#1e293b', padding:'4px 10px', fontSize:9, color:'#64748b' }}>SAIR</button>
           </div>
         </div>
       </div>
