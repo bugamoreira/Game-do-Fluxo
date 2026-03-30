@@ -306,7 +306,19 @@ function Instructor() {
         })
       .subscribe();
 
-    subRef.current = { teamSub, gsSub };
+    // Safety net: polling leve a cada 3s para garantir sync de sim_minute/score
+    const pollIv = setInterval(async () => {
+      const { data: gsData } = await sb.from('game_state').select('*').eq('room_id', rid);
+      if (gsData?.length) {
+        const map = {};
+        gsData.forEach(gs => { if (!map[gs.team_id]) map[gs.team_id] = {}; map[gs.team_id][`round${gs.round}`] = gs; });
+        setGameStates(map);
+        const latest = gsData.reduce((a, g) => g.sim_minute > (a?.sim_minute||0) ? g : a, null);
+        if (latest?.sim_minute) setSimMin(latest.sim_minute);
+      }
+    }, 3000);
+
+    subRef.current = { teamSub, gsSub, pollIv };
   };
 
   const setStatus = async (status, roundNum, allowLateJoin=false) => {

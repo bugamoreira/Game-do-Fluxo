@@ -227,6 +227,22 @@ function Projecao() {
               if (gs2.sim_minute) setSimMin(gs2.sim_minute);
             })
           .subscribe();
+
+        // Safety net: polling leve para garantir sync
+        setInterval(async () => {
+          const { data: r2 } = await sb.from('rooms').select('*').eq('id', data.id).single();
+          if (r2) setRoom(r2);
+          const { data: gs2 } = await sb.from('game_state').select('*').eq('room_id', data.id);
+          if (gs2?.length) {
+            const m2 = {};
+            gs2.forEach(g => { if (!m2[g.team_id]) m2[g.team_id] = {}; m2[g.team_id][`round${g.round}`] = g; });
+            setGameStates(m2);
+            const lat = gs2.reduce((a, g) => g.sim_minute > (a?.sim_minute||0) ? g : a, null);
+            if (lat?.sim_minute) setSimMin(lat.sim_minute);
+          }
+          const { data: t2 } = await sb.from('teams').select('*').eq('room_id', data.id);
+          if (t2) setTeams(t2);
+        }, 3000);
       }
       setLoading(false);
     };
