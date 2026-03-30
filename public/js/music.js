@@ -103,7 +103,7 @@ const SimsMusic = (() => {
   }
 
   // ── Update music based on live game state ──────────────────
-  function update({ psOcc, boarding, deaths, isR2, run }) {
+  function update({ deOcc, boarding, deaths, isR2, run }) {
     if (!inited) return;
 
     if (!run) {
@@ -112,10 +112,10 @@ const SimsMusic = (() => {
     }
     if (Tone.Transport.state !== 'started') Tone.Transport.start();
 
-    // Choose target mode
+    // Choose target mode based on DE occupancy and boarding
     let target = 'calm';
     if (!isR2 && deaths > 0)             target = 'crisis';
-    else if (boarding > 2 || psOcc >= 12) target = 'minor';
+    else if (boarding > 2 || deOcc >= 12) target = 'minor';
 
     // R2 never reaches crisis (tools work!)
     if (isR2 && target === 'crisis') target = 'minor';

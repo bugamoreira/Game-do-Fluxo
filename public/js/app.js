@@ -17,7 +17,7 @@ function PSvg({ color, sz = 18, dead, det, style = {} }) {
   );
 }
 
-// ── Regular chip (PS / RPA / UTI) ────────────────────────────
+// ── Regular chip (DE / RPA / UTI) ────────────────────────────
 function Chip({ p, sel, onClick }) {
   const s   = SEV[p.sev];
   const isR = p.ready || (p.dischReady && p.prep <= 0 && !p.social);
@@ -802,14 +802,10 @@ function Game() {
         }
       }
 
-      // Cirurgia de emergência do PS
+      // Cirurgia de emergência do DE
       if (ch>=9&&ch<16&&Math.random()<(isR2local?.003:.005)) {
         const emgCandidate = P.find(p=>p.sector==='de'&&p.sev==='red'&&!p.dead&&!p.postOp);
         if (emgCandidate) {
-          // Contar salas ocupadas
-          const activeSx = (prevSx => {
-            try { return ref.current._sx || []; } catch(e) { return []; }
-          })();
           const rpaCount = P.filter(p=>p.sector==='rpa').length;
           const blocked = ref.current.ccBlocked;
           // Simplificado: se RPA tem vaga, pode operar
@@ -852,13 +848,13 @@ function Game() {
         ref.current.nx=cm+Math.max(3,Math.round(60/rate)+rnd(-4,4));
       }
 
-      // Auto-move porta → PS
+      // Auto-move triagem → DE
       const porta=P.filter(p=>p.sector==='triagem').sort((a,b)=>a.arrMin-b.arrMin);
       const pcrB=E.pcr?1:0;
       const space=CAP.de-pcrB-P.filter(p=>p.sector==='de').length;
       for (let i=0;i<Math.min(space,porta.length);i++) porta[i].sector='de';
 
-      // PS processing with congestion multiplier
+      // DE processing with hospital congestion multiplier
       const eN=P.filter(p=>p.sector==='enf').length, uN=P.filter(p=>p.sector==='uti').length;
       const mult=hospMult(eN, uN, isR2local);
       P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong) { p.deSpent+=mult; if (p.deSpent>=p.deNeed) { p.ready=true; if(p.labDelay) p.labDelay=false; }}});
