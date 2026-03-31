@@ -829,7 +829,9 @@ function Game() {
             SimsMusic.sfx('death');
             setDeathFlash(true); setTimeout(()=>setDeathFlash(false),600);
           } else {
-            // Bloqueou sala mas RPA lotada — opera mas precisa esperar RPA
+            // Bloqueou sala mas RPA lotada — opera na sala reservada, paciente fica em espera
+            emgCandidate.blocked = true;
+            emgCandidate.ready = false;
             addL(`EMERGÊNCIA: ${emgCandidate.name} operado na sala reservada. Aguardando vaga na RPA.`,'warning');
           }
         }
@@ -992,7 +994,7 @@ function Game() {
         return sx2;
       });
 
-      setSt(S); return P;
+      setSt(prev => ({...prev, ...S})); return P;
     });
   }, [addL, nirCd]);
 
