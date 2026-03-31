@@ -925,7 +925,7 @@ function Game() {
         const tc=P.find(p=>p.sector==='triagem');
         if (tc&&Math.random()<.4) { tc.sector='corredor'; addL(`${tc.name} → CORREDOR — sem macas disponíveis!`,'warning'); }
       }
-      const corredorLimit = isR2local ? 5 : 2;
+      const corredorLimit = isR2local ? 3 : 2;
       if (P.filter(p=>p.sector==='corredor').length>corredorLimit) {
         const lw=P.find(p=>p.sector==='corredor'&&p.dest==='alta_de'&&!p.dead);
         if (lw&&Math.random()<.3) { lw.sector='alta'; S.lwbs++; addL(`${lw.name} SAIU SEM ATENDIMENTO! (LWBS)`,'danger'); }

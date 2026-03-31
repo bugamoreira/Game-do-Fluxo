@@ -274,6 +274,12 @@ function Instructor() {
   };
 
   const subscribeRoom = async (rid) => {
+    // Cleanup subscriptions anteriores (evita leak no reiniciar)
+    if (subRef.current) {
+      if (subRef.current.teamSub) sb.removeChannel(subRef.current.teamSub);
+      if (subRef.current.gsSub) sb.removeChannel(subRef.current.gsSub);
+      if (subRef.current.pollIv) clearInterval(subRef.current.pollIv);
+    }
     // Fetch inicial — carrega dados existentes
     const { data: initTeams } = await sb.from('teams').select('*').eq('room_id', rid);
     if (initTeams?.length) setTeams(initTeams);
