@@ -684,10 +684,17 @@ function Game() {
     const cols = ['#FF3B3B','#00d4ff','#22c55e','#eab308','#f97316','#a855f7','#ec4899','#14b8a6'];
     const col  = cols[Math.floor(Math.random()*cols.length)];
     const { data:team, error } = await sb.from('teams').insert({ room_id:room.id, name, color:col }).select('id').single();
-    if (error||!team) return { error:'Erro ao registrar time. Tente novamente.' };
+    if (error) {
+      if (error.code === '23505') return { error:`Já existe um time chamado "${name}". Escolha outro nome.` };
+      return { error:'Erro ao registrar time. Tente novamente.' };
+    }
+    if (!team) return { error:'Erro ao registrar time. Tente novamente.' };
     setTName(name); setRCode(code); setRoomId(room.id); setTeamId(team.id);
-    if (room.allow_late_join && (room.status==='round1'||room.status==='round2')) {
-      doStartR(room.status==='round1' ? 1 : 2, false);
+    // Re-fetch status atualizado (protege contra race condition facilitador/jogador)
+    const { data: freshRoom } = await sb.from('rooms').select('status').eq('id', room.id).single();
+    const st2 = freshRoom?.status || room.status;
+    if (st2==='round1'||st2==='round2') {
+      doStartR(st2==='round1' ? 1 : 2, false);
     } else {
       setPh('waiting');
     }
