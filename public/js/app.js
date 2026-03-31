@@ -150,7 +150,7 @@ function RoleSelector({ onJogador, onFacilitador }) {
         </div>
 
         <button onClick={()=>setShowRules(true)} className="btn"
-          style={{ background:'rgba(255,255,255,.04)', border:'1px solid #334155', color:'#94a3b8', padding:'10px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em' }}>
+          style={{ background:'rgba(255,255,255,.1)', border:'1px solid #475569', color:'#e2e8f0', padding:'10px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em' }}>
           Como Jogar
         </button>
       </div>
@@ -206,7 +206,7 @@ function RoleSelector({ onJogador, onFacilitador }) {
             {/* Boarding */}
             <div style={{ padding:'14px 16px', background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.2)', borderRadius:10, marginBottom:14 }}>
               <div style={{ fontSize:11, fontWeight:700, color:'#ef4444', marginBottom:6, letterSpacing:'.06em' }}>ATENÇÃO: BOARDING</div>
-              <div style={{ fontSize:13, color:'#fca5a5', lineHeight:1.7 }}>
+              <div style={{ fontSize:13, color:'#f87171', lineHeight:1.7 }}>
                 Paciente pronto para internar mas <strong>sem leito</strong> fica em boarding no DE.
                 Após <strong>3 horas</strong> ele deteriora. Após <strong>6 horas</strong>, óbito evitável.
               </div>
@@ -261,7 +261,7 @@ function FacilitadorLogin({ onAuth, onBack }) {
             <input placeholder="Senha" type="password" value={pass} onChange={e => setPass(e.target.value)}
               onKeyDown={e => e.key==='Enter'&&submit()} autoComplete="current-password"/>
           </div>
-          {err && <div style={{ color:'#fca5a5', fontSize:11, marginBottom:10 }}>{err}</div>}
+          {err && <div style={{ color:'#f87171', fontSize:11, marginBottom:10 }}>{err}</div>}
           <button onClick={submit} className="btn"
             style={{ background:'linear-gradient(135deg,#0891b2,#0e7490)', padding:'12px 32px', fontSize:14, fontWeight:800, width:'100%', boxShadow:'0 0 24px rgba(0,212,255,.2)' }}>
             Entrar
@@ -301,7 +301,7 @@ function LobbyScreen({ onJoin, onSolo, onBack }) {
           <input placeholder="Nome do seu time (ex: Grupo Alpha)" value={tName}
             onChange={e => setTName(e.target.value)} onKeyDown={e => e.key==='Enter'&&submit()} maxLength={30} autoFocus
             style={{ width:'100%', marginBottom:14, fontSize:15, padding:'12px 16px', textAlign:'center', fontWeight:700 }}/>
-          {err && <div style={{ color:'#fca5a5', fontSize:11, marginBottom:12 }}>{err}</div>}
+          {err && <div style={{ color:'#f87171', fontSize:11, marginBottom:12 }}>{err}</div>}
           <button onClick={submit} disabled={loading} className="btn"
             style={{ background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'14px 32px', fontSize:16, fontWeight:800, width:'100%', boxShadow:'0 4px 24px rgba(255,59,59,.3)', opacity:loading?.6:1, borderRadius:10 }}>
             {loading ? 'Conectando...' : 'Entrar'}
@@ -433,7 +433,7 @@ function GameOverModal({ isR2, score, st, pts, moves, r1Results, onRestart, onMe
         </div>
         <div style={{ borderRadius:10, padding:12, marginBottom:16, border:`1px solid ${isR2?'rgba(0,212,255,.15)':'rgba(255,59,59,.15)'}`,
           background:isR2?'rgba(0,212,255,.05)':'rgba(255,59,59,.06)' }}>
-          <p style={{ color:isR2?'#7dd3fc':'#fca5a5', fontSize:12, lineHeight:1.6 }}>{msg}</p>
+          <p style={{ color:isR2?'#7dd3fc':'#f87171', fontSize:12, lineHeight:1.6 }}>{msg}</p>
         </div>
         {/* Comparativo R1 vs R2 */}
         {isR2 && r1Results && (
@@ -587,7 +587,7 @@ function Game() {
   const rpaOcc   = byS('rpa').length;
   const boarding = pts.filter(p => p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
   const avgB     = boarding.length>0 ? Math.round(boarding.reduce((a,p)=>a+p.bMin,0)/boarding.length) : 0;
-  const score    = calcScore(st);
+  const score    = calcScore({...st, isR2});
   const prog     = ((sm-SH*60)/((EH-SH)*60))*100;
   const deEval   = byS('de').filter(p=>!p.ready&&!p.obsProlong);
   const deBoard  = byS('de').filter(p=>p.ready&&(p.dest==='enf'||p.dest==='uti'));
@@ -715,7 +715,7 @@ function Game() {
       const brd = P.filter(p=>p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
       const avgBrd = brd.length>0 ? Math.round(brd.reduce((a,p)=>a+p.bMin,0)/brd.length) : 0;
       sb.from('game_state').upsert({
-        team_id:teamId, room_id:roomId, round:r, sim_minute:m, score:calcScore(S),
+        team_id:teamId, room_id:roomId, round:r, sim_minute:m, score:calcScore({...S, isR2:r===2}),
         metrics:{
           dis:S.disc, det:S.dets, dth:S.deaths, cxC:S.cxCan, lw:S.lwbs, off:S.offS, soc:S.socB, bH:S.boardHrs,
           deOcc:P.filter(p=>p.sector==='de').length, enfOcc:P.filter(p=>p.sector==='enf').length,
@@ -884,7 +884,7 @@ function Game() {
       // R2: Fluxo puxado — DE lotado ACELERA decisões (pull system)
       const deCount = P.filter(p=>p.sector==='de').length;
       if (isR2local && deCount >= Math.round(CAP.de*0.8)) {
-        P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong) p.deSpent+=0.5; });
+        P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong) p.deSpent+=1.0; });
         if (!R.pullLog) { R.pullLog=true; addL('PROTOCOLO DE FLUXO RÁPIDO ATIVO — decisões aceleradas no DE.','success'); }
       }
 
@@ -1071,7 +1071,7 @@ function Game() {
   const clk = p => run && setSel(s=>s?.id===p.id?null:p);
 
   // Color helpers
-  const logC   = { danger:'#fca5a5', warning:'#fde047', success:'#86efac', info:'#94a3b8', fact:'#c4b5fd' };
+  const logC   = { danger:'#f87171', warning:'#fde047', success:'#86efac', info:'#94a3b8', fact:'#c4b5fd' };
   const logBg  = { danger:'rgba(239,68,68,.06)', warning:'rgba(234,179,8,.05)', success:'rgba(34,197,94,.05)', info:'rgba(255,255,255,.02)', fact:'rgba(167,139,250,.08)' };
   const logBrd = { danger:'#ef4444', warning:'#eab308', success:'#22c55e', info:'#1e293b', fact:'#a78bfa' };
   const secN   = { de:'DE', enf:'ENF', uti:'UTI', rpa:'RPA', alta:'ALTA' };
@@ -1210,9 +1210,9 @@ function Game() {
       </div>
 
       {/* ── Alerts ── */}
-      {cascade && <div style={{ background:'linear-gradient(90deg,#450a0a,#1a0505)', borderBottom:'2px solid #ef4444', padding:'5px 14px', textAlign:'center', animation:'cascPulse 2s infinite', fontSize:12, fontWeight:700, color:'#fca5a5', flexShrink:0 }}>EFEITO CASCATA: {cascade}</div>}
+      {cascade && <div style={{ background:'linear-gradient(90deg,#450a0a,#1a0505)', borderBottom:'2px solid #ef4444', padding:'5px 14px', textAlign:'center', animation:'cascPulse 2s infinite', fontSize:12, fontWeight:700, color:'#f87171', flexShrink:0 }}>EFEITO CASCATA: {cascade}</div>}
       {!cascade&&rpaW && <div style={{ background:'linear-gradient(90deg,#422006,#1a1005)', borderBottom:'2px solid #ca8a04', padding:'4px 14px', textAlign:'center', fontSize:11, fontWeight:600, color:'#fde047', flexShrink:0 }}>{rpaW}</div>}
-      {evts.pcr  && <div style={{ background:'#450a0a', borderBottom:'1px solid #ef4444', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#fca5a5', animation:'pulse 2s infinite', flexShrink:0 }}>PARADA CARDÍACA — 1 maca bloqueada ({fmt(evts.pcrEnd)})</div>}
+      {evts.pcr  && <div style={{ background:'#450a0a', borderBottom:'1px solid #ef4444', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#f87171', animation:'pulse 2s infinite', flexShrink:0 }}>PARADA CARDÍACA — 1 maca bloqueada ({fmt(evts.pcrEnd)})</div>}
       {evts.tomo && <div style={{ background:'#1a1505', borderBottom:'1px solid #ca8a04', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#fde047', flexShrink:0 }}>TOMÓGRAFO QUEBRADO — Decisão +120min ({fmt(evts.tomoEnd)})</div>}
       {evts.lab  && <div style={{ background:'#0a1a2a', borderBottom:'1px solid #0891b2', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#67e8f9', flexShrink:0 }}>ATRASO NO LABORATÓRIO — Resultados pendentes ({fmt(evts.labEnd)})</div>}
 

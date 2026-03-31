@@ -155,7 +155,8 @@ function calcScore(s) {
   sc -= s.lwbs   * 50;
   sc -= s.offS   * 30;
   sc -= s.socB   * 20;
-  sc += s.disc   * 5;
-  if (s.deaths === 0) sc += 100;
+  sc += s.disc   * 2;                  // moderado — evita inflação por discharge
+  if (s.deaths === 0) sc += 100;       // bônus zero óbitos
+  if (s.isR2 && s.deaths===0 && s.dets===0 && s.cxCan===0) sc += 200; // bônus R2 perfeito
   return Math.max(0, Math.round(sc));
 }

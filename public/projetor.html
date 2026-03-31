@@ -56,7 +56,7 @@ function TeamRow({team, gs, rank}) {
         {rank}
       </div>
       <div style={{width:14, height:14, borderRadius:'50%', background: team.color || '#64748b', flexShrink:0}}/>
-      <div style={{flex:1, fontWeight:700, fontSize:18, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+      <div style={{flex:1, fontWeight:700, fontSize:'clamp(16px, 3vw, 26px)', minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
         {team.name}
       </div>
       <div style={{display:'flex', gap:20, alignItems:'center', flexShrink:0}}>
@@ -378,7 +378,7 @@ function Projecao() {
         {phase === 'debrief' && (
           <div style={{textAlign:'center', padding:40}}>
             <div style={{fontSize:32, fontWeight:900, color:'#eab308', marginBottom:12}}>DEBRIEF — SIMULADOR DO PLANTÃO TRAVADO</div>
-            <div style={{fontSize:16, color:'#94a3b8', lineHeight:1.8, maxWidth:500, margin:'0 auto'}}>
+            <div style={{fontSize:22, color:'#94a3b8', lineHeight:1.8, maxWidth:600, margin:'0 auto'}}>
               O que aconteceu?<br/>
               Onde travou primeiro?<br/>
               Foi falta de leito ou falta de gestão?

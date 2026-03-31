@@ -466,7 +466,7 @@ function Instructor() {
           {phase === 'lobby' && (
             <button onClick={startRound1} disabled={teams.length === 0} className="btn"
               style={{background:'linear-gradient(135deg,#FF3B3B,#dc2626)', padding:'10px 22px', fontSize:13}}>
-              Iniciar Simulador Plantão Travado (R1)
+              Iniciar Plantão Travado (R1)
             </button>
           )}
           {phase === 'round1' && (
@@ -478,7 +478,7 @@ function Instructor() {
           {phase === 'debrief' && (
             <button onClick={startRound2} className="btn"
               style={{background:'linear-gradient(135deg,#00d4ff,#0891b2)', padding:'10px 22px', fontSize:13}}>
-              Iniciar Simulador Plantão Lean (R2)
+              Iniciar Plantão Lean (R2)
             </button>
           )}
           {phase === 'round2' && (
