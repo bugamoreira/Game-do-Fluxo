@@ -147,16 +147,16 @@ function hospOcc(enfN, utiN) {
 
 // ── Cálculo de score ───────────────────────────────────────
 function calcScore(s) {
-  let sc = 1000;
-  sc -= Math.round(s.boardHrs * 12);
-  sc -= s.dets   * 50;
-  sc -= s.deaths * 250;
-  sc -= s.cxCan  * 100;
-  sc -= s.lwbs   * 50;
-  sc -= s.offS   * 30;
-  sc -= s.socB   * 20;
-  sc += s.disc   * 2;                  // moderado — evita inflação por discharge
-  if (s.deaths === 0) sc += 100;       // bônus zero óbitos
-  if (s.isR2 && s.deaths===0 && s.dets===0 && s.cxCan===0) sc += 200; // bônus R2 perfeito
-  return Math.max(0, Math.round(sc));
+  let sc = 1500;                       // base alta — permite spread no ranking
+  sc -= Math.round(s.boardHrs * 10);   // boarding: mal central
+  sc -= s.dets   * 40;                 // deterioração
+  sc -= s.deaths * 150;                // óbito: grave mas não zera sozinho
+  sc -= s.cxCan  * 80;                 // cirurgia cancelada
+  sc -= s.lwbs   * 40;                 // saiu sem atendimento
+  sc -= s.offS   * 25;                 // fora do perfil
+  sc -= s.socB   * 15;                 // bloqueio social
+  sc += s.disc   * 3;                  // cada alta pontua
+  if (s.deaths === 0) sc += 150;       // bônus zero óbitos
+  if (s.isR2 && s.deaths===0 && s.dets===0 && s.cxCan===0) sc += 300; // bônus R2 perfeito
+  return Math.max(50, Math.round(sc)); // floor 50 — ninguém zera (sempre tem ranking)
 }
