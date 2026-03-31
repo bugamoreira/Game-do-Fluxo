@@ -869,7 +869,7 @@ function Game() {
       const mult=hospMult(eN, uN, isR2local);
       P.forEach(p => { if (p.sector==='de'&&!p.ready&&!p.obsProlong) { p.deSpent+=mult; if (p.deSpent>=p.deNeed) { p.ready=true; if(p.labDelay) p.labDelay=false; }}});
 
-      // R2: Fluxista auto-discharge alta_ps every 20 sim-min (was 30)
+      // R2: Fluxista auto-discharge alta_de every 20 sim-min
       if (isR2local&&cm%20===0) {
         const fluxPts=P.filter(p=>p.sector==='de'&&p.ready&&p.dest==='alta_de');
         fluxPts.forEach(p => { p.sector='alta'; S.disc++; addL(`Fluxista: ${p.name} — alta automática.`,'success'); });
