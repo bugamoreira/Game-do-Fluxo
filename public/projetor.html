@@ -61,20 +61,20 @@ function TeamRow({team, gs, rank}) {
       </div>
       <div style={{display:'flex', gap:20, alignItems:'center', flexShrink:0}}>
         <div style={{textAlign:'center'}}>
-          <div style={{fontSize:10, color:'#64748b'}}>Boarding</div>
-          <div style={{fontSize:16, fontWeight:700, fontFamily:'monospace', color: (metrics.boarding||0) > 3 ? '#ef4444' : (metrics.boarding||0) > 0 ? '#eab308' : '#64748b'}}>{metrics.boarding ?? '—'}</div>
+          <div style={{fontSize:'clamp(10px, 1.5vw, 14px)', color:'#64748b'}}>Boarding</div>
+          <div style={{fontSize:'clamp(14px, 2.5vw, 22px)', fontWeight:700, fontFamily:'monospace', color: (metrics.boarding||0) > 3 ? '#ef4444' : (metrics.boarding||0) > 0 ? '#eab308' : '#64748b'}}>{metrics.boarding ?? '—'}</div>
         </div>
         <div style={{textAlign:'center'}}>
-          <div style={{fontSize:10, color:'#64748b'}}>Óbitos</div>
-          <div style={{fontSize:16, fontWeight:700, fontFamily:'monospace', color: (metrics.dth||0) > 0 ? '#ef4444' : '#64748b'}}>{metrics.dth ?? '—'}</div>
+          <div style={{fontSize:'clamp(10px, 1.5vw, 14px)', color:'#64748b'}}>Óbitos</div>
+          <div style={{fontSize:'clamp(14px, 2.5vw, 22px)', fontWeight:700, fontFamily:'monospace', color: (metrics.dth||0) > 0 ? '#ef4444' : '#64748b'}}>{metrics.dth ?? '—'}</div>
         </div>
         <div style={{textAlign:'center'}}>
-          <div style={{fontSize:10, color:'#64748b'}}>Altas</div>
-          <div style={{fontSize:16, fontWeight:700, fontFamily:'monospace', color:'#22c55e'}}>{metrics.dis ?? '—'}</div>
+          <div style={{fontSize:'clamp(10px, 1.5vw, 14px)', color:'#64748b'}}>Altas</div>
+          <div style={{fontSize:'clamp(14px, 2.5vw, 22px)', fontWeight:700, fontFamily:'monospace', color:'#22c55e'}}>{metrics.dis ?? '—'}</div>
         </div>
       </div>
       <div style={{minWidth:110, textAlign:'right', flexShrink:0}}>
-        <div style={{fontSize:28, fontWeight:900, fontFamily:'monospace', color:scoreC}}>{score}</div>
+        <div style={{fontSize:'clamp(22px, 4vw, 36px)', fontWeight:900, fontFamily:'monospace', color:scoreC}}>{score}</div>
         <ScoreBar score={score}/>
       </div>
     </div>
@@ -330,15 +330,15 @@ function Projecao() {
         {allGS.length > 0 && (
           <div style={{display:'flex', gap:20}}>
             <div style={{textAlign:'center'}}>
-              <div style={{fontSize:10, color:'#64748b'}}>Score médio</div>
+              <div style={{fontSize:'clamp(10px, 1.5vw, 14px)', color:'#64748b'}}>Score médio</div>
               <div style={{fontSize:22, fontWeight:900, fontFamily:'monospace', color: avgScore > 700 ? '#22c55e' : avgScore > 400 ? '#eab308' : '#ef4444'}}>{avgScore}</div>
             </div>
             <div style={{textAlign:'center'}}>
-              <div style={{fontSize:10, color:'#64748b'}}>Óbitos total</div>
+              <div style={{fontSize:'clamp(10px, 1.5vw, 14px)', color:'#64748b'}}>Óbitos total</div>
               <div style={{fontSize:22, fontWeight:900, fontFamily:'monospace', color: totalDeaths > 0 ? '#ef4444' : '#22c55e'}}>{totalDeaths}</div>
             </div>
             <div style={{textAlign:'center'}}>
-              <div style={{fontSize:10, color:'#64748b'}}>Times</div>
+              <div style={{fontSize:'clamp(10px, 1.5vw, 14px)', color:'#64748b'}}>Times</div>
               <div style={{fontSize:22, fontWeight:900, fontFamily:'monospace', color:'#00d4ff'}}>{teams.length}</div>
             </div>
           </div>
@@ -376,12 +376,17 @@ function Projecao() {
 
         {/* Debrief */}
         {phase === 'debrief' && (
-          <div style={{textAlign:'center', padding:40}}>
-            <div style={{fontSize:32, fontWeight:900, color:'#eab308', marginBottom:12}}>DEBRIEF — SIMULADOR DO PLANTÃO TRAVADO</div>
-            <div style={{fontSize:22, color:'#94a3b8', lineHeight:1.8, maxWidth:600, margin:'0 auto'}}>
-              O que aconteceu?<br/>
-              Onde travou primeiro?<br/>
-              Foi falta de leito ou falta de gestão?
+          <div style={{textAlign:'center', padding:'60px 40px'}}>
+            <div style={{fontSize:'clamp(24px, 4vw, 36px)', fontWeight:900, color:'#eab308', marginBottom:32}}>DEBRIEF — PLANTÃO TRAVADO</div>
+            <div style={{display:'flex', flexDirection:'column', gap:16, maxWidth:600, margin:'0 auto'}}>
+              {['O que aconteceu?','Onde travou primeiro?','Foi falta de leito ou falta de gestão?','As altas saíram no horário?','Quando o hospital congestionou?'].map(q => (
+                <div key={q} style={{background:'rgba(234,179,8,.06)', border:'1px solid rgba(234,179,8,.2)', borderRadius:10, padding:'16px 24px', fontSize:'clamp(18px, 3vw, 26px)', color:'#fde047', fontWeight:600, fontStyle:'italic'}}>
+                  "{q}"
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:'clamp(14px, 2vw, 18px)', color:'#eab308', marginTop:32, fontWeight:700}}>
+              "O problema não está na entrada. Está na SAÍDA."
             </div>
           </div>
         )}

@@ -87,7 +87,7 @@ function MiniChip({ p, sel, onClick }) {
 function SxPan({ surgeries, sm }) {
   return (
     <div style={{ background:'#0f172a', border:'1px solid #1e293b', borderRadius:10, padding:8, flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
-      <div style={{ fontSize:10, fontWeight:700, color:'#64748b', marginBottom:5, letterSpacing:'.08em', flexShrink:0 }}>CC — 4 SALAS</div>
+      <div style={{ fontSize:11, fontWeight:700, color:'#64748b', marginBottom:5, letterSpacing:'.08em', flexShrink:0 }}>CC — 4 SALAS</div>
       <div style={{ flex:1, overflowY:'auto' }}>
         {surgeries.map(s => {
           const stM = s.stH*60, enM = stM+s.dur*60;
@@ -97,12 +97,12 @@ function SxPan({ surgeries, sm }) {
           const prog = inP ? Math.round((sm-stM)/(enM-stM)*100) : 0;
           const col  = cn ? '#ef4444' : inP ? '#eab308' : done ? '#22c55e' : '#94a3b8';
           return (
-            <div key={s.id} style={{ fontSize:10, padding:'4px 6px', borderRadius:5, marginBottom:2,
+            <div key={s.id} style={{ fontSize:11, padding:'4px 6px', borderRadius:5, marginBottom:2,
               background: cn ? 'rgba(239,68,68,.06)' : inP ? 'rgba(234,179,8,.08)' : done ? 'rgba(34,197,94,.05)' : 'rgba(255,255,255,.02)',
               border:`1px solid ${col}22`, opacity:cn?.5:1 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <span style={{ color:col, fontWeight:600 }}>{s.label}</span>
-                <span style={{ fontSize:9, color:'#64748b', fontFamily:'monospace' }}>
+                <span style={{ fontSize:11, color:'#64748b', fontFamily:'monospace' }}>
                   {cn ? 'CANCEL' : inP ? `${prog}%` : done ? `>${s.dest==='uti'?'UTI':'ENF'}` : fmt(s.stH*60)}
                 </span>
               </div>
@@ -150,7 +150,8 @@ function RoleSelector({ onJogador, onFacilitador }) {
         </div>
 
         <button onClick={()=>setShowRules(true)} className="btn"
-          style={{ background:'rgba(255,255,255,.1)', border:'1px solid #475569', color:'#e2e8f0', padding:'10px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em' }}>
+          style={{ background:'rgba(255,255,255,.1)', border:'1px solid #475569', color:'#e2e8f0', padding:'11px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em', display:'flex', alignItems:'center', gap:6 }}>
+          <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(0,212,255,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:'#00d4ff' }}>?</span>
           Como Jogar
         </button>
       </div>
@@ -196,7 +197,7 @@ function RoleSelector({ onJogador, onFacilitador }) {
                     <div style={{ width:12, height:12, borderRadius:'50%', background:c, flexShrink:0 }}/>
                     <div>
                       <div style={{ fontSize:12, fontWeight:700, color:c }}>{l}</div>
-                      <div style={{ fontSize:10, color:'#64748b' }}>{d}</div>
+                      <div style={{ fontSize:11, color:'#64748b' }}>{d}</div>
                     </div>
                   </div>
                 ))}
@@ -426,7 +427,7 @@ function GameOverModal({ isR2, score, st, pts, moves, r1Results, onRestart, onMe
             { l:'Corredor',     v:corredor.length,  c:corredor.length>0?'#ef4444':'#22c55e' },
           ].map(({ l, v, c }) => (
             <div key={l} style={{ background:'rgba(255,255,255,.03)', padding:'6px 10px', borderRadius:6 }}>
-              <div style={{ fontSize:9, color:'#64748b' }}>{l}</div>
+              <div style={{ fontSize:11, color:'#64748b' }}>{l}</div>
               <div style={{ fontSize:18, fontWeight:800, color:c, fontFamily:'monospace' }}>{v}</div>
             </div>
           ))}
@@ -438,7 +439,7 @@ function GameOverModal({ isR2, score, st, pts, moves, r1Results, onRestart, onMe
         {/* Comparativo R1 vs R2 */}
         {isR2 && r1Results && (
           <div style={{ background:'rgba(0,212,255,.05)', border:'1px solid rgba(0,212,255,.15)', borderRadius:10, padding:14, marginBottom:16 }}>
-            <div style={{ fontSize:10, fontWeight:700, color:'#00d4ff', marginBottom:10, letterSpacing:'.08em' }}>COMPARATIVO: PLANTÃO TRAVADO vs PLANTÃO LEAN</div>
+            <div style={{ fontSize:11, fontWeight:700, color:'#00d4ff', marginBottom:10, letterSpacing:'.08em' }}>COMPARATIVO: PLANTÃO TRAVADO vs PLANTÃO LEAN</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 80px 60px', gap:4, fontSize:11 }}>
               <div style={{ color:'#64748b', fontWeight:700 }}>Métrica</div>
               <div style={{ color:'#FF3B3B', fontWeight:700, textAlign:'right' }}>R1</div>
@@ -471,15 +472,15 @@ function GameOverModal({ isR2, score, st, pts, moves, r1Results, onRestart, onMe
         {moves && moves.total > 0 && (
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:16 }}>
             <div style={{ background:'rgba(255,255,255,.03)', padding:'6px 10px', borderRadius:6, textAlign:'center' }}>
-              <div style={{ fontSize:9, color:'#64748b' }}>Movimentos</div>
+              <div style={{ fontSize:11, color:'#64748b' }}>Movimentos</div>
               <div style={{ fontSize:18, fontWeight:800, color:'#00d4ff', fontFamily:'monospace' }}>{moves.total}</div>
             </div>
             <div style={{ background:'rgba(34,197,94,.05)', padding:'6px 10px', borderRadius:6, textAlign:'center' }}>
-              <div style={{ fontSize:9, color:'#64748b' }}>Produtivos</div>
+              <div style={{ fontSize:11, color:'#64748b' }}>Produtivos</div>
               <div style={{ fontSize:18, fontWeight:800, color:'#22c55e', fontFamily:'monospace' }}>{moves.produtivo}</div>
             </div>
             <div style={{ background:'rgba(239,68,68,.05)', padding:'6px 10px', borderRadius:6, textAlign:'center' }}>
-              <div style={{ fontSize:9, color:'#64748b' }}>Reativos</div>
+              <div style={{ fontSize:11, color:'#64748b' }}>Reativos</div>
               <div style={{ fontSize:18, fontWeight:800, color:'#ef4444', fontFamily:'monospace' }}>{moves.reativo}</div>
             </div>
           </div>
@@ -588,6 +589,15 @@ function Game() {
   const boarding = pts.filter(p => p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
   const avgB     = boarding.length>0 ? Math.round(boarding.reduce((a,p)=>a+p.bMin,0)/boarding.length) : 0;
   const score    = calcScore({...st, isR2});
+  const prevScoreRef = useRef(score);
+  const [scorePulse, setScorePulse] = useState(null); // 'up' | 'down' | null
+  useEffect(() => {
+    if (score !== prevScoreRef.current && run) {
+      setScorePulse(score > prevScoreRef.current ? 'up' : 'down');
+      setTimeout(() => setScorePulse(null), 400);
+      prevScoreRef.current = score;
+    }
+  }, [score, run]);
   const prog     = ((sm-SH*60)/((EH-SH)*60))*100;
   const deEval   = byS('de').filter(p=>!p.ready&&!p.obsProlong);
   const deBoard  = byS('de').filter(p=>p.ready&&(p.dest==='enf'||p.dest==='uti'));
@@ -1106,12 +1116,12 @@ function Game() {
             <button onClick={()=>doStartR(showCcModal, true)} className="btn"
               style={{ flex:1, background:'linear-gradient(135deg,#22c55e,#16a34a)', padding:'14px 0', fontSize:14, fontWeight:800, borderRadius:10 }}>
               Sim, reservar sala 4
-              <div style={{ fontSize:10, fontWeight:400, opacity:.8, marginTop:2 }}>3 eletivas + 1 emergência</div>
+              <div style={{ fontSize:11, fontWeight:400, opacity:.8, marginTop:2 }}>3 eletivas + 1 emergência</div>
             </button>
             <button onClick={()=>doStartR(showCcModal, false)} className="btn"
               style={{ flex:1, background:'linear-gradient(135deg,#ef4444,#dc2626)', padding:'14px 0', fontSize:14, fontWeight:800, borderRadius:10 }}>
               Não, usar todas
-              <div style={{ fontSize:10, fontWeight:400, opacity:.8, marginTop:2 }}>4 eletivas (risco!)</div>
+              <div style={{ fontSize:11, fontWeight:400, opacity:.8, marginTop:2 }}>4 eletivas (risco!)</div>
             </button>
           </div>
           {showCcModal===2 && (
@@ -1144,7 +1154,7 @@ function Game() {
             <span style={{ fontSize:14, fontWeight:900, color:isR2?'#00d4ff':'#FF3B3B' }}>
               {isR2?'PLANTÃO LEAN':'PLANTÃO TRAVADO'}
             </span>
-            <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:4,
+            <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:4,
               background:isR2?'rgba(0,212,255,.15)':'rgba(255,59,59,.15)', color:isR2?'#00d4ff':'#FF3B3B' }}>R{rnd2}</span>
             <div style={{ fontFamily:'monospace', fontSize:28, fontWeight:800, color:'#00d4ff' }}>{fmt(sm)}</div>
           </div>
@@ -1156,20 +1166,22 @@ function Game() {
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             {hospDanger && !isR2 && (
-              <div style={{ fontSize:10, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite',
+              <div style={{ fontSize:11, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite',
                 padding:'2px 8px', background:'rgba(239,68,68,.12)', borderRadius:4, border:'1px solid #ef444433' }}>
                 {hospColapso ? 'HOSPITAL COLAPSADO' : 'HOSPITAL CRÍTICO'}
               </div>
             )}
             <div style={{ background:'rgba(255,255,255,.03)', padding:'4px 12px', borderRadius:6, display:'flex', alignItems:'center', gap:5 }}>
-              <span style={{ fontSize:10, color:'#64748b' }}>SCORE</span>
-              <span style={{ fontSize:20, fontWeight:800, fontFamily:'monospace',
-                color:score>700?'#22c55e':score>400?'#eab308':'#ef4444' }}>{score}</span>
+              <span style={{ fontSize:11, color:'#64748b' }}>SCORE</span>
+              <span style={{ fontSize:22, fontWeight:800, fontFamily:'monospace',
+                color:score>700?'#22c55e':score>400?'#eab308':'#ef4444',
+                animation: scorePulse==='up'?'scorePulseUp .4s':scorePulse==='down'?'scorePulseDown .4s':'none',
+                display:'inline-block' }}>{score}</span>
             </div>
             {!roomId && <button onClick={()=>setRun(r=>!r)} className="btn"
               style={{ background:run?'#374151':'#16a34a' }}>{run?'PAUSAR':'RETOMAR'}</button>}
             <button onClick={()=>{clearSession();setRun(false);setPh('role');}} className="btn"
-              style={{ background:'#1e293b', padding:'4px 10px', fontSize:9, color:'#64748b' }}>SAIR</button>
+              style={{ background:'#1e293b', padding:'4px 10px', fontSize:11, color:'#64748b' }}>SAIR</button>
           </div>
         </div>
       </div>
@@ -1177,7 +1189,7 @@ function Game() {
       {/* ── R2 tools bar ── */}
       {isR2 && (
         <div style={{ background:'rgba(0,212,255,.04)', borderBottom:'1px solid rgba(0,212,255,.12)', padding:'3px 14px', display:'flex', gap:6, alignItems:'center', justifyContent:'center', flexWrap:'wrap', flexShrink:0 }}>
-          <span style={{ fontSize:10, fontWeight:700, color:'#00d4ff', letterSpacing:'.06em' }}>FERRAMENTAS LEAN:</span>
+          <span style={{ fontSize:11, fontWeight:700, color:'#00d4ff', letterSpacing:'.06em' }}>FERRAMENTAS LEAN:</span>
           {['Alta precoce','Fast Track','Discharge Lounge','Surgical Smoothing','Fluxista','Alta Segura'].map(t =>
             <span key={t} className="metric" style={{ color:'#22c55e' }}>{t}</span>
           )}
@@ -1188,24 +1200,48 @@ function Game() {
 
       {/* ── Metrics bar ── */}
       <div style={{ background:'#0d1117', borderBottom:'1px solid #1e293b', padding:'4px 14px', overflowX:'auto', flexShrink:0 }}>
-        <div style={{ display:'flex', gap:5, justifyContent:'center', minWidth:600 }}>
-          {[
-            { l:'Hospital',  v:`${hospPct}%`, c:hospPct>=95?'#ef4444':hospPct>=85?'#eab308':hospPct>=75?'#f97316':'#22c55e' },
-            { l:'Boarding',  v:boarding.length, c:boarding.length>3?'#ef4444':boarding.length>0?'#eab308':'#64748b' },
-            { l:'Board.méd', v:`${Math.floor(avgB/60)}h${String(avgB%60).padStart(2,'0')}`, c:avgB>BOARD_DET_MIN?'#ef4444':avgB>60?'#eab308':'#64748b' },
-            { l:'Corredor',  v:byS('corredor').length, c:byS('corredor').length>0?'#ef4444':'#64748b' },
-            { l:'Deterioraram',    v:st.dets,   c:st.dets>0?'#f97316':'#64748b' },
-            { l:'Óbitos',    v:st.deaths, c:st.deaths>0?'#ef4444':'#64748b' },
-            { l:'Cx cancel.',v:st.cxCan,  c:st.cxCan>0?'#ef4444':'#64748b' },
-            { l:'LWBS',      v:st.lwbs,   c:st.lwbs>0?'#ef4444':'#64748b' },
-            { l:'Fora do perfil',   v:st.offS,   c:st.offS>0?'#f97316':'#64748b' },
-            { l:'Altas',     v:st.disc,   c:'#22c55e' },
-          ].map(({ l, v, c }) => (
-            <div key={l} className="metric">
-              <span style={{ color:'#64748b' }}>{l}:</span>
-              <span style={{ color:c, fontWeight:700, fontFamily:'monospace' }}>{v}</span>
-            </div>
-          ))}
+        <div style={{ display:'flex', gap:8, justifyContent:'center', alignItems:'center', minWidth:600 }}>
+          {/* Bloco 1: Fluxo */}
+          <div style={{ display:'flex', gap:6, padding:'3px 10px', background:'rgba(0,212,255,.04)', borderRadius:6, border:'1px solid rgba(0,212,255,.1)' }}>
+            {[
+              { l:'Hospital',  v:`${hospPct}%`, c:hospPct>=95?'#ef4444':hospPct>=85?'#eab308':hospPct>=75?'#f97316':'#22c55e' },
+              { l:'Boarding',  v:boarding.length, c:boarding.length>3?'#ef4444':boarding.length>0?'#eab308':'#64748b' },
+              { l:'Corredor',  v:byS('corredor').length, c:byS('corredor').length>0?'#ef4444':'#64748b' },
+            ].map(({l,v,c})=>(
+              <div key={l} style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <span style={{ color:'#64748b', fontSize:11 }}>{l}:</span>
+                <span style={{ color:c, fontWeight:700, fontFamily:'monospace', fontSize:13 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ color:'#1e293b', fontSize:18 }}>·</div>
+          {/* Bloco 2: Desfechos */}
+          <div style={{ display:'flex', gap:6, padding:'3px 10px', background:'rgba(239,68,68,.04)', borderRadius:6, border:'1px solid rgba(239,68,68,.08)' }}>
+            {[
+              { l:'Deterioraram', v:st.dets, c:st.dets>0?'#f97316':'#64748b' },
+              { l:'Óbitos',  v:st.deaths, c:st.deaths>0?'#ef4444':'#64748b' },
+              { l:'LWBS',    v:st.lwbs,   c:st.lwbs>0?'#ef4444':'#64748b' },
+            ].map(({l,v,c})=>(
+              <div key={l} style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <span style={{ color:'#64748b', fontSize:11 }}>{l}:</span>
+                <span style={{ color:c, fontWeight:700, fontFamily:'monospace', fontSize:13 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ color:'#1e293b', fontSize:18 }}>·</div>
+          {/* Bloco 3: Ações */}
+          <div style={{ display:'flex', gap:6, padding:'3px 10px', background:'rgba(34,197,94,.04)', borderRadius:6, border:'1px solid rgba(34,197,94,.08)' }}>
+            {[
+              { l:'Cx cancel.', v:st.cxCan, c:st.cxCan>0?'#ef4444':'#64748b' },
+              { l:'Fora perfil', v:st.offS, c:st.offS>0?'#f97316':'#64748b' },
+              { l:'Altas',   v:st.disc,  c:'#22c55e' },
+            ].map(({l,v,c})=>(
+              <div key={l} style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <span style={{ color:'#64748b', fontSize:11 }}>{l}:</span>
+                <span style={{ color:c, fontWeight:700, fontFamily:'monospace', fontSize:13 }}>{v}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1225,12 +1261,12 @@ function Game() {
           {/* Porta */}
           <div className="sector" style={{ background:'#0f172a', border:'1px solid #1e293b', flexShrink:0 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:3 }}>
-              <span style={{ fontSize:10, fontWeight:700, color:'#64748b', letterSpacing:'.08em' }}>TRIAGEM</span>
+              <span style={{ fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'.08em' }}>TRIAGEM</span>
               <span style={{ fontSize:11, fontFamily:'monospace', color:byS('triagem').length>0?'#eab308':'#475569' }}>{byS('triagem').length} aguardando</span>
             </div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:3, minHeight:16 }}>
               {byS('triagem').map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}
-              {byS('triagem').length===0&&<span style={{ fontSize:10, color:'#333', fontStyle:'italic' }}>Vazia</span>}
+              {byS('triagem').length===0&&<span style={{ fontSize:11, color:'#333', fontStyle:'italic' }}>Vazia</span>}
             </div>
           </div>
 
@@ -1244,7 +1280,7 @@ function Game() {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6, flexShrink:0 }}>
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                 <span style={{ fontSize:11, fontWeight:700, color:'#94a3b8' }}>DEPARTAMENTO DE EMERGÊNCIA</span>
-                {hospDanger&&!isR2&&<span style={{ fontSize:9, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite' }}>OCUPAÇÃO >85%</span>}
+                {hospDanger&&!isR2&&<span style={{ fontSize:11, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite' }}>OCUPAÇÃO >85%</span>}
               </div>
               <span style={{ fontSize:12, fontFamily:'monospace', fontWeight:700,
                 color:dePct>=100?'#ef4444':dePct>=85?'#eab308':'#64748b' }}>
@@ -1253,21 +1289,21 @@ function Game() {
             </div>
             <div style={{ flex:1, display:'flex', flexDirection:'column', gap:5, minHeight:0, overflow:'hidden' }}>
               <div className="subarea" style={{ background:'rgba(100,116,139,.06)', border:'1px dashed #33415566' }}>
-                <div style={{ fontSize:9, color:'#64748b', marginBottom:3 }}>Em Avaliação ({deEval.length})</div>
+                <div style={{ fontSize:11, color:'#64748b', marginBottom:3 }}>Em Avaliação ({deEval.length})</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{deEval.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>
               <div className="subarea" style={{ background:deBoard.length>5?'rgba(239,68,68,.06)':'rgba(234,179,8,.04)', border:`1px solid ${deBoard.length>5?'#ef444433':'#eab30822'}` }}>
-                <div style={{ fontSize:9, color:deBoard.length>5?'#ef4444':'#eab308', marginBottom:3, fontWeight:deBoard.length>5?700:400 }}>
+                <div style={{ fontSize:11, color:deBoard.length>5?'#ef4444':'#eab308', marginBottom:3, fontWeight:deBoard.length>5?700:400 }}>
                   Boarding ({deBoard.length}){deBoard.length>5?' CRÍTICO!':''}
                 </div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{deBoard.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>
               <div className="subarea" style={{ background:'rgba(34,197,94,.04)', border:'1px solid #22c55e22' }}>
-                <div style={{ fontSize:9, color:'#22c55e', marginBottom:3 }}>Alta Pronta ({deAlta.length})</div>
+                <div style={{ fontSize:11, color:'#22c55e', marginBottom:3 }}>Alta Pronta ({deAlta.length})</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{deAlta.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>
               {deObs.length>0&&<div className="subarea" style={{ background:'rgba(168,85,247,.04)', border:'1px solid #a855f722' }}>
-                <div style={{ fontSize:9, color:'#a855f7', marginBottom:3 }}>Obs Prolongada ({deObs.length})</div>
+                <div style={{ fontSize:11, color:'#a855f7', marginBottom:3 }}>Obs Prolongada ({deObs.length})</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>{deObs.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}</div>
               </div>}
             </div>
@@ -1279,12 +1315,12 @@ function Game() {
             border:`1px solid ${byS('corredor').length>2?'#ef4444':byS('corredor').length>0?'#eab308':'#1e293b'}`,
             flexShrink:0,
           }}>
-            <div style={{ fontSize:10, fontWeight:700, color:byS('corredor').length>0?'#ef4444':'#64748b', marginBottom:3 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:byS('corredor').length>0?'#ef4444':'#64748b', marginBottom:3 }}>
               CORREDOR{byS('corredor').length>0?` (${byS('corredor').length}${byS('corredor').length>2?' — LWBS ativo!':''})`:''}
             </div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:3, minHeight:16 }}>
               {byS('corredor').map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}
-              {byS('corredor').length===0&&<span style={{ fontSize:9, color:'#333', fontStyle:'italic' }}>Vazio</span>}
+              {byS('corredor').length===0&&<span style={{ fontSize:11, color:'#333', fontStyle:'italic' }}>Vazio</span>}
             </div>
           </div>
         </div>
@@ -1307,12 +1343,21 @@ function Game() {
               <div style={{ width:`${Math.min(pctOf(enfOcc,CAP.enf),100)}%`, height:'100%', borderRadius:4, transition:'width .5s',
                 background:pctOf(enfOcc,CAP.enf)>=100?'#ef4444':pctOf(enfOcc,CAP.enf)>=85?'#eab308':'#22c55e' }}/>
             </div>
+            {/* Prontos para alta — destaque no topo */}
+            {enfReady.length>0&&(
+              <div style={{ background:'rgba(34,197,94,.06)', border:'1px solid rgba(34,197,94,.2)', borderRadius:6, padding:'4px 6px', marginBottom:4, flexShrink:0 }}>
+                <div style={{ fontSize:11, color:'#22c55e', fontWeight:700, marginBottom:3 }}>
+                  Prontos para Alta ({enfReady.length}) — selecione e mova para ALTA
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                  {enfReady.map(p=><MiniChip key={p.id} p={p} sel={sel} onClick={clk}/>)}
+                </div>
+              </div>
+            )}
+            {/* Internados */}
             <div style={{ flex:1, display:'flex', flexWrap:'wrap', gap:3, alignContent:'flex-start', overflowY:'auto', minHeight:0 }}>
-              {allEnf.map(p=><MiniChip key={p.id} p={p} sel={sel} onClick={clk}/>)}
+              {allEnf.filter(p=>!enfReady.includes(p)).map(p=><MiniChip key={p.id} p={p} sel={sel} onClick={clk}/>)}
             </div>
-            {enfReady.length>0&&<div style={{ fontSize:9, color:'#22c55e', marginTop:4, flexShrink:0, fontWeight:600 }}>
-              {enfReady.length} pronto{enfReady.length>1?'s':''} para alta — selecione e mova para ALTA
-            </div>}
           </div>
 
           {/* UTI */}
@@ -1333,7 +1378,7 @@ function Game() {
             <div style={{ flex:1, display:'flex', flexWrap:'wrap', gap:4, alignContent:'flex-start', overflowY:'auto', minHeight:0, paddingTop:4 }}>
               {allUti.map(p=><Chip key={p.id} p={p} sel={sel} onClick={clk}/>)}
             </div>
-            {utiReady.length>0&&<div style={{ fontSize:9, color:'#22c55e', marginTop:4, flexShrink:0, fontWeight:600 }}>
+            {utiReady.length>0&&<div style={{ fontSize:11, color:'#22c55e', marginTop:4, flexShrink:0, fontWeight:600 }}>
               {utiReady.length} pronto{utiReady.length>1?'s':''} step-down — mova para ENF
             </div>}
           </div>
@@ -1345,7 +1390,7 @@ function Game() {
             onClick={()=>doMove('rpa')}
             style={{ background:rpaOcc>=CAP.rpa?'#1a0505':'#0f172a', border:`1px solid ${rpaOcc>=CAP.rpa?'#ef4444':'#1e293b'}`, cursor:tgts.includes('rpa')?'pointer':'default', flexShrink:0 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-              <span style={{ fontSize:10, fontWeight:700, color:'#94a3b8' }}>RPA</span>
+              <span style={{ fontSize:11, fontWeight:700, color:'#94a3b8' }}>RPA</span>
               <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700,
                 color:rpaOcc>=CAP.rpa?'#ef4444':rpaOcc>=2?'#eab308':'#64748b' }}>{rpaOcc}/{CAP.rpa}</span>
             </div>
@@ -1364,15 +1409,15 @@ function Game() {
           <div className={`sector${tgts.includes('alta')?' valid-target':''}`}
             onClick={()=>doMove('alta')}
             style={{ background:tgts.includes('alta')?'#0a1a0a':'#0f172a', border:'1px solid #1e293b', cursor:tgts.includes('alta')?'pointer':'default', textAlign:'center', flexShrink:0, padding:12 }}>
-            <div style={{ fontSize:10, fontWeight:700, color:'#22c55e', marginBottom:2 }}>ALTA</div>
+            <div style={{ fontSize:11, fontWeight:700, color:'#22c55e', marginBottom:2 }}>ALTA</div>
             <div style={{ fontSize:40, fontWeight:900, color:'#22c55e', fontFamily:'monospace', lineHeight:1 }}>{st.disc}</div>
-            <div style={{ fontSize:9, color:'#64748b', marginTop:2 }}>pacientes</div>
+            <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>pacientes</div>
           </div>
           <div style={{ flex:1, background:'#0a0f1a', border:'1px solid #1e293b', borderRadius:10, padding:8, overflowY:'auto', minHeight:0 }}>
-            <div style={{ fontSize:9, fontWeight:700, color:'#475569', marginBottom:5, letterSpacing:'.1em' }}>EVENTOS</div>
+            <div style={{ fontSize:11, fontWeight:700, color:'#475569', marginBottom:5, letterSpacing:'.1em' }}>EVENTOS</div>
             {log.map((l,i)=>(
               <div key={i} className="log-entry" style={{ background:logBg[l.type], borderLeft:`3px solid ${logBrd[l.type]}`, color:logC[l.type], animation:i===0?'fadeIn .3s':'none' }}>
-                <span style={{ color:'#475569', fontFamily:'monospace', fontSize:9, marginRight:3 }}>{fmt(l.t)}</span>{l.msg}
+                <span style={{ color:'#475569', fontFamily:'monospace', fontSize:11, marginRight:3 }}>{fmt(l.t)}</span>{l.msg}
               </div>
             ))}
           </div>
@@ -1385,7 +1430,7 @@ function Game() {
           <PSvg color={SEV[sel.sev].c} sz={22} dead={sel.dead} det={sel.det}/>
           <div style={{ minWidth:0 }}>
             <div style={{ fontWeight:700, fontSize:12 }}>{sel.name}</div>
-            <div style={{ fontSize:10, color:'#94a3b8' }}>
+            <div style={{ fontSize:11, color:'#94a3b8' }}>
               {sel.sector==='de'&&!sel.ready&&!sel.obsProlong?`Avaliando... ${Math.max(0,Math.round(sel.deNeed-sel.deSpent))}min${sel.labDelay?' (lab)':''}`
                 :sel.obsProlong?'Obs prolongada'
                 :sel.sector==='de'&&sel.ready&&sel.dest==='alta_de'?'Pronto para alta DE'
@@ -1400,7 +1445,7 @@ function Game() {
                 :sel.sector==='triagem'?'Aguardando DE'
                 :sel.sector==='corredor'?'No corredor':''}
             </div>
-            {sel.bMin>0&&<div style={{ fontSize:10, fontWeight:700, color:sel.bMin>=BOARD_DEAD_MIN?'#ef4444':sel.bMin>=BOARD_DET_MIN?'#f97316':'#eab308' }}>
+            {sel.bMin>0&&<div style={{ fontSize:11, fontWeight:700, color:sel.bMin>=BOARD_DEAD_MIN?'#ef4444':sel.bMin>=BOARD_DET_MIN?'#f97316':'#eab308' }}>
               Boarding: {Math.floor(sel.bMin/60)}h{String(sel.bMin%60).padStart(2,'0')}
               {!sel.det&&sel.bMin<BOARD_DET_MIN&&` (deteriora em ${BOARD_DET_MIN-sel.bMin}min)`}
             </div>}
@@ -1419,7 +1464,7 @@ function Game() {
               <button onClick={doFullCap} className="btn" style={{ background:'#0369a1', fontSize:10 }}>Full Cap ({2-fcUses})</button>
             )}
             {tgts.length===0&&!(isR2&&sel.sector==='de'&&sel.ready)&&(
-              <span style={{ color:'#ef4444', fontSize:10, fontStyle:'italic' }}>
+              <span style={{ color:'#ef4444', fontSize:11, fontStyle:'italic' }}>
                 {sel.ready||(sel.dischReady&&sel.prep<=0)?'Sem vaga!':sel.blocked?'Bloqueado':sel.social?'Atraso familiar':'Aguardando...'}
               </span>
             )}
@@ -1431,7 +1476,7 @@ function Game() {
       {/* ── Color legend (bottom-right) ── */}
       {!sel && run && (
         <div style={{ position:'fixed', bottom:10, right:10, background:'rgba(15,23,42,.92)', border:'1px solid #1e293b', borderRadius:10, padding:'8px 12px', zIndex:40, backdropFilter:'blur(8px)' }}>
-          <div style={{ fontSize:8, fontWeight:700, color:'#475569', letterSpacing:'.1em', marginBottom:5 }}>LEGENDA</div>
+          <div style={{ fontSize:11, fontWeight:700, color:'#475569', letterSpacing:'.1em', marginBottom:5 }}>LEGENDA</div>
           {[
             { c:'#22c55e', l:'Verde — baixa complexidade' },
             { c:'#eab308', l:'Amarelo — média complexidade' },
@@ -1440,7 +1485,7 @@ function Game() {
           ].map(({ c, l }) => (
             <div key={c} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
               <PSvg color={c} sz={10}/>
-              <span style={{ fontSize:9, color:'#94a3b8' }}>{l}</span>
+              <span style={{ fontSize:11, color:'#94a3b8' }}>{l}</span>
             </div>
           ))}
           <div style={{ borderTop:'1px solid #1e293b', marginTop:4, paddingTop:4 }}>
@@ -1453,8 +1498,8 @@ function Game() {
               { icon:'LAB',c:'#06b6d4', l:'Aguardando exames' },
             ].map(({ icon, c, l }) => (
               <div key={icon} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
-                <span style={{ fontSize:8, fontWeight:800, color:c, width:18, textAlign:'center' }}>{icon}</span>
-                <span style={{ fontSize:9, color:'#94a3b8' }}>{l}</span>
+                <span style={{ fontSize:11, fontWeight:800, color:c, width:18, textAlign:'center' }}>{icon}</span>
+                <span style={{ fontSize:11, color:'#94a3b8' }}>{l}</span>
               </div>
             ))}
           </div>
