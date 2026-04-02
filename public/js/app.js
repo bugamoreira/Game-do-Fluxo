@@ -1181,7 +1181,7 @@ function Game() {
           {['Alta precoce','Fast Track','Discharge Lounge','Surgical Smoothing','Fluxista','Alta Segura'].map(t =>
             <span key={t} className="metric" style={{ color:'#22c55e' }}>{t}</span>
           )}
-          <span className="metric" style={{ color:nirUses>=3?'#64748b':'#00d4ff' }}>NIR ({3-nirUses} restantes{nirCd>0?`, cd ${nirCd}m`:''})</span>
+          <span className="metric" style={{ color:nirUses>=3?'#64748b':'#00d4ff' }}>NIR ({3-nirUses} restantes{nirCd>0?`, cd ${Math.ceil(nirCd/60)}min`:''})</span>
           <span className="metric" style={{ color:'#00d4ff' }}>Full Capacity</span>
         </div>
       )}
@@ -1213,7 +1213,7 @@ function Game() {
       {cascade && <div style={{ background:'linear-gradient(90deg,#450a0a,#1a0505)', borderBottom:'2px solid #ef4444', padding:'5px 14px', textAlign:'center', animation:'cascPulse 2s infinite', fontSize:12, fontWeight:700, color:'#f87171', flexShrink:0 }}>EFEITO CASCATA: {cascade}</div>}
       {!cascade&&rpaW && <div style={{ background:'linear-gradient(90deg,#422006,#1a1005)', borderBottom:'2px solid #ca8a04', padding:'4px 14px', textAlign:'center', fontSize:11, fontWeight:600, color:'#fde047', flexShrink:0 }}>{rpaW}</div>}
       {evts.pcr  && <div style={{ background:'#450a0a', borderBottom:'1px solid #ef4444', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#f87171', animation:'pulse 2s infinite', flexShrink:0 }}>PARADA CARDÍACA — 1 maca bloqueada ({fmt(evts.pcrEnd)})</div>}
-      {evts.tomo && <div style={{ background:'#1a1505', borderBottom:'1px solid #ca8a04', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#fde047', flexShrink:0 }}>TOMÓGRAFO QUEBRADO — Decisão +120min ({fmt(evts.tomoEnd)})</div>}
+      {evts.tomo && <div style={{ background:'#1a1505', borderBottom:'1px solid #ca8a04', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#fde047', flexShrink:0 }}>{isR2?'TOMÓGRAFO (manutenção)':'TOMÓGRAFO QUEBRADO'} — Retorno às {fmt(evts.tomoEnd)}</div>}
       {evts.lab  && <div style={{ background:'#0a1a2a', borderBottom:'1px solid #0891b2', padding:'3px 14px', textAlign:'center', fontSize:11, color:'#67e8f9', flexShrink:0 }}>ATRASO NO LABORATÓRIO — Resultados pendentes ({fmt(evts.labEnd)})</div>}
 
       {/* ── Main 4-column layout ── */}

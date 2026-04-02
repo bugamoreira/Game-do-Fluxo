@@ -173,7 +173,7 @@ function Projecao() {
       const totalDeaths = allGS.reduce((a,g) => a + (g.metrics?.dth||0), 0);
       const avgBoarding = allGS.length ? Math.round(allGS.reduce((a,g) => a + (g.metrics?.boarding||0), 0) / allGS.length) : 0;
       SimsMusic.update({
-        psOcc: avgBoarding > 5 ? 14 : avgBoarding > 2 ? 10 : 6,
+        deOcc: avgBoarding > 5 ? 14 : avgBoarding > 2 ? 10 : 6,
         boarding: avgBoarding,
         deaths: totalDeaths,
         isR2: room.status === 'round2',
