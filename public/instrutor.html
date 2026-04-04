@@ -322,7 +322,7 @@ function Instructor() {
         const latest = gsData.reduce((a, g) => g.sim_minute > (a?.sim_minute||0) ? g : a, null);
         if (latest?.sim_minute) setSimMin(latest.sim_minute);
       }
-    }, 3000);
+    }, 1500);
 
     subRef.current = { teamSub, gsSub, pollIv };
   };

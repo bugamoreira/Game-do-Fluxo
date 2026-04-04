@@ -197,7 +197,7 @@ function Projecao() {
       for (let i = 0; i < 60; i++) {
         const res = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
         if (res.data) { data = res.data; break; }
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 1500));
       }
       if (data) {
         setRoom(data);
@@ -252,7 +252,7 @@ function Projecao() {
           }
           const { data: t2 } = await sb.from('teams').select('*').eq('room_id', data.id);
           if (t2) setTeams(t2);
-        }, 3000);
+        }, 1500);
         return () => clearInterval(pollId);
       }
       setLoading(false);

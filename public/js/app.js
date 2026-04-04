@@ -717,7 +717,7 @@ function Game() {
     for (let attempt = 0; attempt < 10; attempt++) {
       const { data } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle();
       if (data) { room = data; break; }
-      if (attempt < 9) await new Promise(r => setTimeout(r, 3000));
+      if (attempt < 9) await new Promise(r => setTimeout(r, 1500));
     }
     if (!room) return { error:`Sala não encontrada após 30s. Verifique se o facilitador iniciou a dinâmica.` };
     if (room.status === 'finished') return { error:`A dinâmica já foi encerrada.` };
@@ -753,14 +753,15 @@ function Game() {
     return {};
   };
 
-  // ── Multiplayer: sync score every 10s ────────────────────
+  // ── Multiplayer: sync score every 1s ──────────────────────
   useEffect(() => {
     if (!teamId||!roomId) return;
-    const iv = setInterval(() => {
+    let failCount = 0;
+    const iv = setInterval(async () => {
       const P=ref.current.pts, S=ref.current.st, m=ref.current.sm, r=ref.current.rnd2;
       const brd = P.filter(p=>p.sector==='de'&&p.ready&&(p.dest==='enf'||p.dest==='uti')&&!p.dead);
       const avgBrd = brd.length>0 ? Math.round(brd.reduce((a,p)=>a+p.bMin,0)/brd.length) : 0;
-      sb.from('game_state').upsert({
+      const { error } = await sb.from('game_state').upsert({
         team_id:teamId, room_id:roomId, round:r, sim_minute:m, score:calcScore({...S, isR2:r===2}),
         metrics:{
           dis:S.disc, det:S.dets, dth:S.deaths, cxC:S.cxCan, lw:S.lwbs, off:S.offS, soc:S.socB, bH:S.boardHrs,
@@ -770,8 +771,19 @@ function Game() {
           altaHosp:S.altaHosp||0, libDE:S.libDE||0,
         },
         updated_at: new Date().toISOString(),
-      }, { onConflict:'team_id,round' }).then(({error})=>{ if(error) console.error('Sync error:', error.message, {teamId, roomId, r}); });
-    }, 2000);
+      }, { onConflict:'team_id,round' });
+      if (error) {
+        failCount++;
+        console.error('Sync error:', error.message, {teamId, roomId, r, failCount});
+        // Se FK error (team deletado), forçar re-join
+        if (error.code === '23503' || failCount >= 5) {
+          clearInterval(iv);
+          clearSession();
+          setPh('role');
+          alert('Sessão expirada. Por favor, entre novamente.');
+        }
+      } else { failCount = 0; }
+    }, 1000);
     return () => clearInterval(iv);
   }, [teamId, roomId]);
 
