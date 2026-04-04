@@ -155,7 +155,7 @@ function calcScore(s) {
   sc -= s.lwbs   * 40;                 // saiu sem atendimento
   sc -= s.offS   * 25;                 // fora do perfil
   sc -= s.socB   * 15;                 // bloqueio social
-  sc += s.disc   * 3;                  // cada alta pontua
+  sc += (s.altaHosp||s.disc||0) * 3;   // alta hospitalar (ENF) pontua
   if (s.deaths === 0) sc += 150;       // bônus zero óbitos
   if (s.isR2 && s.deaths===0 && s.dets===0 && s.cxCan===0) sc += 300; // bônus R2 perfeito
   return Math.max(50, Math.round(sc)); // floor 50 — ninguém zera (sempre tem ranking)

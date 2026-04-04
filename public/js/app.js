@@ -87,7 +87,7 @@ function MiniChip({ p, sel, onClick }) {
 function SxPan({ surgeries, sm }) {
   return (
     <div style={{ background:'#0f172a', border:'1px solid #1e293b', borderRadius:10, padding:8, flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
-      <div style={{ fontSize:11, fontWeight:700, color:'#64748b', marginBottom:5, letterSpacing:'.08em', flexShrink:0 }}>CC — 4 SALAS</div>
+      <div style={{ fontSize:11, fontWeight:700, color:'#64748b', marginBottom:5, letterSpacing:'.08em', flexShrink:0 }}>CC — 4 SALAS | {surgeries.length} Cx</div>
       <div style={{ flex:1, overflowY:'auto' }}>
         {surgeries.map(s => {
           const stM = s.stH*60, enM = stM+s.dur*60;
@@ -516,7 +516,7 @@ function Game() {
   const [sel,       setSel]      = useState(null);
   const [fl,        setFl]       = useState(null);
   const [log,       setLog]      = useState(s0?.log || []);
-  const [st,        setSt]       = useState(s0?.st || { disc:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
+  const [st,        setSt]       = useState(s0?.st || { disc:0, altaHosp:0, libDE:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
   const [evts,      setEvts]     = useState(s0?.evts || { pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
   const [cascade,   setCascade]  = useState(null);
   const [rpaW,      setRpaW]     = useState(null);
@@ -630,7 +630,7 @@ function Game() {
   }, [roomId]);
 
   const doStartR = useCallback((roundNum, blocked) => {
-    SimsMusic.init();
+    // Som apenas no projetor — jogador não inicializa música
     _id = 0;
     setShowCcModal(null);
     setRnd2(roundNum);
@@ -668,7 +668,7 @@ function Game() {
     }
     if (roundNum===2) initLogs.push({ msg:'BED HUDDLE 7h: Previsão ~40 pacientes. 7 cirurgias redistribuídas. Pico 11h-14h.', type:'info', t:SH*60 });
     setLog(initLogs);
-    setSt({ disc:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
+    setSt({ disc:0, altaHosp:0, libDE:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
     setEvts({ pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
     setCascade(null);
     setRpaW(null);
@@ -687,7 +687,6 @@ function Game() {
 
   // ── Multiplayer: join room ────────────────────────────────
   const joinRoom = async (name, code) => {
-    SimsMusic.init();
     let room = null;
     // Tentar até 30s (10 tentativas) — permite jogador entrar antes do facilitador
     for (let attempt = 0; attempt < 10; attempt++) {
@@ -756,10 +755,17 @@ function Game() {
       const nm = prev+1;
       if (nm>=EH*60) {
         setRun(false); setPh('over'); addL('Plantão encerrado!','success');
-        // Salvar resultado R1 para comparativo na R2
-        if (ref.current.rnd2 === 1) {
-          const S = ref.current.st;
-          setR1Results({ score: calcScore(S), ...S });
+        const S = ref.current.st;
+        const r = ref.current.rnd2;
+        if (r === 1) setR1Results({ score: calcScore({...S,isR2:false}), ...S });
+        // Salvar log no Supabase
+        if (teamId && roomId) {
+          sb.from('game_logs').insert({
+            team_id:teamId, room_id:roomId, round:r,
+            events: (log||[]).slice(0,50),
+            final_score: calcScore({...S,isR2:r===2}),
+            final_stats: S,
+          });
         }
         return EH*60;
       }
@@ -934,7 +940,20 @@ function Game() {
       });
 
       // Off-service deterioration
-      P.forEach(p => { if (p.offSvc&&p.sector==='enf'&&!p.dead&&!p.det&&Math.random()<OFFSVC_DET_PROB) { p.det=true; S.dets++; addL(`${p.name} deteriorou FORA DO PERFIL!`,'warning'); SimsMusic.sfx('det'); }});
+      P.forEach(p => {
+        if (p.offSvc&&p.sector==='enf'&&!p.dead&&!p.det&&Math.random()<OFFSVC_DET_PROB) {
+          p.det=true; p.sev='red'; S.dets++;
+          // Fluxo reverso: deteriorou fora do perfil + UTI lotada → volta ao DE
+          const utiCount = P.filter(x=>x.sector==='uti').length;
+          if (utiCount >= CAP.uti) {
+            p.sector='de'; p.offSvc=false;
+            addL(`RETORNO AO DE: ${p.name} — deteriorou na ENF, sem vaga UTI. Damage control.`,'danger');
+          } else {
+            addL(`${p.name} deteriorou FORA DO PERFIL!`,'warning');
+          }
+          SimsMusic.sfx('det');
+        }
+      });
 
       // Dados reais — overlay educativo (1x cada)
       if (S.boardHrs>=2 && !R.factBoard) { R.factBoard=true; addL('Dados reais: boarding >2h aumenta risco de eventos adversos em 20%.','fact'); }
@@ -1039,6 +1058,8 @@ function Game() {
   };
   const tgts = getT(sel);
 
+  const [offServiceConfirm, setOffServiceConfirm] = useState(null); // {sel, sid} quando pendente
+
   const doMove = sid => {
     if (!run||!sel) return;
     if (!tgts.includes(sid)) { setFl(sid); setTimeout(()=>setFl(null),500); return; }
@@ -1046,16 +1067,39 @@ function Game() {
     const cnt=pts.filter(p=>p.sector===sid).length;
     if (sid!=='alta'&&cnt>=cap2) { setFl(sid); addL(`${sid.toUpperCase()} LOTADO!`,'danger'); setTimeout(()=>setFl(null),600); return; }
     const isOff=sel.dest==='uti'&&sid==='enf'&&sel.sector!=='uti';
+    // Confirmação off-service: popup antes de mover
+    if (isOff) { setOffServiceConfirm({sel:{...sel}, sid}); return; }
     const isProd = sid==='alta'||(sid==='enf'&&!isOff)||(sid==='uti'&&sel.dest==='uti');
     setPts(prev=>prev.map(p=>{
       if (p.id!==sel.id) return p;
-      if (sid==='alta') { setSt(s=>({...s,disc:s.disc+1})); addL(`${p.name} — alta.`,'success'); SimsMusic.sfx('disc'); }
+      if (sid==='alta') {
+        const isHospDisc = p.sector==='enf'; // Alta hospitalar = só ENF
+        setSt(s=>({...s, disc:s.disc+1, altaHosp:(s.altaHosp||0)+(isHospDisc?1:0), libDE:(s.libDE||0)+(p.sector==='de'?1:0) }));
+        addL(`${p.name} — ${isHospDisc?'alta hospitalar':'liberação DE'}.`,'success');
+        SimsMusic.sfx('disc');
+      }
       else if (isOff)   { setSt(s=>({...s,offS:s.offS+1})); addL(`FORA DO PERFIL: ${p.name} UTI→ENF. Risco elevado!`,'warning'); }
       else addL(`${p.name} → ${sid.toUpperCase()}`,'info');
-      return {...p,sector:sid,ready:false,dischReady:false,bStart:null,bMin:0,offSvc:isOff};
+      // Evolução clínica: cor muda ao mudar de setor
+      let newSev = p.sev;
+      if (p.sector==='uti'&&sid==='enf'&&p.dischReady) newSev = 'green'; // step-down UTI→ENF = melhorou
+      return {...p,sector:sid,sev:newSev,ready:false,dischReady:false,bStart:null,bMin:0,offSvc:isOff,obsProlong:false};
     }));
     setMoves(m => ({ total:m.total+1, produtivo:m.produtivo+(isProd?1:0), reativo:m.reativo+(isProd?0:1) }));
     setSel(null);
+  };
+
+  const confirmOffService = () => {
+    if (!offServiceConfirm) return;
+    const { sel: s, sid } = offServiceConfirm;
+    setPts(prev=>prev.map(p=>{
+      if (p.id!==s.id) return p;
+      setSt(st2=>({...st2,offS:st2.offS+1}));
+      addL(`FORA DO PERFIL: ${p.name} UTI→ENF. Risco elevado!`,'warning');
+      return {...p,sector:sid,ready:false,dischReady:false,bStart:null,bMin:0,offSvc:true};
+    }));
+    setMoves(m => ({ total:m.total+1, produtivo:m.produtivo, reativo:m.reativo+1 }));
+    setOffServiceConfirm(null); setSel(null);
   };
 
   const doNIR = () => {
@@ -1071,7 +1115,7 @@ function Game() {
     if (!isR2||!sel) return;
     if (!fcApproved) { addL('FULL CAPACITY negado — aguardando autorização da Diretoria.','warning'); return; }
     if (fcUses >= 2) { addL('FULL CAPACITY esgotado — limite de 2 pacientes atingido.','warning'); return; }
-    if (sel.sector!=='de'||!sel.ready||sel.sev!=='green') { addL('FULL CAPACITY apenas para pacientes VERDES prontos no DE.','warning'); return; }
+    if (sel.sector!=='de'||!sel.ready||sel.sev!=='green'||sel.dest==='alta_de') { addL('FULL CAPACITY apenas para pacientes VERDES com indicação de internação no DE.','warning'); return; }
     setPts(prev=>prev.map(pt=>pt.id!==sel.id?pt:{...pt,sector:'corredor',bStart:null,bMin:0}));
     setFcUses(n=>n+1); setSel(null);
     addL(`FULL CAPACITY: ${sel.name} ao corredor da enfermaria. Maca liberada. (${fcUses+1}/2 usos)`,'success');
@@ -1101,7 +1145,7 @@ function Game() {
   // Phase routing
   if (ph==='role')       return <RoleSelector onJogador={()=>setPh('lobby')} onFacilitador={()=>setPh('facilLogin')}/>;
   if (ph==='facilLogin') return <FacilitadorLogin onAuth={()=>{ window.location.href='instrutor.html'; }} onBack={()=>setPh('role')}/>;
-  if (ph==='lobby')      return <LobbyScreen onJoin={joinRoom} onSolo={()=>{ SimsMusic.init(); setPh('menu'); }} onBack={()=>setPh('role')}/>;
+  if (ph==='lobby')      return <LobbyScreen onJoin={joinRoom} onSolo={()=>setPh('menu')} onBack={()=>setPh('role')}/>;
   if (ph==='waiting')    return <WaitingScreen tName={tName} rCode={rCode}/>;
   if (ph==='menu')       return <MenuScreen onStart={startR}/>;
 
@@ -1158,6 +1202,31 @@ function Game() {
       {/* Death flash overlay */}
       {deathFlash && <div style={{ position:'fixed', inset:0, background:'rgba(239,68,68,.3)', zIndex:300, pointerEvents:'none', animation:'fadeIn .1s' }}/>}
 
+      {/* Off-service confirmation modal */}
+      {offServiceConfirm && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }}>
+          <div style={{ background:'#0f172a', border:'1px solid #f97316', borderRadius:14, padding:24, maxWidth:360, textAlign:'center' }}>
+            <div style={{ fontSize:13, fontWeight:800, color:'#f97316', marginBottom:8 }}>FORA DO PERFIL</div>
+            <div style={{ fontSize:13, color:'#e2e8f0', marginBottom:6 }}>
+              <strong>{offServiceConfirm.sel.name}</strong> precisa de UTI.
+            </div>
+            <div style={{ fontSize:12, color:'#f87171', marginBottom:16 }}>
+              Enviar para ENF fora do perfil? Risco de deterioração. (-25 pts)
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={confirmOffService} className="btn"
+                style={{ flex:1, background:'#f97316', padding:'10px 0', fontSize:13 }}>
+                Sim, enviar
+              </button>
+              <button onClick={()=>{setOffServiceConfirm(null);}} className="btn"
+                style={{ flex:1, background:'#374151', padding:'10px 0', fontSize:13 }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Header ── */}
       <div style={{ background:'#0a0f1a', borderBottom:`1px solid ${hospColapso?'#ef4444':'#1e293b'}`, padding:'5px 14px', flexShrink:0,
         boxShadow: hospColapso ? '0 2px 20px rgba(239,68,68,.3)' : 'none', transition:'box-shadow .5s' }}>
@@ -1180,7 +1249,7 @@ function Game() {
             {hospDanger && !isR2 && (
               <div style={{ fontSize:11, fontWeight:800, color:'#ef4444', animation:'pulse 1s infinite',
                 padding:'2px 8px', background:'rgba(239,68,68,.12)', borderRadius:4, border:'1px solid #ef444433' }}>
-                {hospColapso ? 'HOSPITAL COLAPSADO' : 'HOSPITAL CRÍTICO'}
+                {hospColapso ? `INTERNAÇÃO ${hospPct}% — COLAPSADO` : `INTERNAÇÃO ${hospPct}% — CRÍTICO`}
               </div>
             )}
             <div style={{ background:'rgba(255,255,255,.03)', padding:'4px 12px', borderRadius:6, display:'flex', alignItems:'center', gap:5 }}>
@@ -1472,7 +1541,7 @@ function Game() {
             {isR2&&sel.sector==='de'&&sel.ready&&sel.dest!=='alta_de'&&nirUses<3&&nirCd<=0&&(
               <button onClick={doNIR} className="btn" style={{ background:'#7c3aed', fontSize:10 }}>NIR</button>
             )}
-            {isR2&&sel.sector==='de'&&sel.ready&&sel.sev==='green'&&fcApproved&&fcUses<2&&(
+            {isR2&&sel.sector==='de'&&sel.ready&&sel.sev==='green'&&sel.dest!=='alta_de'&&fcApproved&&fcUses<2&&(
               <button onClick={doFullCap} className="btn" style={{ background:'#0369a1', fontSize:10 }}>Full Cap ({2-fcUses})</button>
             )}
             {tgts.length===0&&!(isR2&&sel.sector==='de'&&sel.ready)&&(
