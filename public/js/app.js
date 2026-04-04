@@ -125,7 +125,7 @@ function RoleSelector({ onJogador, onFacilitador }) {
       <div style={{ textAlign:'center', maxWidth:540, width:'100%' }}>
         {/* Logo ED Leaders */}
         <div style={{ marginBottom:16 }}>
-          <img src="img/edleaders.png" alt="ED Leaders" style={{ height:48, objectFit:'contain', marginBottom:12 }}/>
+          <img src="img/edleaders.png" alt="ED Leaders" style={{ height:120, width:120, objectFit:'cover', borderRadius:'50%', marginBottom:16 }}/>
         </div>
 
         {/* Título */}
@@ -527,8 +527,11 @@ function Game() {
   // Tentar restaurar sessão do localStorage
   const saved = useRef(loadSession());
   const s0 = saved.current;
-  // Sessão 'waiting' sem jogo ativo não deve restaurar — volta ao início
-  const initPh = (s0?.ph === 'waiting' || s0?.ph === 'lobby' || s0?.ph === 'facilLogin' || s0?.ph === 'menu') ? 'role' : (s0?.ph || 'role');
+  // Só restaura sessão play se foi salva nos últimos 5 minutos (evita sessão morta)
+  const sessionFresh = s0?.savedAt && (Date.now() - s0.savedAt < 5 * 60 * 1000);
+  const initPh = (s0?.ph === 'play' && sessionFresh) ? 'play' : 'role';
+  // Se sessão é velha, limpa
+  if (s0 && !sessionFresh) clearSession();
 
   const [ph,        setPh]       = useState(initPh);
   const [pts,       setPts]      = useState(s0?.pts || []);
@@ -573,7 +576,7 @@ function Game() {
         ph, pts:ref.current.pts, sx, sm:ref.current.sm, st:ref.current.st,
         evts:ref.current.evts, rnd2:ref.current.rnd2, log:log.slice(0,20),
         nirUses, nirCd, ccBlocked, tName, rCode, roomId, teamId,
-        nx:ref.current.nx, rd:ref.current.rd, r1Results,
+        nx:ref.current.nx, rd:ref.current.rd, r1Results, savedAt:Date.now(),
       });
     }, 3000);
     return () => clearInterval(iv);
