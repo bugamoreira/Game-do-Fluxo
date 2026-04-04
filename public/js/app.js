@@ -402,7 +402,7 @@ function MenuScreen({ onStart, onBack }) {
           </div>
         </div>
         <button onClick={onBack} className="btn"
-          style={{ background:'transparent', color:'#475569', marginTop:16, fontSize:12 }}>
+          style={{ background:'rgba(255,255,255,.06)', border:'1px solid #334155', color:'#94a3b8', marginTop:20, padding:'10px 28px', fontSize:13 }}>
           ← Voltar
         </button>
       </div>
