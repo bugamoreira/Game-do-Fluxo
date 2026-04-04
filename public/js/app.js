@@ -151,11 +151,13 @@ function RoleSelector({ onJogador, onFacilitador }) {
           </button>
         </div>
 
-        <button onClick={()=>setShowRules(true)} className="btn"
-          style={{ background:'rgba(255,255,255,.1)', border:'1px solid #475569', color:'#e2e8f0', padding:'11px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em', display:'inline-flex', alignItems:'center', gap:6, margin:'0 auto' }}>
-          <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(0,212,255,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:'#00d4ff' }}>?</span>
-          Como Jogar
-        </button>
+        <div style={{ display:'flex', justifyContent:'center' }}>
+          <button onClick={()=>setShowRules(true)} className="btn"
+            style={{ background:'rgba(255,255,255,.1)', border:'1px solid #475569', color:'#e2e8f0', padding:'11px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em', display:'flex', alignItems:'center', gap:6 }}>
+            <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(0,212,255,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:'#00d4ff' }}>?</span>
+            Como Jogar
+          </button>
+        </div>
 
         {/* Apoio institucional */}
         <div style={{ marginTop:32, display:'flex', alignItems:'center', justifyContent:'center', gap:20 }}>
