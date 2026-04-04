@@ -188,7 +188,13 @@ function Projecao() {
   // Conectar à sala FLAME — fetch inicial + Realtime puro (Pro)
   useEffect(() => {
     const connect = async () => {
-      const { data } = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
+      // Retry até encontrar a sala (projetor pode abrir antes do facilitador)
+      let data = null;
+      for (let i = 0; i < 60; i++) {
+        const res = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
+        if (res.data) { data = res.data; break; }
+        await new Promise(r => setTimeout(r, 3000));
+      }
       if (data) {
         setRoom(data);
         const { data: t } = await sb.from('teams').select('*').eq('room_id', data.id);

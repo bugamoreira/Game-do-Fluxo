@@ -540,6 +540,8 @@ function Game() {
 
   const isR2 = rnd2 === 2;
   const ref  = useRef({ pts:s0?.pts||[], st:s0?.st||{}, sm:s0?.sm||0, nx:s0?.nx||SH*60+rnd(5,12), rd:s0?.rd||{}, evts:s0?.evts||{}, rnd2:s0?.rnd2||1, ccBlocked:s0?.ccBlocked||false });
+  const doStartRRef = useRef(null); // ref estável para subscriptions Supabase
+  const subChannelRef = useRef(null); // ref para cleanup de subscriptions
 
   // Salvar sessão a cada 3s durante o jogo
   useEffect(() => {
@@ -561,8 +563,8 @@ function Game() {
       sb.channel(`rm-${s0.roomId}`)
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${s0.roomId}` }, p => {
           const cur = ref.current.rnd2;
-          if (p.new.status==='round1' && cur !== 1) doStartR(1, false);
-          else if (p.new.status==='round2' && cur !== 2) doStartR(2, false);
+          if (p.new.status==='round1' && cur !== 1) triggerStart(1);
+          else if (p.new.status==='round2' && cur !== 2) triggerStart(2);
         })
         .subscribe();
     }
@@ -620,8 +622,7 @@ function Game() {
   // Solo: mostra modal de bloqueio CC
   const startR = useCallback((roundNum) => {
     if (roomId) {
-      // Multiplayer → iniciar direto sem modal
-      doStartR(roundNum, false);
+      triggerStart(roundNum);
     } else {
       // Solo → mostrar modal CC
       setShowCcModal(roundNum);
@@ -676,6 +677,14 @@ function Game() {
     ref.current.rnd2 = roundNum;
   }, []);
 
+  // Manter ref atualizado para subscriptions (evita stale closure)
+  doStartRRef.current = doStartR;
+
+  // Função wrapper estável — SEMPRE usa a versão mais recente via ref
+  const triggerStart = useCallback((roundNum) => {
+    if (doStartRRef.current) doStartRRef.current(roundNum, false);
+  }, []);
+
   // ── Multiplayer: join room ────────────────────────────────
   const joinRoom = async (name, code) => {
     SimsMusic.init();
@@ -704,16 +713,19 @@ function Game() {
     const { data: freshRoom } = await sb.from('rooms').select('status').eq('id', room.id).single();
     const st2 = freshRoom?.status || room.status;
     if (st2==='round1'||st2==='round2') {
-      doStartR(st2==='round1' ? 1 : 2, false);
+      triggerStart(st2==='round1' ? 1 : 2);
     } else {
       setPh('waiting');
     }
-    sb.channel(`rm-${room.id}`)
+    // Cleanup subscription anterior se existir
+    if (subChannelRef.current) { sb.removeChannel(subChannelRef.current); }
+    const ch = sb.channel(`rm-${room.id}`)
       .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${room.id}` }, p => {
-        if (p.new.status==='round1') doStartR(1, false);
-        else if (p.new.status==='round2') doStartR(2, false);
+        if (p.new.status==='round1') triggerStart(1);
+        else if (p.new.status==='round2') triggerStart(2);
       })
       .subscribe();
+    subChannelRef.current = ch;
     return {};
   };
 
