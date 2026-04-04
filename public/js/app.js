@@ -123,19 +123,21 @@ function RoleSelector({ onJogador, onFacilitador }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'linear-gradient(180deg, #060a13 0%, #0a1628 50%, #060a13 100%)', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:540, width:'100%' }}>
-        {/* Logo / Brand */}
-        <div style={{ marginBottom:12 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.2em', textTransform:'uppercase', marginBottom:8 }}>ED Leaders apresenta</div>
-          <div style={{ fontSize:42, fontWeight:900, letterSpacing:'.02em', marginBottom:2,
-            background:'linear-gradient(135deg, #FF3B3B, #f97316, #eab308)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
-            FLAME 2026
-          </div>
-          <div style={{ fontSize:15, color:'#94a3b8', fontWeight:500, marginBottom:6 }}>Curso de Gestão de Fluxo Hospitalar</div>
-          <div style={{ width:80, height:2, background:'linear-gradient(90deg, transparent, #00d4ff, transparent)', margin:'0 auto', marginTop:12, marginBottom:28 }}/>
+        {/* Logo ED Leaders */}
+        <div style={{ marginBottom:16 }}>
+          <img src="img/edleaders.png" alt="ED Leaders" style={{ height:48, objectFit:'contain', marginBottom:12 }}/>
         </div>
 
-        <div style={{ fontSize:20, fontWeight:800, color:'#e2e8f0', marginBottom:6 }}>Simulador do Plantão</div>
-        <div style={{ fontSize:12, color:'#64748b', marginBottom:32 }}>Experimente na pele o impacto da gestão (ou da falta dela) no fluxo hospitalar</div>
+        {/* Título */}
+        <div style={{ fontSize:42, fontWeight:900, letterSpacing:'.02em', marginBottom:2,
+          background:'linear-gradient(135deg, #FF3B3B, #f97316, #eab308)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+          FLAME 2026
+        </div>
+        <div style={{ fontSize:15, color:'#94a3b8', fontWeight:500, marginBottom:4 }}>2° Congresso Latino-americano de Medicina de Emergência</div>
+        <div style={{ width:80, height:2, background:'linear-gradient(90deg, transparent, #00d4ff, transparent)', margin:'0 auto', marginTop:10, marginBottom:24 }}/>
+
+        <div style={{ fontSize:22, fontWeight:800, color:'#e2e8f0', marginBottom:6 }}>Simulador do Plantão</div>
+        <div style={{ fontSize:12, color:'#64748b', marginBottom:28 }}>Experimente na pele o impacto da gestão (ou da falta dela) no fluxo hospitalar</div>
 
         {/* Buttons */}
         <div style={{ display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap', marginBottom:20 }}>
@@ -150,10 +152,26 @@ function RoleSelector({ onJogador, onFacilitador }) {
         </div>
 
         <button onClick={()=>setShowRules(true)} className="btn"
-          style={{ background:'rgba(255,255,255,.1)', border:'1px solid #475569', color:'#e2e8f0', padding:'11px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em', display:'flex', alignItems:'center', gap:6 }}>
+          style={{ background:'rgba(255,255,255,.1)', border:'1px solid #475569', color:'#e2e8f0', padding:'11px 28px', fontSize:13, borderRadius:10, letterSpacing:'.03em', display:'inline-flex', alignItems:'center', gap:6, margin:'0 auto' }}>
           <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(0,212,255,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:'#00d4ff' }}>?</span>
           Como Jogar
         </button>
+
+        {/* Apoio institucional */}
+        <div style={{ marginTop:32, display:'flex', alignItems:'center', justifyContent:'center', gap:20 }}>
+          <div style={{ textAlign:'center' }}>
+            <div style={{ fontSize:9, color:'#475569', letterSpacing:'.1em', marginBottom:4 }}>REALIZAÇÃO</div>
+            <div style={{ fontSize:11, fontWeight:700, color:'#FF3B3B', letterSpacing:'.06em' }}>ED<span style={{ color:'#c8b8a8' }}>LEADERS</span></div>
+          </div>
+          <div style={{ width:1, height:24, background:'#1e293b' }}/>
+          <div style={{ textAlign:'center' }}>
+            <div style={{ fontSize:9, color:'#475569', letterSpacing:'.1em', marginBottom:4 }}>APOIO</div>
+            <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+              <div style={{ fontSize:11, fontWeight:800, color:'#1a4d8f', background:'linear-gradient(135deg,#eab308,#f59e0b)', padding:'2px 8px', borderRadius:4 }}>FLAME</div>
+              <div style={{ fontSize:10, fontWeight:700, color:'#94a3b8', padding:'2px 8px', background:'rgba(26,77,143,.2)', borderRadius:4, border:'1px solid rgba(26,77,143,.3)' }}>ABRAMEDE</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Modal: Como Jogar */}
@@ -294,9 +312,9 @@ function LobbyScreen({ onJoin, onSolo, onBack }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'linear-gradient(180deg, #060a13 0%, #0a1628 50%, #060a13 100%)', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:440, width:'100%' }}>
-        <div style={{ fontSize:13, fontWeight:700, color:'#64748b', letterSpacing:'.2em', textTransform:'uppercase', marginBottom:6 }}>FLAME 2026</div>
+        <img src="img/edleaders.png" alt="ED Leaders" style={{ height:36, objectFit:'contain', marginBottom:10 }}/>
         <div style={{ fontSize:26, fontWeight:900, color:'#FF3B3B', letterSpacing:'.02em', marginBottom:2 }}>Simulador do Plantão</div>
-        <div style={{ fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28 }}>ED Leaders × Curso de Gestão de Fluxo</div>
+        <div style={{ fontSize:12, color:'#00d4ff', fontWeight:600, marginBottom:28 }}>FLAME 2026 — Curso de Gestão de Fluxo</div>
         <div style={{ background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b', marginBottom:14 }}>
           <div style={{ fontSize:12, fontWeight:700, color:'#64748b', marginBottom:18, letterSpacing:'.08em', textTransform:'uppercase' }}>Entrar na Dinâmica</div>
           <input placeholder="Nome do seu time (ex: Grupo Alpha)" value={tName}
