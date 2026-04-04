@@ -767,9 +767,10 @@ function Game() {
           deOcc:P.filter(p=>p.sector==='de').length, enfOcc:P.filter(p=>p.sector==='enf').length,
           utiOcc:P.filter(p=>p.sector==='uti').length, rpaOcc:P.filter(p=>p.sector==='rpa').length,
           boarding:brd.length, avgB:avgBrd, corredor:P.filter(p=>p.sector==='corredor').length,
+          altaHosp:S.altaHosp||0, libDE:S.libDE||0,
         },
         updated_at: new Date().toISOString(),
-      }, { onConflict:'team_id,round' });
+      }, { onConflict:'team_id,round' }).then(({error})=>{ if(error) console.error('Sync error:', error.message, {teamId, roomId, r}); });
     }, 2000);
     return () => clearInterval(iv);
   }, [teamId, roomId]);
@@ -1286,7 +1287,7 @@ function Game() {
             </div>
             {!roomId && <button onClick={()=>setRun(r=>!r)} className="btn"
               style={{ background:run?'#374151':'#16a34a' }}>{run?'PAUSAR':'RETOMAR'}</button>}
-            <button onClick={()=>{clearSession();setRun(false);setPh('role');}} className="btn"
+            <button onClick={()=>{if(confirm('Sair do jogo? O progresso será perdido.')){clearSession();setRun(false);setPh('role');}}} className="btn"
               style={{ background:'#1e293b', padding:'4px 10px', fontSize:11, color:'#64748b' }}>SAIR</button>
           </div>
         </div>
