@@ -369,7 +369,7 @@ function WaitingScreen({ tName, rCode }) {
 }
 
 // ── Solo menu ─────────────────────────────────────────────────
-function MenuScreen({ onStart }) {
+function MenuScreen({ onStart, onBack }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:620 }}>
@@ -401,6 +401,10 @@ function MenuScreen({ onStart }) {
             <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>Rodada 2 — ferramentas Lean ativas. Mesma demanda, resultado oposto.</div>
           </div>
         </div>
+        <button onClick={onBack} className="btn"
+          style={{ background:'transparent', color:'#475569', marginTop:16, fontSize:12 }}>
+          ← Voltar
+        </button>
       </div>
     </div>
   );
@@ -528,43 +532,43 @@ function Game() {
   const saved = useRef(loadSession());
   const s0 = saved.current;
   // Só restaura sessão play se foi salva nos últimos 5 minutos (evita sessão morta)
-  const sessionFresh = s0?.savedAt && (Date.now() - s0.savedAt < 5 * 60 * 1000);
-  const initPh = (s0?.ph === 'play' && sessionFresh) ? 'play' : 'role';
-  // Se sessão é velha, limpa
-  if (s0 && !sessionFresh) clearSession();
+  const sessionFresh = sf?.ph === 'play' && sf?.savedAt && (Date.now() - s0.savedAt < 5 * 60 * 1000);
+  // Se sessão stale, anula tudo para não contaminar o state
+  if (!sessionFresh) { clearSession(); saved.current = null; }
 
-  const [ph,        setPh]       = useState(initPh);
-  const [pts,       setPts]      = useState(s0?.pts || []);
-  const [sx,        setSx]       = useState(s0?.sx || []);
-  const [sm,        setSm]       = useState(s0?.sm ?? SH*60);
-  const [run,       setRun]      = useState(s0?.ph === 'play' ? true : false);
+  const sf = saved.current; // sf é null se sessão stale, s0 se fresh
+  const [ph,        setPh]       = useState(sf ? 'play' : 'role');
+  const [pts,       setPts]      = useState(sf?.pts || []);
+  const [sx,        setSx]       = useState(sf?.sx || []);
+  const [sm,        setSm]       = useState(sf?.sm ?? SH*60);
+  const [run,       setRun]      = useState(sf?.ph === 'play' ? true : false);
   const [sel,       setSel]      = useState(null);
   const [fl,        setFl]       = useState(null);
-  const [log,       setLog]      = useState(s0?.log || []);
-  const [st,        setSt]       = useState(s0?.st || { disc:0, altaHosp:0, libDE:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
-  const [evts,      setEvts]     = useState(s0?.evts || { pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
+  const [log,       setLog]      = useState(sf?.log || []);
+  const [st,        setSt]       = useState(sf?.st || { disc:0, altaHosp:0, libDE:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
+  const [evts,      setEvts]     = useState(sf?.evts || { pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
   const [cascade,   setCascade]  = useState(null);
   const [rpaW,      setRpaW]     = useState(null);
-  const [rnd2,      setRnd2]     = useState(s0?.rnd2 || 1);
-  const [nirUses,   setNirUses]  = useState(s0?.nirUses || 0);
-  const [nirCd,     setNirCd]    = useState(s0?.nirCd || 0);
+  const [rnd2,      setRnd2]     = useState(sf?.rnd2 || 1);
+  const [nirUses,   setNirUses]  = useState(sf?.nirUses || 0);
+  const [nirCd,     setNirCd]    = useState(sf?.nirCd || 0);
   const [deathFlash,setDeathFlash] = useState(false);
   // Contadores de decisão para painel pós-rodada
   const [moves, setMoves] = useState({ total:0, produtivo:0, reativo:0 });
-  const [r1Results, setR1Results] = useState(s0?.r1Results || null); // salva resultado R1 para comparativo
-  const [ccBlocked, setCcBlocked]  = useState(s0?.ccBlocked || false);
+  const [r1Results, setR1Results] = useState(sf?.r1Results || null); // salva resultado R1 para comparativo
+  const [ccBlocked, setCcBlocked]  = useState(sf?.ccBlocked || false);
   const [showCcModal, setShowCcModal] = useState(null);
-  const [fcUses,    setFcUses]     = useState(s0?.fcUses || 0);
+  const [fcUses,    setFcUses]     = useState(sf?.fcUses || 0);
   const [fcApproved,setFcApproved] = useState(false);
 
   // Multiplayer
-  const [tName,  setTName]  = useState(s0?.tName || '');
-  const [rCode,  setRCode]  = useState(s0?.rCode || '');
-  const [roomId, setRoomId] = useState(s0?.roomId || null);
-  const [teamId, setTeamId] = useState(s0?.teamId || null);
+  const [tName,  setTName]  = useState(sf?.tName || '');
+  const [rCode,  setRCode]  = useState(sf?.rCode || '');
+  const [roomId, setRoomId] = useState(sf?.roomId || null);
+  const [teamId, setTeamId] = useState(sf?.teamId || null);
 
   const isR2 = rnd2 === 2;
-  const ref  = useRef({ pts:s0?.pts||[], st:s0?.st||{}, sm:s0?.sm||0, nx:s0?.nx||SH*60+rnd(5,12), rd:s0?.rd||{}, evts:s0?.evts||{}, rnd2:s0?.rnd2||1, ccBlocked:s0?.ccBlocked||false });
+  const ref  = useRef({ pts:sf?.pts||[], st:sf?.st||{}, sm:sf?.sm||0, nx:sf?.nx||SH*60+rnd(5,12), rd:sf?.rd||{}, evts:sf?.evts||{}, rnd2:sf?.rnd2||1, ccBlocked:sf?.ccBlocked||false });
   const doStartRRef = useRef(null); // ref estável para subscriptions Supabase
   const subChannelRef = useRef(null); // ref para cleanup de subscriptions
 
@@ -584,7 +588,7 @@ function Game() {
 
   // Restaurar subscriptions multiplayer se estava em jogo
   useEffect(() => {
-    if (s0?.roomId && s0?.teamId && (s0?.ph === 'play' || s0?.ph === 'waiting')) {
+    if (sf?.roomId && sf?.teamId && (sf?.ph === 'play' || sf?.ph === 'waiting')) {
       sb.channel(`rm-${s0.roomId}`)
         .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${s0.roomId}` }, p => {
           const cur = ref.current.rnd2;
@@ -710,17 +714,23 @@ function Game() {
     if (doStartRRef.current) doStartRRef.current(roundNum, false);
   }, []);
 
-  // ── Multiplayer: join room ────────────────────────────────
+  // ── Multiplayer: join room (padrão Kahoot) ─────────────────
   const joinRoom = async (name, code) => {
     let room = null;
-    // Tentar até 30s (10 tentativas) — permite jogador entrar antes do facilitador
-    for (let attempt = 0; attempt < 10; attempt++) {
+    // Fase 1: encontrar a sala (até 60s — permite jogador entrar antes do facilitador)
+    for (let attempt = 0; attempt < 40; attempt++) {
       const { data } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle();
-      if (data) { room = data; break; }
-      if (attempt < 9) await new Promise(r => setTimeout(r, 1500));
+      if (data) {
+        // Sala existe — verificar se está pronta para receber teams
+        if (data.status === 'waiting' || data.status === 'round1' || data.status === 'round2') {
+          room = data; break;
+        }
+        // Sala em debrief/finished — aguardar facilitador resetar
+        // (continua polling até status mudar para 'waiting')
+      }
+      if (attempt < 39) await new Promise(r => setTimeout(r, 1500));
     }
-    if (!room) return { error:`Sala não encontrada após 30s. Verifique se o facilitador iniciou a dinâmica.` };
-    if (room.status === 'finished') return { error:`A dinâmica já foi encerrada.` };
+    if (!room) return { error:`Sala não encontrada ou não está pronta. Verifique se o facilitador criou a sala.` };
     // Verificar nome duplicado
     const { data: existing } = await sb.from('teams').select('id').eq('room_id', room.id).eq('name', name).maybeSingle();
     if (existing) return { error:`Já existe um time chamado "${name}". Escolha outro nome.` };
@@ -752,6 +762,24 @@ function Game() {
     subChannelRef.current = ch;
     return {};
   };
+
+  // ── Multiplayer: heartbeat — verifica se team ainda existe ──
+  useEffect(() => {
+    if (ph !== 'waiting' || !teamId) return;
+    const hb = setInterval(async () => {
+      const { data } = await sb.from('teams').select('id').eq('id', teamId).maybeSingle();
+      if (!data) {
+        // Team deletado (facilitador resetou sala) → volta ao lobby
+        clearInterval(hb);
+        clearSession();
+        setTeamId(null); setRoomId(null); setTName('');
+        if (subChannelRef.current) { sb.removeChannel(subChannelRef.current); subChannelRef.current = null; }
+        setPh('lobby');
+        alert('Sala reiniciada pelo facilitador. Entre novamente.');
+      }
+    }, 3000);
+    return () => clearInterval(hb);
+  }, [ph, teamId]);
 
   // ── Multiplayer: sync score every 1s ──────────────────────
   useEffect(() => {
@@ -1185,7 +1213,7 @@ function Game() {
   if (ph==='facilLogin') return <FacilitadorLogin onAuth={()=>{ window.location.href='instrutor.html'; }} onBack={()=>setPh('role')}/>;
   if (ph==='lobby')      return <LobbyScreen onJoin={joinRoom} onSolo={()=>setPh('menu')} onBack={()=>setPh('role')}/>;
   if (ph==='waiting')    return <WaitingScreen tName={tName} rCode={rCode}/>;
-  if (ph==='menu')       return <MenuScreen onStart={startR}/>;
+  if (ph==='menu')       return <MenuScreen onStart={startR} onBack={()=>setPh('role')}/>;
 
   // CC Block modal (aparece antes do jogo começar)
   if (showCcModal !== null) return (

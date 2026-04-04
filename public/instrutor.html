@@ -261,8 +261,11 @@ function Instructor() {
     if (existing) {
       // Reseta a sala existente
       await sb.from('game_state').delete().eq('room_id', existing.id);
-      await sb.from('teams').delete().eq('room_id', existing.id);
-      await sb.from('rooms').update({ status:'waiting', round:0, allow_late_join:false }).eq('id', existing.id);
+      // Só deleta teams se sala NÃO está em waiting (preserva teams que já entraram)
+      if (existing.status !== 'waiting' || existing.round !== 0) {
+        await sb.from('teams').delete().eq('room_id', existing.id);
+      }
+      await sb.from('rooms').update({ status:'waiting', round:0, allow_late_join:false, full_cap_approved:false }).eq('id', existing.id);
       room = existing;
     } else {
       const { data: newRoom, error } = await sb.from('rooms').insert({ code, status:'waiting', round:0 }).select('id,code').single();
@@ -312,8 +315,12 @@ function Instructor() {
         })
       .subscribe();
 
-    // Safety net: polling leve a cada 3s para garantir sync de sim_minute/score
+    // Safety net: polling a cada 1.5s — teams + game_state
     const pollIv = setInterval(async () => {
+      // Polling de teams (garante que aparecem mesmo se Realtime falhar)
+      const { data: tData } = await sb.from('teams').select('*').eq('room_id', rid);
+      if (tData) setTeams(tData);
+      // Polling de game_state
       const { data: gsData } = await sb.from('game_state').select('*').eq('room_id', rid);
       if (gsData?.length) {
         const map = {};
