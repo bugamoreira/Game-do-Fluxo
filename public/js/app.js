@@ -507,8 +507,10 @@ function Game() {
   // Tentar restaurar sessão do localStorage
   const saved = useRef(loadSession());
   const s0 = saved.current;
+  // Sessão 'waiting' sem jogo ativo não deve restaurar — volta ao início
+  const initPh = (s0?.ph === 'waiting' || s0?.ph === 'lobby' || s0?.ph === 'facilLogin' || s0?.ph === 'menu') ? 'role' : (s0?.ph || 'role');
 
-  const [ph,        setPh]       = useState(s0?.ph || 'role');
+  const [ph,        setPh]       = useState(initPh);
   const [pts,       setPts]      = useState(s0?.pts || []);
   const [sx,        setSx]       = useState(s0?.sx || []);
   const [sm,        setSm]       = useState(s0?.sm ?? SH*60);
