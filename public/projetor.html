@@ -201,6 +201,7 @@ function Projecao() {
       }
       if (data) {
         setRoom(data);
+        setLoading(false);
         const { data: t } = await sb.from('teams').select('*').eq('room_id', data.id);
         if (t) setTeams(t);
         const { data: gs } = await sb.from('game_state').select('*').eq('room_id', data.id);
