@@ -22,9 +22,9 @@ import { SurgeryPanel } from './components/SurgeryPanel'
 
 // ── Session persistence helpers ──────────────────────────────
 const SESSION_KEY = 'flame_session';
-function saveSession(data: any) { try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(e){} }
-function loadSession(): any { try { const s=localStorage.getItem(SESSION_KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
-function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch(e){} }
+function saveSession(data: any) { try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(_e) { /* localStorage may be full */ } }
+function loadSession(): any { try { const s=localStorage.getItem(SESSION_KEY); return s ? JSON.parse(s) : null; } catch(_e) { return null; } }
+function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch(_e) { /* noop */ } }
 
 // ── Main Game ─────────────────────────────────────────────────
 export function Game() {
@@ -337,9 +337,9 @@ export function Game() {
       return nm;
     });
     setPts((prev: any[]) => {
-      let P = prev.map((p: any)=>({...p}));
+      const P = prev.map((p: any)=>({...p}));
       const cm=ref.current.sm+1, ch=Math.floor(cm/60);
-      let S={...ref.current.st};
+      const S={...ref.current.st};
       const R=ref.current.rd, E={...ref.current.evts};
       const isR2local = ref.current.rnd2===2;
 
