@@ -11,8 +11,8 @@ export function RoleSelector({ onJogador, onFacilitador }: RoleSelectorProps) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'linear-gradient(180deg, #060a13 0%, #0a1628 50%, #060a13 100%)', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:540, width:'100%' }}>
-        <div style={{ marginBottom:16 }}>
-          <img src="img/edleaders.png" alt="ED Leaders" style={{ height:120, width:120, objectFit:'cover', borderRadius:'50%', marginBottom:16 }}/>
+        <div style={{ marginBottom:16, display:'flex', justifyContent:'center' }}>
+          <img src="img/edleaders.png" alt="ED Leaders" style={{ height:120, width:120, objectFit:'cover', borderRadius:'50%' }}/>
         </div>
         <div style={{ fontSize:42, fontWeight:900, letterSpacing:'.02em', marginBottom:2,
           background:'linear-gradient(135deg, #FF3B3B, #f97316, #eab308)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
