@@ -21,6 +21,7 @@ body{background:#060a13;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 <body>
 <div id="root"></div>
 <script src="js/supabase-config.js"></script>
+<script src="js/error-boundary.js"></script>
 <script src="js/music.js"></script>
 <script type="text/babel">
 const {useState, useEffect, useRef} = React;
@@ -422,7 +423,7 @@ function Projecao() {
   );
 }
 
-ReactDOM.render(<Projecao/>, document.getElementById('root'));
+ReactDOM.render(<ErrorBoundary><Projecao/></ErrorBoundary>, document.getElementById('root'));
 </script>
 </body>
 </html>

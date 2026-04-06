@@ -303,11 +303,15 @@ function LobbyScreen({ onJoin, onSolo, onBack }) {
   const [err,     setErr]     = useState('');
   const [loading, setLoading] = useState(false);
 
+  const sanitize = (s) => s.replace(/<[^>]*>/g, '').replace(/[^\w\sÀ-ÿ\-\.]/g, '').trim().slice(0, 30);
   const submit = async () => {
-    if (!tName.trim()) { setErr('Digite o nome do seu time.'); return; }
-    if (tName.trim().length < 2) { setErr('Nome precisa ter pelo menos 2 caracteres.'); return; }
+    const name = sanitize(tName);
+    if (!name) { setErr('Digite o nome do seu time.'); return; }
+    if (name.length < 2) { setErr('Nome precisa ter pelo menos 2 caracteres.'); return; }
+    if (name.length > 30) { setErr('Nome pode ter no máximo 30 caracteres.'); return; }
+    if (/^\d+$/.test(name)) { setErr('Nome não pode ser só números.'); return; }
     setLoading(true); setErr('');
-    const result = await onJoin(tName.trim(), 'FLAME');
+    const result = await onJoin(name, 'FLAME');
     if (result?.error) { setErr(result.error); setLoading(false); }
   };
 
@@ -1659,4 +1663,4 @@ function Game() {
   );
 }
 
-ReactDOM.render(<Game/>, document.getElementById('root'));
+ReactDOM.render(<ErrorBoundary><Game/></ErrorBoundary>, document.getElementById('root'));

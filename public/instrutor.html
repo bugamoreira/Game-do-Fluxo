@@ -26,6 +26,7 @@ input:focus{border-color:#00d4ff}
 <body>
 <div id="root"></div>
 <script src="js/supabase-config.js"></script>
+<script src="js/error-boundary.js"></script>
 <script type="text/babel">
 const {useState, useEffect, useRef} = React;
 
@@ -714,7 +715,7 @@ function App() {
   return <Instructor />;
 }
 
-ReactDOM.render(<App/>, document.getElementById('root'));
+ReactDOM.render(<ErrorBoundary><App/></ErrorBoundary>, document.getElementById('root'));
 </script>
 </body>
 </html>
