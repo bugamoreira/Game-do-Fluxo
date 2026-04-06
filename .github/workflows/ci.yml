@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src/ --max-warnings 250
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Build
+        run: npx vite build
+        env:
+          VITE_SUPABASE_URL: https://okmafynejwrwnmvyruwy.supabase.co
+          VITE_SUPABASE_KEY: placeholder-for-ci
