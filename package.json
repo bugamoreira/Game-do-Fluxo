@@ -1,0 +1,40 @@
+{
+  "name": "game-do-fluxo",
+  "version": "1.0.0",
+  "description": "Jogo educacional multiplayer de gestao de fluxo hospitalar. Ensina Theory of Constraints e Lean aplicados a emergencia atraves de simulacao pratica.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bugamoreira/Game-do-Fluxo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bugamoreira/Game-do-Fluxo/issues"
+  },
+  "homepage": "https://github.com/bugamoreira/Game-do-Fluxo#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tone": "^15.1.22",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.4",
+    "vitest": "^4.1.2"
+  }
+}

@@ -1,2 +1,17 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Environment
+.env
+.env.local
+
 # Local Netlify folder
 .netlify
+
+# IDE
+.vscode
+.idea
+*.swp
