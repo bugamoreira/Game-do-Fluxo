@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/bugamoreira/Game-do-Fluxo#readme",
   "dependencies": {
+    "@sentry/react": "^10.47.0",
     "@supabase/supabase-js": "^2.101.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
