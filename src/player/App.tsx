@@ -712,9 +712,8 @@ export function Game() {
   if (ph==='facilLogin') return <FacilitadorLogin onAuth={()=>{ window.location.href='instrutor.html'; }} onBack={()=>setPh('role')}/>;
   if (ph==='lobby')      return <LobbyScreen onJoin={joinRoom} onSolo={()=>setPh('menu')} onBack={()=>setPh('role')}/>;
   if (ph==='waiting')    return <WaitingScreen tName={tName} rCode={rCode}/>;
-  if (ph==='menu')       return <MenuScreen onStart={startR} onBack={()=>setPh('role')}/>;
 
-  // CC Block modal (aparece antes do jogo comecar)
+  // CC Block modal (aparece ANTES do menu — showCcModal setado pelo startR)
   if (showCcModal !== null) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#060a13', padding:20 }}>
       <div style={{ textAlign:'center', maxWidth:480, width:'100%' }}>
@@ -754,6 +753,8 @@ export function Game() {
       </div>
     </div>
   );
+
+  if (ph==='menu')       return <MenuScreen onStart={startR} onBack={()=>setPh('role')}/>;
 
   // ── Game UI ───────────────────────────────────────────────
   const allEnf = byS('enf');
