@@ -231,7 +231,7 @@ export const useGameStore = create<GameState & GameActions>()(
           ? ' FERRAMENTAS LEAN ATIVAS: Alta precoce, Fast Track, Discharge Lounge, Surgical Smoothing, Fluxista, NIR, Full Capacity, Alta Segura.'
           : '';
         const initLogs: LogEntry[] = [
-          { msg: `${title} iniciado! DE 8/15, Enf 71/85, UTI 13/15. Ocupacao hospitalar: 84%.${ccMsg}${r2Msg}`, type: 'info', t: SH * 60 },
+          { msg: `${title} iniciado! DE 8/15, Enf 71/85, UTI 13/15. Ocupação hospitalar: 84%.${ccMsg}${r2Msg}`, type: 'info', t: SH * 60 },
         ];
         if (roundNum === 1) {
           const firstSala1 = sxList.find(s => s.sala === 1);
@@ -241,7 +241,7 @@ export const useGameStore = create<GameState & GameActions>()(
           }
         }
         if (roundNum === 2) {
-          initLogs.push({ msg: 'BED HUDDLE 7h: Previsao ~40 pacientes. 7 cirurgias redistribuidas. Pico 11h-14h.', type: 'info', t: SH * 60 });
+          initLogs.push({ msg: 'BED HUDDLE 7h: Previsão ~40 pacientes. 7 cirurgias redistribuídas. Pico 11h-14h.', type: 'info', t: SH * 60 });
         }
 
         set({

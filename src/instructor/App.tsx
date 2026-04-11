@@ -29,7 +29,7 @@ function LoginScreen({ onAuth }: { onAuth: () => void }) {
   const [err, setErr] = useState('');
   const submit = () => {
     if (user.trim() === CREDENTIALS.user && pass === CREDENTIALS.pass) { onAuth(); }
-    else setErr('Credenciais invalidas. Tente novamente.');
+    else setErr('Credenciais inválidas. Tente novamente.');
   };
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#060a13', padding: 20 }}>
@@ -211,8 +211,8 @@ function Instructor() {
         <div style={{ background: '#0f172a', borderRadius: 14, padding: 28, border: '1px solid #1e293b', marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 12, letterSpacing: '.08em', textTransform: 'uppercase' as const }}>Painel do Facilitador</div>
           <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20, lineHeight: 1.6 }}>
-            Inicie a dinamica para que os jogadores possam entrar.<br />
-            A sala <strong style={{ color: '#00d4ff', letterSpacing: '.1em' }}>FLAME</strong> sera criada automaticamente.
+            Inicie a dinâmica para que os jogadores possam entrar.<br />
+            A sala <strong style={{ color: '#00d4ff', letterSpacing: '.1em' }}>FLAME</strong> será criada automaticamente.
           </div>
           {err && <div style={{ color: '#fca5a5', fontSize: 11, marginBottom: 10 }}>{err}</div>}
           <button onClick={createRoom} disabled={creating} className="btn"
@@ -265,7 +265,7 @@ function Instructor() {
               </button>
               <button onClick={() => confirmStart(false)} className="btn"
                 style={{ flex: 1, background: '#374151', padding: '12px 0', fontSize: 13 }}>
-                Nao, sala fechada
+                Não, sala fechada
               </button>
             </div>
             <button onClick={() => setPendingRound(null)} className="btn"
@@ -342,10 +342,10 @@ function Instructor() {
               </button>
               <button onClick={() => window.open('projetor.html', '_blank')} className="btn"
                 style={{ background: '#1e293b', padding: '10px 18px', fontSize: 12, border: '1px solid #334155' }}>
-                Abrir Projecao
+                Abrir Projeção
               </button>
               <button onClick={async () => {
-                if (!confirm('Reiniciar a dinamica? Todos os dados serao apagados.')) return;
+                if (!confirm('Reiniciar a dinâmica? Todos os dados serão apagados.')) return;
                 await sb.from('game_state').delete().eq('room_id', roomId!);
                 await sb.from('teams').delete().eq('room_id', roomId!);
                 await sb.from('rooms').update({ status: 'waiting', round: 0, allow_late_join: false, music_muted: false } as any).eq('id', roomId!);

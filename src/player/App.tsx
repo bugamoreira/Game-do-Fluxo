@@ -33,7 +33,7 @@ export function Game() {
   const s0 = saved.current;
   // So restaura sessao play se foi salva nos ultimos 5 minutos (evita sessao morta)
   const sessionFresh = s0?.ph === 'play' && s0?.savedAt && (Date.now() - s0.savedAt < 5 * 60 * 1000);
-  // Se sessao stale, anula tudo para nao contaminar o state
+  // Se sessão stale, anula tudo para não contaminar o state
   if (!sessionFresh) { clearSession(); saved.current = null; }
 
   const sf = saved.current; // sf e null se sessao stale, s0 se fresh
@@ -53,7 +53,7 @@ export function Game() {
   const [nirUses,   setNirUses]  = useState(sf?.nirUses || 0);
   const [nirCd,     setNirCd]    = useState(sf?.nirCd || 0);
   const [deathFlash,setDeathFlash] = useState(false);
-  // Contadores de decisao para painel pos-rodada
+  // Contadores de decisão para painel pós-rodada
   const [moves, setMoves] = useState({ total:0, produtivo:0, reativo:0 });
   const [r1Results, setR1Results] = useState<any>(sf?.r1Results || null); // salva resultado R1 para comparativo
   const [ccBlocked, setCcBlocked]  = useState(sf?.ccBlocked || false);
@@ -159,7 +159,7 @@ export function Game() {
   }, [roomId]);
 
   const doStartR = useCallback((roundNum: number, blocked: boolean) => {
-    // Som apenas no projetor — jogador nao inicializa musica
+    // Som apenas no projetor — jogador não inicializa música
     resetId();
     setShowCcModal(null);
     setRnd2(roundNum);
@@ -173,7 +173,7 @@ export function Game() {
       const delay = rnd(30,60)/60; // 0.5-1h de atraso
       sxList.forEach((s: any) => { if (s.sala === 1) s.stH += delay; });
     }
-    // Se bloqueou sala 4 para emergencias, remove cirurgias da sala 4 ou realocar
+    // Se bloqueou sala 4 para emergências, remove cirurgias da sala 4 ou realocar
     if (blocked) {
       sxList.forEach((s: any) => { if (s.sala === 4) s.sala = 3; }); // reagrupa na sala 3
     }
@@ -188,14 +188,14 @@ export function Game() {
     setNirCd(0);
     setDeathFlash(false);
     const title = roundNum===2 ? 'PLANTAO LEAN' : 'PLANTAO TRAVADO';
-    const ccMsg = blocked ? ' Sala 4 reservada para emergencias.' : ' Todas as 4 salas em uso eletivo.';
+    const ccMsg = blocked ? ' Sala 4 reservada para emergências.' : ' Todas as 4 salas em uso eletivo.';
     const r2Msg = roundNum===2 ? ' FERRAMENTAS LEAN ATIVAS: Alta precoce, Fast Track, Discharge Lounge, Surgical Smoothing, Fluxista, NIR, Full Capacity, Alta Segura.' : '';
-    const initLogs = [{ msg:`${title} iniciado! DE 8/15, Enf 71/85, UTI 13/15. Ocupacao hospitalar: 84%.${ccMsg}${r2Msg}`, type:'info', t:SH*60 }];
+    const initLogs = [{ msg:`${title} iniciado! DE 8/15, Enf 71/85, UTI 13/15. Ocupação hospitalar: 84%.${ccMsg}${r2Msg}`, type:'info', t:SH*60 }];
     if (roundNum===1) {
       const delayMin = Math.round(((sxList.find((s: any)=>s.sala===1)?.stH ?? 7.5) - 7.5) * 60);
       if (delayMin > 0) initLogs.push({ msg:`ATRASO: Primeira cirurgia atrasou ${delayMin}min. Efeito cascata na Sala 1.`, type:'warning', t:SH*60 });
     }
-    if (roundNum===2) initLogs.push({ msg:'BED HUDDLE 7h: Previsao ~40 pacientes. 7 cirurgias redistribuidas. Pico 11h-14h.', type:'info', t:SH*60 });
+    if (roundNum===2) initLogs.push({ msg:'BED HUDDLE 7h: Previsão ~40 pacientes. 7 cirurgias redistribuídas. Pico 11h-14h.', type:'info', t:SH*60 });
     setLog(initLogs);
     setSt({ disc:0, altaHosp:0, libDE:0, dets:0, deaths:0, cxCan:0, lwbs:0, offS:0, socB:0, boardHrs:0 });
     setEvts({ pcr:false, tomo:false, surto:false, social:false, lab:false, famDelay:false, pcrEnd:0, tomoEnd:0, labEnd:0 });
@@ -230,14 +230,14 @@ export function Game() {
       }
       if (attempt < 39) await new Promise(r => setTimeout(r, 1500));
     }
-    if (!room) return { error:`Sala nao encontrada ou nao esta pronta. Verifique se o facilitador criou a sala.` };
+    if (!room) return { error:`Sala não encontrada ou não está pronta. Verifique se o facilitador criou a sala.` };
     // Verificar nome duplicado
     const { data: existing } = await sb.from('teams').select('id').eq('room_id', room.id).eq('name', name).maybeSingle();
-    if (existing) return { error:`Ja existe um time chamado "${name}". Escolha outro nome.` };
+    if (existing) return { error:`Já existe um time chamado "${name}". Escolha outro nome.` };
     const col  = TEAM_COLORS[Math.floor(Math.random()*TEAM_COLORS.length)];
     const { data:team, error } = await sb.from('teams').insert({ room_id:room.id, name, color:col }).select('id').single();
     if (error) {
-      if (error.code === '23505') return { error:`Ja existe um time chamado "${name}". Escolha outro nome.` };
+      if (error.code === '23505') return { error:`Já existe um time chamado "${name}". Escolha outro nome.` };
       return { error:'Erro ao registrar time. Tente novamente.' };
     }
     if (!team) return { error:'Erro ao registrar time. Tente novamente.' };
@@ -379,7 +379,7 @@ export function Game() {
           const d = i<2 ? rollDest(isR2local) : { dest:'uti' as const, sev:'red' as const, de:rnd(90,150) };
           const np=mkPt('triagem',d.dest,d.sev,false,d.de); np.arrMin=cm; P.push(np);
         }
-        addL('SURTO! 3 pacientes simultaneos chegando!','danger');
+        addL('SURTO! 3 pacientes simultâneos chegando!','danger');
         SimsMusic.sfx('cascade');
       }
 
@@ -413,19 +413,19 @@ export function Game() {
           if (rpaCount < CAP.rpa) {
             emgCandidate.sector='rpa'; emgCandidate.postOp=true; emgCandidate.ready=true; emgCandidate.dest='uti';
             emgCandidate.name=`EMG-${emgCandidate.name.split(' ')[0]}`;
-            addL(`EMERGENCIA CIRURGICA: ${emgCandidate.name} → CC${blocked?' (sala reservada)':''} → RPA.`,'danger');
+            addL(`EMERGÊNCIA CIRÚRGICA: ${emgCandidate.name} → CC${blocked?' (sala reservada)':''} → RPA.`,'danger');
             SimsMusic.sfx('cascade');
           } else if (!blocked) {
-            // RPA lotada e sem sala reservada → obito
+            // RPA lotada e sem sala reservada → óbito
             emgCandidate.dead=true; S.deaths++;
-            addL(`SEM SALA CIRURGICA! ${emgCandidate.name} — obito evitavel. RPA lotada, sem sala reservada.`,'danger');
+            addL(`SEM SALA CIRÚRGICA! ${emgCandidate.name} — óbito evitável. RPA lotada, sem sala reservada.`,'danger');
             SimsMusic.sfx('death');
             setDeathFlash(true); setTimeout(()=>setDeathFlash(false),600);
           } else {
             // Bloqueou sala mas RPA lotada — opera na sala reservada, paciente fica em espera
             emgCandidate.blocked = true;
             emgCandidate.ready = false;
-            addL(`EMERGENCIA: ${emgCandidate.name} operado na sala reservada. Aguardando vaga na RPA.`,'warning');
+            addL(`EMERGÊNCIA: ${emgCandidate.name} operado na sala reservada. Aguardando vaga na RPA.`,'warning');
           }
         }
       }
@@ -465,7 +465,7 @@ export function Game() {
       // R2: Fluxista auto-discharge alta_de every 20 sim-min
       if (isR2local&&cm%20===0) {
         const fluxPts=P.filter((p: any)=>p.sector==='de'&&p.ready&&p.dest==='alta_de');
-        fluxPts.forEach((p: any) => { p.sector='alta'; S.disc++; addL(`Fluxista: ${p.name} — alta automatica.`,'success'); });
+        fluxPts.forEach((p: any) => { p.sector='alta'; S.disc++; addL(`Fluxista: ${p.name} — alta automática.`,'success'); });
         if (fluxPts.length>0) SimsMusic.sfx('fluxista');
       }
 
@@ -492,12 +492,12 @@ export function Game() {
           S.boardHrs+=(1/60);
           if (p.bMin>=BOARD_DET_MIN&&!p.det) {
             p.det=true; S.dets++;
-            addL(`DETERIORACAO: ${p.name} — ${Math.floor(p.bMin/60)}h em boarding!`,'warning');
+            addL(`DETERIORAÇÃO: ${p.name} — ${Math.floor(p.bMin/60)}h em boarding!`,'warning');
             SimsMusic.sfx('det');
           }
           if (p.bMin>=BOARD_DEAD_MIN&&!p.dead) {
             p.dead=true; S.deaths++;
-            addL(`OBITO EVITAVEL: ${p.name} — ${Math.floor(p.bMin/60)}h em boarding.`,'danger');
+            addL(`ÓBITO EVITÁVEL: ${p.name} — ${Math.floor(p.bMin/60)}h em boarding.`,'danger');
             SimsMusic.sfx('death');
             setDeathFlash(true); setTimeout(()=>setDeathFlash(false),600);
           }
@@ -523,13 +523,13 @@ export function Game() {
       // Dados reais — overlay educativo (1x cada)
       if (S.boardHrs>=2 && !R.factBoard) { R.factBoard=true; addL('Dados reais: boarding >2h aumenta risco de eventos adversos em 20%.','fact'); }
       if (S.dets>=1 && !R.factDet) { R.factDet=true; addL('Estudos mostram: cada hora de boarding >4h aumenta mortalidade em 2%.','fact'); }
-      if (S.deaths>=1 && !R.factDeath) { R.factDeath=true; addL('Em hospitais com ocupacao >95%, mortalidade cresce 8% por cada 10% de boarding adicional.','fact'); }
-      if (S.cxCan>=1 && !R.factCx) { R.factCx=true; addL('Cirurgias canceladas por falta de leito custam em media R$15.000 por caso.','fact'); }
+      if (S.deaths>=1 && !R.factDeath) { R.factDeath=true; addL('Em hospitais com ocupação >95%, mortalidade cresce 8% por cada 10% de boarding adicional.','fact'); }
+      if (S.cxCan>=1 && !R.factCx) { R.factCx=true; addL('Cirurgias canceladas por falta de leito custam em média R$15.000 por caso.','fact'); }
 
       // Corridor overflow — LWBS dispara mais cedo em R1 (corredor > 2)
       if (P.filter((p: any)=>p.sector==='de').length>=CAP.de-pcrB&&P.filter((p: any)=>p.sector==='triagem').length>2) {
         const tc=P.find((p: any)=>p.sector==='triagem');
-        if (tc&&Math.random()<.4) { tc.sector='corredor'; addL(`${tc.name} → CORREDOR — sem macas disponiveis!`,'warning'); }
+        if (tc&&Math.random()<.4) { tc.sector='corredor'; addL(`${tc.name} → CORREDOR — sem macas disponíveis!`,'warning'); }
       }
       const corredorLimit = isR2local ? 3 : 2;
       if (P.filter((p: any)=>p.sector==='corredor').length>corredorLimit) {
@@ -541,7 +541,7 @@ export function Game() {
       P.forEach((p: any) => { if (p.social&&p.socialDelay>0) { p.socialDelay--; if (p.socialDelay<=0) { p.social=false; addL(`${p.name} (social) liberado.`,'success'); }}});
 
       // ENF rounds — R2 Bed Huddle antecipa para 8h (alta precoce)
-      // R1: round medico as 11h (atraso!), preparo 120-180min (burocracia)
+      // R1: round médico às 11h (atraso!), preparo 120-180min (burocracia)
       const enfRoundH=isR2local?8:11;
       if (ch>=enfRoundH&&!R.e1) {
         R.e1=true;
@@ -549,21 +549,21 @@ export function Game() {
         const n=Math.min(rnd(6,8),c.length);
         for (let i=0;i<n;i++) { c[i].dischReady=true; c[i].prep=isR2local?0:rnd(120,180); }
         if (isR2local) addL(`BED HUDDLE ${enfRoundH}h: ${n} altas prescritas. Discharge Lounge: leitos liberam IMEDIATO.`,'success');
-        else addL(`ROUND MEDICO ${enfRoundH}h: ${n} altas prescritas. Preparo estimado: 2-3h. TARDE DEMAIS!`,'warning');
+        else addL(`ROUND MÉDICO ${enfRoundH}h: ${n} altas prescritas. Preparo estimado: 2-3h. TARDE DEMAIS!`,'warning');
       }
       if (ch>=14&&!R.e2) {
         R.e2=true;
         const c=P.filter((p: any)=>p.sector==='enf'&&!p.dischReady&&!p.blocked&&!p.social);
         const n=Math.min(rnd(3,4),c.length);
         for (let i=0;i<n;i++) { c[i].dischReady=true; c[i].prep=isR2local?0:rnd(90,120); }
-        addL(`ROUND 14h: ${n} altas.${isR2local?' Liberacao imediata.':' Preparo ~1.5-2h.'}`,'success');
+        addL(`ROUND 14h: ${n} altas.${isR2local?' Liberação imediata.':' Preparo ~1.5-2h.'}`,'success');
       }
       if (ch>=17&&!R.e3) {
         R.e3=true;
         const c=P.filter((p: any)=>p.sector==='enf'&&!p.dischReady&&!p.blocked&&!p.social);
         const n=Math.min(rnd(1,2),c.length);
         for (let i=0;i<n;i++) { c[i].dischReady=true; c[i].prep=isR2local?0:60; }
-        if (n>0) addL(`ROUND 17h: ${n} alta(s) esporadica(s).`,'info');
+        if (n>0) addL(`ROUND 17h: ${n} alta(s) esporádica(s).`,'info');
       }
 
       // UTI step-downs
@@ -583,7 +583,7 @@ export function Game() {
             if (rC>=CAP.rpa) {
               s.st='cancelled'; S.cxCan++;
               const disch=P.find((p: any)=>p.sector==='enf'&&p.dischReady&&p.prep<=0&&!p.blocked&&!p.social);
-              if (disch) { disch.dischReady=false; disch.blocked=true; addL(`${s.label} CANCELADA! ${disch.name} perde alta. EFEITO CASCATA.`,'danger'); setCascade(`${s.label} cancelada → ${disch.name} perde alta → leito nao gira`); setTimeout(()=>setCascade(null),8000); }
+              if (disch) { disch.dischReady=false; disch.blocked=true; addL(`${s.label} CANCELADA! ${disch.name} perde alta. EFEITO CASCATA.`,'danger'); setCascade(`${s.label} cancelada → ${disch.name} perde alta → leito não gira`); setTimeout(()=>setCascade(null),8000); }
               else { addL(`${s.label} CANCELADA — RPA lotada!`,'danger'); setCascade('Cirurgia cancelada → menos giro → mais boarding'); setTimeout(()=>setCascade(null),6000); }
               SimsMusic.sfx('cascade');
             } else {
@@ -640,7 +640,7 @@ export function Game() {
       if (sid==='alta') {
         const isHospDisc = p.sector==='enf'; // Alta hospitalar = so ENF
         setSt((s: any)=>({...s, disc:s.disc+1, altaHosp:(s.altaHosp||0)+(isHospDisc?1:0), libDE:(s.libDE||0)+(p.sector==='de'?1:0) }));
-        addL(`${p.name} — ${isHospDisc?'alta hospitalar':'liberacao DE'}.`,'success');
+        addL(`${p.name} — ${isHospDisc?'alta hospitalar':'liberação DE'}.`,'success');
         SimsMusic.sfx('disc');
       }
       else if (isOff)   { setSt((s: any)=>({...s,offS:s.offS+1})); addL(`FORA DO PERFIL: ${p.name} UTI→ENF. Risco elevado!`,'warning'); }
@@ -678,9 +678,9 @@ export function Game() {
 
   const doFullCap = () => {
     if (!isR2||!sel) return;
-    if (!fcApproved) { addL('FULL CAPACITY negado — aguardando autorizacao da Diretoria.','warning'); return; }
+    if (!fcApproved) { addL('FULL CAPACITY negado — aguardando autorização da Diretoria.','warning'); return; }
     if (fcUses >= 2) { addL('FULL CAPACITY esgotado — limite de 2 pacientes atingido.','warning'); return; }
-    if (sel.sector!=='de'||!sel.ready||sel.sev!=='green'||sel.dest==='alta_de') { addL('FULL CAPACITY apenas para pacientes VERDES com indicacao de internacao no DE.','warning'); return; }
+    if (sel.sector!=='de'||!sel.ready||sel.sev!=='green'||sel.dest==='alta_de') { addL('FULL CAPACITY apenas para pacientes VERDES com indicação de internação no DE.','warning'); return; }
     setPts((prev: any[])=>prev.map((pt: any)=>pt.id!==sel.id?pt:{...pt,sector:'corredor',bStart:null,bMin:0}));
     setFcUses((n: number)=>n+1); setSel(null);
     addL(`FULL CAPACITY: ${sel.name} ao corredor da enfermaria. Maca liberada. (${fcUses+1}/2 usos)`,'success');
@@ -723,30 +723,30 @@ export function Game() {
         <div style={{ fontSize:28, fontWeight:900, color:showCcModal===2?'#00d4ff':'#FF3B3B', marginBottom:20 }}>CENTRO CIRURGICO</div>
         <div style={{ background:'#0f172a', borderRadius:14, padding:28, border:'1px solid #1e293b' }}>
           <div style={{ fontSize:14, fontWeight:800, color:'#e2e8f0', marginBottom:8 }}>
-            O hospital tem 4 salas cirurgicas.
+            O hospital tem 4 salas cirúrgicas.
           </div>
           <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.7, marginBottom:20 }}>
-            Emergencias cirurgicas podem chegar a qualquer momento.<br/>
-            Sem sala disponivel = <strong style={{ color:'#ef4444' }}>obito evitavel</strong>.
+            Emergências cirúrgicas podem chegar a qualquer momento.<br/>
+            Sem sala disponível = <strong style={{ color:'#ef4444' }}>óbito evitável</strong>.
           </div>
           <div style={{ fontSize:15, fontWeight:800, color:'#e2e8f0', marginBottom:20 }}>
-            Bloquear 1 sala para emergencias?
+            Bloquear 1 sala para emergências?
           </div>
           <div style={{ display:'flex', gap:12, marginBottom:12 }}>
             <button onClick={()=>doStartR(showCcModal, true)} className="btn"
               style={{ flex:1, background:'linear-gradient(135deg,#22c55e,#16a34a)', padding:'14px 0', fontSize:14, fontWeight:800, borderRadius:10 }}>
               Sim, reservar sala 4
-              <div style={{ fontSize:11, fontWeight:400, opacity:.8, marginTop:2 }}>3 eletivas + 1 emergencia</div>
+              <div style={{ fontSize:11, fontWeight:400, opacity:.8, marginTop:2 }}>3 eletivas + 1 emergência</div>
             </button>
             <button onClick={()=>doStartR(showCcModal, false)} className="btn"
               style={{ flex:1, background:'linear-gradient(135deg,#ef4444,#dc2626)', padding:'14px 0', fontSize:14, fontWeight:800, borderRadius:10 }}>
-              Nao, usar todas
+              Não, usar todas
               <div style={{ fontSize:11, fontWeight:400, opacity:.8, marginTop:2 }}>4 eletivas (risco!)</div>
             </button>
           </div>
           {showCcModal===2 && (
             <div style={{ fontSize:11, color:'#00d4ff', padding:'8px 12px', background:'rgba(0,212,255,.06)', borderRadius:8, border:'1px solid rgba(0,212,255,.15)' }}>
-              Bed Huddle recomenda: reservar 1 sala para emergencias.
+              Bed Huddle recomenda: reservar 1 sala para emergências.
             </div>
           )}
         </div>
@@ -777,7 +777,7 @@ export function Game() {
               <strong>{offServiceConfirm.sel.name}</strong> precisa de UTI.
             </div>
             <div style={{ fontSize:12, color:'#f87171', marginBottom:16 }}>
-              Enviar para ENF fora do perfil? Risco de deterioracao. (-25 pts)
+              Enviar para ENF fora do perfil? Risco de deterioração. (-25 pts)
             </div>
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={confirmOffService} className="btn"
@@ -827,7 +827,7 @@ export function Game() {
             </div>
             {!roomId && <button onClick={()=>setRun((r: boolean)=>!r)} className="btn"
               style={{ background:run?'#374151':'#16a34a' }}>{run?'PAUSAR':'RETOMAR'}</button>}
-            <button onClick={()=>{if(confirm('Sair do jogo? O progresso sera perdido.')){clearSession();setRun(false);setPh('role');}}} className="btn"
+            <button onClick={()=>{if(confirm('Sair do jogo? O progresso será perdido.')){clearSession();setRun(false);setPh('role');}}} className="btn"
               style={{ background:'#1e293b', padding:'4px 10px', fontSize:11, color:'#64748b' }}>SAIR</button>
           </div>
         </div>

@@ -132,7 +132,7 @@ export function App() {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#060a13' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 28, fontWeight: 900, color: '#FF3B3B', marginBottom: 4 }}>FLAME 2026</div>
-        <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 24 }}>Tela de Projecao</div>
+        <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 24 }}>Tela de Projeção</div>
         <button onClick={initAudio} className="btn"
           style={{ background: 'linear-gradient(135deg,#FF3B3B,#dc2626)', padding: '16px 40px', fontSize: 16, fontWeight: 800, borderRadius: 12, boxShadow: '0 4px 30px rgba(255,59,59,.3)' }}>
           Iniciar com Audio
@@ -146,8 +146,8 @@ export function App() {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 32, fontWeight: 900, color: '#FF3B3B', marginBottom: 8 }}>FLAME 2026</div>
-        <div style={{ fontSize: 14, color: '#64748b' }}>Aguardando o facilitador iniciar a dinamica...</div>
-        <div style={{ fontSize: 12, color: '#475569', marginTop: 12, animation: 'pulse 2s infinite' }}>A tela atualizara automaticamente</div>
+        <div style={{ fontSize: 14, color: '#64748b' }}>Aguardando o facilitador iniciar a dinâmica...</div>
+        <div style={{ fontSize: 12, color: '#475569', marginTop: 12, animation: 'pulse 2s infinite' }}>A tela atualizará automaticamente</div>
       </div>
     </div>
   );
