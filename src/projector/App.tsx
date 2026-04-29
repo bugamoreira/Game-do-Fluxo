@@ -63,8 +63,8 @@ export function App() {
         if (t) setTeams(t);
         const { data: gs } = await sb.from('game_state').select('*').eq('room_id', data.id);
         if (gs) {
-          const map = {};
-          gs.forEach(g => { if (!map[g.team_id]) map[g.team_id] = {}; map[g.team_id][`round${g.round}`] = g; });
+          const map: any = {};
+          gs.forEach((g: any) => { if (!map[g.team_id]) map[g.team_id] = {}; map[g.team_id][`round${g.round}`] = g; });
           setGameStates(map);
         }
   
@@ -83,25 +83,25 @@ export function App() {
   
         // game_state: só atualiza scores/metrics, NÃO mais simMin
         sb.channel(`proj-gs-${data.id}`)
-          .on('postgres_changes', { event:'*', schema:'public', table:'game_state', filter:`room_id=eq.${data.id}` },
-            p => {
-              const gs2 = p.new;
-              setGameStates(prev => ({
+          .on('postgres_changes', { event:'*' as any, schema:'public', table:'game_state', filter:`room_id=eq.${data.id}` } as any,
+            (p: any) => {
+              const gs2: any = p.new;
+              setGameStates((prev: any) => ({
                 ...prev,
                 [gs2.team_id]: { ...(prev[gs2.team_id] || {}), [`round${gs2.round}`]: gs2 }
               }));
               // sim_minute removido daqui — timer agora vem do started_at
             })
           .subscribe();
-  
+
         const pollId = setInterval(async () => {
           const { data: r2 } = await sb.from('rooms').select('*').eq('id', data.id).single();
           if (r2) setRoom(r2);
           const { data: gs2 } = await sb.from('game_state').select('*').eq('room_id', data.id);
           if (gs2?.length) {
-            const m2 = {};
-            gs2.forEach(g => { if (!m2[g.team_id]) m2[g.team_id] = {}; m2[g.team_id][`round${g.round}`] = g; });
-            setGameStates(prev => ({...prev, ...m2}));
+            const m2: any = {};
+            gs2.forEach((g: any) => { if (!m2[g.team_id]) m2[g.team_id] = {}; m2[g.team_id][`round${g.round}`] = g; });
+            setGameStates((prev: any) => ({...prev, ...m2}));
             // sim_minute removido daqui também
           }
           const { data: t2 } = await sb.from('teams').select('*').eq('room_id', data.id);

@@ -233,8 +233,8 @@ useEffect(() => {
     let room: any = null;
     // Fase 1: encontrar a sala (ate 60s — permite jogador entrar antes do facilitador)
     for (let attempt = 0; attempt < 40; attempt++) {
-      const { data } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle();
-      if (!data.allow_late_join && data.status != 'waiting' ) return { error:`Esta sala não permite que jogadores entrem após o início da partida.` };
+      const { data } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle() as any;
+      if (data && !data.allow_late_join && data.status != 'waiting' ) return { error:`Esta sala não permite que jogadores entrem após o início da partida.` };
       if (data) {
         // Sala existe — verificar se esta pronta para receber teams
         if (data.status === 'waiting' || data.status === 'round1' || data.status === 'round2' || data.status === 'debrief') {
