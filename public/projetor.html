@@ -160,6 +160,25 @@ function Projecao() {
   const [loading, setLoading] = useState(true);
   const musicStarted = useRef(false);
 
+  const [startedAt, setStartedAt] = useState(null);
+
+// 2. Calcular simMin localmente a partir do started_at
+  useEffect(() => {
+    if (!startedAt || (room?.status !== 'round1' && room?.status !== 'round2')) {
+      return;
+    }
+    const SH = 7;
+    const EH = 19;
+    const TICK_MS = 1000;
+    const update = () => {
+      const elapsed = Math.floor((Date.now() - startedAt) / TICK_MS);
+      setSimMin(Math.min(SH * 60 + elapsed, EH * 60));
+    };
+    update();
+    const iv = setInterval(update, 1000);
+    return () => clearInterval(iv);
+  }, [startedAt, room?.status]);
+
   // Música: inicializar quando round começa, atualizar com métricas
   useEffect(() => {
     if (!room) return;
@@ -190,77 +209,87 @@ function Projecao() {
     }
   }, [room, teams, gameStates]);
 
+    useEffect(() => {
+    if (!room) return;
+    const isRound = room.status === 'round1' || room.status === 'round2';
+    if (isRound && room.started_at) {
+      setStartedAt(new Date(room.started_at).getTime());
+    } else if (!isRound) {
+      setStartedAt(null);
+      setSimMin(null);
+    }
+  }, [room]);
+
+  // useEffect(() => {
+  //   console.log(simMin)
+  // }, [simMin])
+
   // Conectar à sala FLAME — fetch inicial + Realtime puro (Pro)
   useEffect(() => {
-    const connect = async () => {
-      // Retry até encontrar a sala (projetor pode abrir antes do facilitador)
-      let data = null;
-      for (let i = 0; i < 60; i++) {
-        const res = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
-        if (res.data) { data = res.data; break; }
-        await new Promise(r => setTimeout(r, 1500));
-      }
-      if (data) {
-        setRoom(data);
-        setLoading(false);
-        const { data: t } = await sb.from('teams').select('*').eq('room_id', data.id);
-        if (t) setTeams(t);
-        const { data: gs } = await sb.from('game_state').select('*').eq('room_id', data.id);
-        if (gs) {
-          const map = {};
-          gs.forEach(g => { if (!map[g.team_id]) map[g.team_id] = {}; map[g.team_id][`round${g.round}`] = g; });
-          setGameStates(map);
-        }
-
-        // Realtime puro — room status changes
-        sb.channel(`proj-room-${data.id}`)
-          .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${data.id}` },
-            p => setRoom(p.new))
-          .subscribe();
-
-        // Realtime — novos teams
-        sb.channel(`proj-teams-${data.id}`)
-          .on('postgres_changes', { event:'INSERT', schema:'public', table:'teams', filter:`room_id=eq.${data.id}` },
-            p => setTeams(prev => {
-              if (prev.find(t2 => t2.id === p.new.id)) return prev;
-              return [...prev, p.new];
-            }))
-          .subscribe();
-
-        // Realtime — game state updates (instantâneo)
-        sb.channel(`proj-gs-${data.id}`)
-          .on('postgres_changes', { event:'*', schema:'public', table:'game_state', filter:`room_id=eq.${data.id}` },
-            p => {
-              const gs2 = p.new;
-              setGameStates(prev => ({
-                ...prev,
-                [gs2.team_id]: { ...(prev[gs2.team_id] || {}), [`round${gs2.round}`]: gs2 }
-              }));
-              if (gs2.sim_minute) setSimMin(gs2.sim_minute);
-            })
-          .subscribe();
-
-        // Safety net: polling leve para garantir sync
-        const pollId = setInterval(async () => {
-          const { data: r2 } = await sb.from('rooms').select('*').eq('id', data.id).single();
-          if (r2) setRoom(r2);
-          const { data: gs2 } = await sb.from('game_state').select('*').eq('room_id', data.id);
-          if (gs2?.length) {
-            const m2 = {};
-            gs2.forEach(g => { if (!m2[g.team_id]) m2[g.team_id] = {}; m2[g.team_id][`round${g.round}`] = g; });
-            setGameStates(prev => ({...prev, ...m2}));
-            const lat = gs2.reduce((a, g) => g.sim_minute > (a?.sim_minute||0) ? g : a, null);
-            if (lat?.sim_minute) setSimMin(lat.sim_minute);
-          }
-          const { data: t2 } = await sb.from('teams').select('*').eq('room_id', data.id);
-          if (t2) setTeams(t2);
-        }, 1500);
-        return () => clearInterval(pollId);
-      }
+  const connect = async () => {
+    let data = null;
+    for (let i = 0; i < 60; i++) {
+      const res = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
+      if (res.data) { data = res.data; break; }
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    if (data) {
+      setRoom(data);
       setLoading(false);
-    };
-    connect();
-  }, []);
+      const { data: t } = await sb.from('teams').select('*').eq('room_id', data.id);
+      if (t) setTeams(t);
+      const { data: gs } = await sb.from('game_state').select('*').eq('room_id', data.id);
+      if (gs) {
+        const map = {};
+        gs.forEach(g => { if (!map[g.team_id]) map[g.team_id] = {}; map[g.team_id][`round${g.round}`] = g; });
+        setGameStates(map);
+      }
+
+      sb.channel(`proj-room-${data.id}`)
+        .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${data.id}` },
+          p => setRoom(p.new))
+        .subscribe();
+
+      sb.channel(`proj-teams-${data.id}`)
+        .on('postgres_changes', { event:'INSERT', schema:'public', table:'teams', filter:`room_id=eq.${data.id}` },
+          p => setTeams(prev => {
+            if (prev.find(t2 => t2.id === p.new.id)) return prev;
+            return [...prev, p.new];
+          }))
+        .subscribe();
+
+      // game_state: só atualiza scores/metrics, NÃO mais simMin
+      sb.channel(`proj-gs-${data.id}`)
+        .on('postgres_changes', { event:'*', schema:'public', table:'game_state', filter:`room_id=eq.${data.id}` },
+          p => {
+            const gs2 = p.new;
+            setGameStates(prev => ({
+              ...prev,
+              [gs2.team_id]: { ...(prev[gs2.team_id] || {}), [`round${gs2.round}`]: gs2 }
+            }));
+            // sim_minute removido daqui — timer agora vem do started_at
+          })
+        .subscribe();
+
+      const pollId = setInterval(async () => {
+        const { data: r2 } = await sb.from('rooms').select('*').eq('id', data.id).single();
+        if (r2) setRoom(r2);
+        const { data: gs2 } = await sb.from('game_state').select('*').eq('room_id', data.id);
+        if (gs2?.length) {
+          const m2 = {};
+          gs2.forEach(g => { if (!m2[g.team_id]) m2[g.team_id] = {}; m2[g.team_id][`round${g.round}`] = g; });
+          setGameStates(prev => ({...prev, ...m2}));
+          // sim_minute removido daqui também
+        }
+        const { data: t2 } = await sb.from('teams').select('*').eq('room_id', data.id);
+        if (t2) setTeams(t2);
+      }, 1500);
+      return () => clearInterval(pollId);
+    }
+    setLoading(false);
+  };
+  connect();
+}, []);
 
   const [audioReady, setAudioReady] = useState(false);
   const initAudio = () => { SimsMusic.init(); setAudioReady(true); };

@@ -50,8 +50,7 @@ export function App() {
   // Conectar a sala FLAME — fetch inicial + Realtime puro (Pro)
   useEffect(() => {
     const connect = async () => {
-      // Retry ate encontrar a sala (projetor pode abrir antes do facilitador)
-      let data: any = null;
+      let data = null;
       for (let i = 0; i < 60; i++) {
         const res = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
         if (res.data) { data = res.data; break; }
@@ -64,50 +63,46 @@ export function App() {
         if (t) setTeams(t);
         const { data: gs } = await sb.from('game_state').select('*').eq('room_id', data.id);
         if (gs) {
-          const map: any = {};
-          gs.forEach((g: any) => { if (!map[g.team_id]) map[g.team_id] = {}; map[g.team_id][`round${g.round}`] = g; });
+          const map = {};
+          gs.forEach(g => { if (!map[g.team_id]) map[g.team_id] = {}; map[g.team_id][`round${g.round}`] = g; });
           setGameStates(map);
         }
-
-        // Realtime puro — room status changes
+  
         sb.channel(`proj-room-${data.id}`)
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${data.id}` } as any,
-            (p: any) => setRoom(p.new))
+          .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${data.id}` },
+            p => setRoom(p.new))
           .subscribe();
-
-        // Realtime — novos teams
+  
         sb.channel(`proj-teams-${data.id}`)
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'teams', filter: `room_id=eq.${data.id}` } as any,
-            (p: any) => setTeams(prev => {
+          .on('postgres_changes', { event:'INSERT', schema:'public', table:'teams', filter:`room_id=eq.${data.id}` },
+            p => setTeams(prev => {
               if (prev.find(t2 => t2.id === p.new.id)) return prev;
               return [...prev, p.new];
             }))
           .subscribe();
-
-        // Realtime — game state updates (instantaneo)
+  
+        // game_state: só atualiza scores/metrics, NÃO mais simMin
         sb.channel(`proj-gs-${data.id}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'game_state', filter: `room_id=eq.${data.id}` } as any,
-            (p: any) => {
+          .on('postgres_changes', { event:'*', schema:'public', table:'game_state', filter:`room_id=eq.${data.id}` },
+            p => {
               const gs2 = p.new;
-              setGameStates((prev: any) => ({
+              setGameStates(prev => ({
                 ...prev,
                 [gs2.team_id]: { ...(prev[gs2.team_id] || {}), [`round${gs2.round}`]: gs2 }
               }));
-              if (gs2.sim_minute) setSimMin(gs2.sim_minute);
+              // sim_minute removido daqui — timer agora vem do started_at
             })
           .subscribe();
-
-        // Safety net: polling leve para garantir sync
+  
         const pollId = setInterval(async () => {
           const { data: r2 } = await sb.from('rooms').select('*').eq('id', data.id).single();
           if (r2) setRoom(r2);
           const { data: gs2 } = await sb.from('game_state').select('*').eq('room_id', data.id);
           if (gs2?.length) {
-            const m2: any = {};
-            gs2.forEach((g: any) => { if (!m2[g.team_id]) m2[g.team_id] = {}; m2[g.team_id][`round${g.round}`] = g; });
-            setGameStates((prev: any) => ({ ...prev, ...m2 }));
-            const lat = gs2.reduce((a: any, g: any) => g.sim_minute > (a?.sim_minute || 0) ? g : a, null as any);
-            if (lat?.sim_minute) setSimMin(lat.sim_minute);
+            const m2 = {};
+            gs2.forEach(g => { if (!m2[g.team_id]) m2[g.team_id] = {}; m2[g.team_id][`round${g.round}`] = g; });
+            setGameStates(prev => ({...prev, ...m2}));
+            // sim_minute removido daqui também
           }
           const { data: t2 } = await sb.from('teams').select('*').eq('room_id', data.id);
           if (t2) setTeams(t2);

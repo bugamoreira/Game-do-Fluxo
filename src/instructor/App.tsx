@@ -75,6 +75,10 @@ function Instructor() {
     if (roomId) saveInst({ phase, roomId });
   }, [phase, roomId]);
 
+  useEffect(() => {
+    if (roomId) saveInst({ phase, roomId });
+  }, [simMin]);
+
   // Restaurar subscriptions apos F5
   useEffect(() => {
     if (s0?.roomId && s0?.phase !== 'setup') {
@@ -123,7 +127,8 @@ function Instructor() {
       initGS.forEach((gs: any) => { if (!map[gs.team_id]) map[gs.team_id] = {}; map[gs.team_id][`round${gs.round}`] = gs; });
       setGameStates(map);
       const latest = initGS.reduce((a: any, g: any) => g.sim_minute > (a?.sim_minute || 0) ? g : a, null as any);
-      if (latest?.sim_minute) setSimMin(latest.sim_minute);
+      console.log("pooling 1:" + latest.sim_minute)
+      // if (latest?.sim_minute) setSimMin(latest.sim_minute);
     }
 
     // Realtime puro (Supabase Pro) — sem polling
@@ -142,7 +147,8 @@ function Instructor() {
             ...prev,
             [gs.team_id]: { ...(prev[gs.team_id] || {}), [`round${gs.round}`]: gs }
           }));
-          if (gs.sim_minute) setSimMin(gs.sim_minute);
+          // console.log("pooling 2:" + gs.sim_minute)
+          // if (gs.sim_minute) setSimMin(gs.sim_minute);
         })
       .subscribe();
 
@@ -158,7 +164,8 @@ function Instructor() {
         gsData.forEach((gs: any) => { if (!map[gs.team_id]) map[gs.team_id] = {}; map[gs.team_id][`round${gs.round}`] = gs; });
         setGameStates(map);
         const latest = gsData.reduce((a: any, g: any) => g.sim_minute > (a?.sim_minute || 0) ? g : a, null as any);
-        if (latest?.sim_minute) setSimMin(latest.sim_minute);
+        console.log("pooling 3:" + latest.sim_minute)
+        // if (latest?.sim_minute) setSimMin(latest.sim_minute);
       }
     }, 1500);
 
