@@ -87,26 +87,25 @@ function Instructor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Sala FLAME e singleton no banco — sempre existe (garantido por migration).
+  // Este botao apenas RESETA o estado: limpa teams + game_state, volta status para 'waiting'.
   const createRoom = async () => {
     const code = 'FLAME';
     setCreating(true); setErr('');
-    // Se sala FLAME ja existe, reseta ela; senao, cria nova
-    const { data: existing } = await sb.from('rooms').select('id,code').eq('code', code).maybeSingle();
-    let room: any;
-    if (existing) {
-      // Reseta a sala existente
-      await sb.from('game_state').delete().eq('room_id', existing.id);
-      // So deleta teams se sala NAO esta em waiting (preserva teams que ja entraram)
-      if ((existing as any).status !== 'waiting' || (existing as any).round !== 0) {
-        await sb.from('teams').delete().eq('room_id', existing.id);
-      }
-      await sb.from('rooms').update({ status: 'waiting', round: 0, allow_late_join: false, full_cap_approved: false }).eq('id', existing.id);
-      room = existing;
-    } else {
-      const { data: newRoom, error } = await sb.from('rooms').insert({ code, status: 'waiting', round: 0 } as any).select('id,code').single();
-      if (error || !newRoom) { setErr('Erro ao criar sala. Tente novamente.'); setCreating(false); return; }
-      room = newRoom;
+    // Sala sempre existe — busca direto sem fallback de criacao
+    const { data: room, error: roomErr } = await sb.from('rooms').select('id,code').eq('code', code).single() as any;
+    if (roomErr || !room) {
+      console.error('[createRoom] Sala FLAME nao encontrada:', roomErr);
+      setErr('Erro ao acessar sala. Tente novamente.');
+      setCreating(false);
+      return;
     }
+    // Reset: limpa game_state e teams da sessao anterior, restaura estado inicial
+    await sb.from('game_state').delete().eq('room_id', room.id);
+    await sb.from('teams').delete().eq('room_id', room.id);
+    await sb.from('rooms')
+      .update({ status: 'waiting', round: 0, allow_late_join: false, full_cap_approved: false, music_muted: false } as any)
+      .eq('id', room.id);
     setRoomId(room.id); setRoomCode(code); setPhase('lobby'); setCreating(false);
     subscribeRoom(room.id);
   };

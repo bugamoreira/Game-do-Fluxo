@@ -1,3 +1,31 @@
 [build]
   command = "npm run build"
   publish = "dist"
+
+# Proxy reverso para Supabase — browser fala com o mesmo domínio do site,
+# evitando bloqueios de cross-origin do Chrome / firewalls / SSL inspection.
+# Headers (apikey, authorization, range, prefer) são repassados.
+
+[[redirects]]
+  from = "/rest/*"
+  to = "https://okmafynejwrwnmvyruwy.supabase.co/rest/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/auth/*"
+  to = "https://okmafynejwrwnmvyruwy.supabase.co/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/realtime/*"
+  to = "https://okmafynejwrwnmvyruwy.supabase.co/realtime/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/storage/*"
+  to = "https://okmafynejwrwnmvyruwy.supabase.co/storage/:splat"
+  status = 200
+  force = true

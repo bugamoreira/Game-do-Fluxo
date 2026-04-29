@@ -47,16 +47,16 @@ export function App() {
     }
   }, [room, teams, gameStates, audioReady]);
 
-  // Conectar a sala FLAME — fetch inicial + Realtime puro (Pro)
+  // Conectar a sala FLAME — sala e singleton, query direta (sem polling de 60s)
   useEffect(() => {
     const connect = async () => {
-      let data = null;
-      for (let i = 0; i < 60; i++) {
-        const res = await sb.from('rooms').select('*').eq('code', 'FLAME').maybeSingle();
-        if (res.data) { data = res.data; break; }
-        await new Promise(r => setTimeout(r, 1500));
+      const { data, error } = await sb.from('rooms').select('*').eq('code', 'FLAME').single();
+      if (error || !data) {
+        console.error('[Projector] Sala FLAME nao encontrada:', error);
+        setLoading(false);
+        return;
       }
-      if (data) {
+      {
         setRoom(data);
         setLoading(false);
         const { data: t } = await sb.from('teams').select('*').eq('room_id', data.id);

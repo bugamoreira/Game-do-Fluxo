@@ -228,49 +228,64 @@ useEffect(() => {
     if (doStartRRef.current) doStartRRef.current(roundNum, false);
   }, []);
 
-  // ── Multiplayer: join room (padrao Kahoot) ─────────────────
+  // ── Multiplayer: join room (sala FLAME e fixa, sempre existe) ──
   const joinRoom = async (name: string, code: string) => {
-    let room: any = null;
-    // Fase 1: encontrar a sala (ate 60s — permite jogador entrar antes do facilitador)
-    for (let attempt = 0; attempt < 40; attempt++) {
-      const { data } = await sb.from('rooms').select('id,code,status,allow_late_join').eq('code', code).maybeSingle() as any;
-      if (data && !data.allow_late_join && data.status != 'waiting' ) return { error:`Esta sala não permite que jogadores entrem após o início da partida.` };
-      if (data) {
-        // Sala existe — verificar se esta pronta para receber teams
-        if (data.status === 'waiting' || data.status === 'round1' || data.status === 'round2' || data.status === 'debrief') {
-          room = data; break;
-        }
-        // Sala em debrief/finished — aguardar facilitador resetar
-        // (continua polling ate status mudar para 'waiting')
-      }
-      if (attempt < 39) await new Promise(r => setTimeout(r, 1500));
+    // Sala FLAME e singleton no banco — query direta, sem polling
+    // Usa array (sem .single()) para evitar erro PGRST116 e ser mais tolerante
+    const { data: rooms, error: roomErr } = await sb
+      .from('rooms')
+      .select('id,code,status,allow_late_join')
+      .eq('code', code) as any;
+
+    if (roomErr) {
+      console.error('[joinRoom] Erro ao buscar sala:', roomErr);
+      return { error: `Erro ao conectar: ${roomErr.message || 'verifique sua internet'}` };
     }
-    if (!room) return { error:`Sala não encontrada ou não está pronta. Verifique se o facilitador criou a sala.` };
+    if (!rooms || rooms.length === 0) {
+      console.error('[joinRoom] Sala FLAME nao encontrada no banco');
+      return { error: 'Sala não encontrada. Recarregue a página e tente novamente.' };
+    }
+    const room = rooms[0];
+
+    // Validacao de estado da sala
+    if (room.status === 'finished') {
+      return { error: 'A sessão anterior já terminou. Aguarde o facilitador iniciar nova rodada.' };
+    }
+    if (!room.allow_late_join && (room.status === 'round1' || room.status === 'round2')) {
+      return { error: 'Esta sala não permite que jogadores entrem após o início da partida.' };
+    }
+
     // Verificar nome duplicado
     const { data: existing } = await sb.from('teams').select('id').eq('room_id', room.id).eq('name', name).maybeSingle();
-    if (existing) return { error:`Já existe um time chamado "${name}". Escolha outro nome.` };
-    const col  = TEAM_COLORS[Math.floor(Math.random()*TEAM_COLORS.length)];
-    const { data:team, error } = await sb.from('teams').insert({ room_id:room.id, name, color:col }).select('id').single();
+    if (existing) return { error: `Já existe um time chamado "${name}". Escolha outro nome.` };
+
+    // Criar team
+    const col = TEAM_COLORS[Math.floor(Math.random() * TEAM_COLORS.length)];
+    const { data: team, error } = await sb.from('teams').insert({ room_id: room.id, name, color: col }).select('id').single();
     if (error) {
-      if (error.code === '23505') return { error:`Já existe um time chamado "${name}". Escolha outro nome.` };
-      return { error:'Erro ao registrar time. Tente novamente.' };
+      if (error.code === '23505') return { error: `Já existe um time chamado "${name}". Escolha outro nome.` };
+      console.error('[joinRoom] Falha ao criar team:', error);
+      return { error: 'Erro ao registrar time. Tente novamente.' };
     }
-    if (!team) return { error:'Erro ao registrar time. Tente novamente.' };
+    if (!team) return { error: 'Erro ao registrar time. Tente novamente.' };
+
     setTName(name); setRCode(code); setRoomId(room.id); setTeamId(team.id);
-    // Re-fetch status atualizado (protege contra race condition facilitador/jogador)
-    const { data: freshRoom } = await sb.from('rooms').select('status').eq('id', room.id).single();
+
+    // Re-fetch status atualizado (protege contra race: status mudou entre nossa primeira query e o insert do team)
+    const { data: freshRoom } = await sb.from('rooms').select('status').eq('id', room.id).single() as any;
     const st2 = freshRoom?.status || room.status;
-    if (st2==='round1'||st2==='round2') {
-      triggerStart(st2==='round1' ? 1 : 2);
+    if (st2 === 'round1' || st2 === 'round2') {
+      triggerStart(st2 === 'round1' ? 1 : 2);
     } else {
       setPh('waiting');
     }
-    // Cleanup subscription anterior se existir
+
+    // Subscribe a UPDATE da sala — facilitador iniciar rodada dispara o jogo
     if (subChannelRef.current) { sb.removeChannel(subChannelRef.current); }
     const ch = sb.channel(`rm-${room.id}`)
-      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'rooms', filter:`id=eq.${room.id}` } as any, (p: any) => {
-        if (p.new.status==='round1') triggerStart(1);
-        else if (p.new.status==='round2') triggerStart(2);
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` } as any, (p: any) => {
+        if (p.new.status === 'round1') triggerStart(1);
+        else if (p.new.status === 'round2') triggerStart(2);
       })
       .subscribe();
     subChannelRef.current = ch;
