@@ -489,8 +489,8 @@ async function confirmarSeHouver(page, rotulos) {
   }
   return titulo;
 }
-async function clicarChamada(page, rotulo) {
-  await page.getByRole('button', { name: new RegExp(rotulo) }).first().click({ timeout: 8000 });
+async function clicarChamada(page, rotulo, timeout = 8000) {
+  await page.getByRole('button', { name: new RegExp(rotulo) }).first().click({ timeout });
 }
 
 /** Espera o minuto do servidor chegar a `alvo`. */
@@ -921,9 +921,10 @@ async function main() {
 
     let inicioR2 = 0;
     await etapa('6b. Iniciar o Plantão Lean', async () => {
-      await clicarChamada(fac.page, 'Iniciar Plantão Lean');
-      const conf = await confirmarSeHouver(fac.page, ['Iniciar mesmo assim']);
-      if (conf) nota(`iniciar o Lean pediu confirmação (há grupo sem conexão): ${conf}`);
+      // O botão só aparece 30 s depois de encerrar o Travado (migração 8: "Aguarde N s").
+      await clicarChamada(fac.page, 'Iniciar Plantão Lean', 60000);
+      const conf = await confirmarSeHouver(fac.page, ['Iniciar Plantão Lean', 'Iniciar mesmo assim']);
+      if (conf) nota(`confirmação ao iniciar o Lean: ${conf}`);
       inicioR2 = Date.now();
       const tempos = await medirInicio('Plantão Lean · Rodada 2');
       verificar('6', 'Lean começa em todos os grupos em até 3 s', tempos.every(([, s]) => s != null && s <= 3), tempos.map(([n, s]) => `${n}=${s == null ? 'não começou' : `${s.toFixed(1)}s`}`).join(' '));
