@@ -92,3 +92,7 @@ Merge no `main`, site `plantaocbmede` ligado ao GitHub, variáveis de ambiente n
 - Todo grupo joga as duas rodadas; margem de 30 s no encerramento; remover grupo sem apagar dados.
 - Botão verde com texto azul-marinho; norma culta em todo texto.
 - Pesos da pontuação: decididos com os números do motor recalibrado.
+- Ranking final pela melhora do Travado para o Lean (empate pelo Lean); carga do gestor com destaque em decisões reativas e alertas.
+- Código de acesso de 4 dígitos (no telão) para entrar na turma.
+- Emergência cirúrgica sem vaga na RPA: risco alto aguardando vaga, óbito só após deteriorar.
+- Publicação guiada passo a passo: `docs/publicacao.md`.
