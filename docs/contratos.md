@@ -47,6 +47,8 @@ Garantia testada: mesma semente + mesmas ações ⇒ mesmo resultado.
 
 Únicos módulos que falam com o Supabase. Toda resposta passa por schema Zod (`src/shared/schemas/`).
 
+Há dois clientes em `src/shared/lib/supabase.ts`, criados só no primeiro uso. O **sem sessão** (`persistSession`, `autoRefreshToken` e `detectSessionInUrl` desligados, `storageKey` própria) atende o grupo, o telão sem login, as orientações e o relatório: não passa pela trava de sessão do auth-js, que no ensaio E2 demorava mais de 5 s sob carga. O **com sessão** atende só o login e as RPCs do facilitador (lista `RPC_COM_SESSAO` em `rpc.ts`, que escolhe o cliente pelo nome da RPC), inclusive o `codigo_acesso_telao` do telão aberto pela janela do facilitador.
+
 ```ts
 turmaService.estado(codigo): Promise<EstadoTurma>
 turmaService.ranking(codigo): Promise<ItemRanking[]>

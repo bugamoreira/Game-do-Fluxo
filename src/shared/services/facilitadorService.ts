@@ -30,7 +30,7 @@ import {
   type SessaoFacilitador,
   type StatusTurma,
 } from '../schemas';
-import { sb } from '../lib/supabase';
+import { clienteComSessao } from '../lib/supabase';
 import { NaoAutorizado, RespostaInvalida, SemConexao, mapearErroRpc } from './erros';
 import { RPC, chamarEValidar, validarEntrada, type NomeRpc } from './rpc';
 
@@ -54,9 +54,9 @@ export const facilitadorService = {
    */
   async login(email: string, senha: string): Promise<SessaoFacilitador> {
     const entrada = validarEntrada(LoginEntradaSchema, { email, senha });
-    let resposta: Awaited<ReturnType<typeof sb.auth.signInWithPassword>>;
+    let resposta: Awaited<ReturnType<ReturnType<typeof clienteComSessao>['auth']['signInWithPassword']>>;
     try {
-      resposta = await sb.auth.signInWithPassword({ email: entrada.email, password: entrada.senha });
+      resposta = await clienteComSessao().auth.signInWithPassword({ email: entrada.email, password: entrada.senha });
     } catch (e) {
       throw new SemConexao(undefined, e);
     }
@@ -79,7 +79,7 @@ export const facilitadorService = {
    */
   async sessaoAtual(): Promise<SessaoFacilitador | null> {
     try {
-      const { data, error } = await sb.auth.getSession();
+      const { data, error } = await clienteComSessao().auth.getSession();
       const usuario = data.session?.user;
       if (error || !usuario) return null;
       const r = SessaoFacilitadorSchema.safeParse({ userId: usuario.id, email: usuario.email ?? '' });
@@ -96,7 +96,7 @@ export const facilitadorService = {
    */
   aoMudarSessao(ouvinte: () => void): () => void {
     try {
-      const { data } = sb.auth.onAuthStateChange(() => ouvinte());
+      const { data } = clienteComSessao().auth.onAuthStateChange(() => ouvinte());
       return () => data.subscription.unsubscribe();
     } catch {
       return () => {};
@@ -105,7 +105,7 @@ export const facilitadorService = {
 
   /** Encerra a sessão do facilitador neste navegador. */
   async sair(): Promise<void> {
-    await sb.auth.signOut();
+    await clienteComSessao().auth.signOut();
   },
 
   /**

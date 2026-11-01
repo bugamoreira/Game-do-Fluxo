@@ -1,10 +1,13 @@
 // ============================================================
 // Chamada de RPC com tempo limite, mapeamento de erro e validação Zod.
-// Único ponto que toca `sb.rpc`. Nomes e parâmetros: docs/schema.md.
+// Único ponto que toca `.rpc` dos clientes. Nomes e parâmetros: docs/schema.md.
+// RPC do facilitador vai pelo cliente com sessão; todas as outras (grupo,
+// telão anônimo, relatório) pelo cliente sem sessão, que não usa a trava de
+// sessão do auth-js (src/shared/lib/supabase.ts).
 // ============================================================
 
 import type { z } from 'zod';
-import { sb } from '../lib/supabase';
+import { clienteComSessao, clienteSemSessao } from '../lib/supabase';
 import { DadosInvalidos, RespostaInvalida, SemConexao, mapearErroRpc } from './erros';
 
 /** Sem resposta neste prazo, a chamada é abortada e vira `SemConexao` (evita consulta presa). */
@@ -38,15 +41,38 @@ export const RPC = {
 
 export type NomeRpc = (typeof RPC)[keyof typeof RPC];
 
+/** RPCs que exigem o login do facilitador (`auth.uid()` no servidor). */
+export const RPC_COM_SESSAO: ReadonlySet<NomeRpc> = new Set<NomeRpc>([
+  RPC.abrirTurma,
+  RPC.mudarStatus,
+  RPC.pausar,
+  RPC.retomar,
+  RPC.liberarEntrada,
+  RPC.liberarReconexao,
+  RPC.liberarFullCapacity,
+  RPC.alternarMusica,
+  RPC.removerGrupo,
+  RPC.gerarRelatorio,
+  RPC.painelTurma,
+  RPC.seriesTurma,
+  RPC.eventosTurma,
+  RPC.codigoAcessoTelao,
+]);
+
+/** Cliente certo para a RPC: com sessão só para o facilitador. */
+function clientePara(nome: NomeRpc) {
+  return RPC_COM_SESSAO.has(nome) ? clienteComSessao() : clienteSemSessao();
+}
+
 /**
  * Chama a RPC e devolve o `data` cru.
  * @throws {SemConexao} rede, proxy ou tempo limite
  * @throws {ErroSimulador} erro de negócio mapeado (ver `mapearErroRpc`)
  */
 export async function chamarRpc(nome: NomeRpc, params: Record<string, unknown>): Promise<unknown> {
-  let resposta: Awaited<ReturnType<typeof sb.rpc>>;
+  let resposta: Awaited<ReturnType<ReturnType<typeof clienteSemSessao>['rpc']>>;
   try {
-    resposta = await sb.rpc(nome, params).abortSignal(AbortSignal.timeout(TEMPO_LIMITE_MS));
+    resposta = await clientePara(nome).rpc(nome, params).abortSignal(AbortSignal.timeout(TEMPO_LIMITE_MS));
   } catch (e) {
     throw new SemConexao(undefined, e);
   }

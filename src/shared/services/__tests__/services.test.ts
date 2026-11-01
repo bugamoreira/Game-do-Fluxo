@@ -1,19 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // O cliente real exige window e variáveis de ambiente: aqui ele é substituído.
+// Dois clientes: o sem sessão (grupo, telão anônimo, relatório) e o do facilitador.
+// As respostas saem do mesmo `rpc`; `usados` registra qual cliente atendeu cada RPC.
 const rpc = vi.fn();
+const usados: { cliente: 'semSessao' | 'comSessao'; nome: string }[] = [];
 const signInWithPassword = vi.fn();
 const getSession = vi.fn();
-vi.mock('../../lib/supabase', () => ({
-  sb: {
-    rpc: (...args: unknown[]) => rpc(...args),
-    auth: {
-      signInWithPassword: (...args: unknown[]) => signInWithPassword(...args),
-      getSession: () => getSession(),
-      signOut: vi.fn(),
-    },
-  },
-}));
+vi.mock('../../lib/supabase', () => {
+  const auth = {
+    signInWithPassword: (...args: unknown[]) => signInWithPassword(...args),
+    getSession: () => getSession(),
+    signOut: vi.fn(),
+  };
+  const semSessao = {
+    rpc: (nome: string, ...resto: unknown[]) => { usados.push({ cliente: 'semSessao', nome }); return rpc(nome, ...resto); },
+    get auth(): never { throw new Error('o cliente sem sessão não tem auth no jogo'); },
+  };
+  const comSessao = {
+    rpc: (nome: string, ...resto: unknown[]) => { usados.push({ cliente: 'comSessao', nome }); return rpc(nome, ...resto); },
+    auth,
+  };
+  return { clienteSemSessao: () => semSessao, clienteComSessao: () => comSessao };
+});
 
 import {
   CodigoAcessoInvalido,
@@ -75,6 +84,7 @@ const turma = {
 const estado = { versao: 7, rodada: 1 as const, minuto: 480, pacientes: [] };
 
 beforeEach(() => {
+  usados.length = 0;
   rpc.mockReset();
   signInWithPassword.mockReset();
   getSession.mockReset();
@@ -502,5 +512,38 @@ describe('relatorioService', () => {
     expect(rpc).not.toHaveBeenCalled();
     responder(erroBanco('RELATORIO_NAO_ENCONTRADO', 'CB012', 'Relatório não encontrado. Confira o link.'));
     await expect(relatorioService.obter(SLUG)).rejects.toBeInstanceOf(RelatorioNaoEncontrado);
+  });
+});
+
+describe('cliente sem sessão (trava do auth-js, ensaio E2)', () => {
+  const ok = () => responder({ data: null });
+
+  it('services do grupo, do telão anônimo e do relatório usam o cliente sem sessão', async () => {
+    responder({ data: turma });
+    await turmaService.estado('CBMEDE');
+    responder({ data: [] });
+    await turmaService.ranking('CBMEDE').catch(() => undefined);
+    responder({ data: { grupo_id: 'g1', token: TOKEN, turma } });
+    await grupoService.entrar('CBMEDE', 'Azul').catch(() => undefined);
+    responder({ data: { versao: 7, hora_servidor: '2026-11-01T12:00:00Z' } });
+    await syncService.enviarEstado(TOKEN, estado, { pontuacao: 1, metricas: {} });
+    ok();
+    await syncService.registrarSerie(TOKEN, 1, 450, {});
+    ok();
+    await syncService.obterEstado(TOKEN, 1).catch(() => undefined);
+    ok();
+    await relatorioService.obter('Ab3dEf6hIj9kLm2nOp5qRs8t').catch(() => undefined);
+    expect(usados.map((u) => u.nome)).toEqual([
+      'estado_turma', 'ranking', 'entrar_grupo', 'enviar_estado', 'registrar_serie', 'obter_estado', 'obter_relatorio',
+    ]);
+    expect(usados.filter((u) => u.cliente !== 'semSessao')).toEqual([]);
+  });
+
+  it('RPCs do facilitador usam o cliente com sessão', async () => {
+    responder({ data: turma });
+    await facilitadorService.pausar(turma.id).catch(() => undefined);
+    responder({ data: { codigo_acesso: '0427' } });
+    await facilitadorService.codigoAcessoTelao(turma.id).catch(() => undefined);
+    expect(usados.map((u) => u.cliente)).toEqual(['comSessao', 'comSessao']);
   });
 });
