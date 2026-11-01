@@ -45,7 +45,7 @@ export class TurmaNaoEncontrada extends ErroSimulador {
 
 export class EntradaFechada extends ErroSimulador {
   readonly codigo = 'ENTRADA_FECHADA' as const;
-  constructor(mensagem = 'A rodada já começou. Fale com o facilitador.', causa?: unknown) {
+  constructor(mensagem = 'O jogo já começou e grupos novos não entram mais. Fale com o facilitador.', causa?: unknown) {
     super(mensagem, causa);
   }
 }

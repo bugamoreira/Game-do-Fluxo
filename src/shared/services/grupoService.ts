@@ -38,7 +38,7 @@ export const grupoService = {
    * o novo, quando o servidor gerou um, ou o próprio `tokenLocal`.
    * @throws {DadosInvalidos} nome inválido (mensagem pronta para a tela)
    * @throws {TurmaNaoEncontrada} código inexistente
-   * @throws {EntradaFechada} rodada em andamento sem entrada liberada, ou turma encerrada
+   * @throws {EntradaFechada} grupo novo depois do início (só entra com a turma aberta), ou turma encerrada
    * @throws {GrupoJaAtivo} nome em uso por outro computador, sem reconexão liberada
    * @throws {TurmaCheia} limite de grupos atingido
    * @throws {CodigoAcessoInvalido} grupo novo ou reconexão liberada sem o código de acesso certo

@@ -115,6 +115,9 @@ select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', '-- !!')$q$) l
               'nome sem 2 letras ou dígitos -> DADOS_INVALIDOS');
 select tst.ok(jsonb_array_length(public.estado_turma('CBMEDE') -> 'grupos') = 2, 'estado_turma lista 2 grupos');
 select tst.ok((public.estado_turma('CBMEDE', :'tok_a') ->> 'token_valido')::boolean, 'estado_turma com token marca presença');
+-- o terceiro grupo entra ainda com a turma aberta (depois do início ninguém novo entra)
+select public.entrar_grupo('CBMEDE', 'Grupo C', null, tst.acesso('CBMEDE')) ->> 'token' as tok_c \gset
+select tst.ok(length(:'tok_c') = 43, 'grupo C entra com a turma aberta');
 
 -- escrita e leitura direta: tudo negado
 select tst.ok(tst.erro_de($q$insert into public.turmas (codigo, nome) values ('HACK','x')$q$) like '42501:%', 'anon não insere em turmas');
@@ -153,24 +156,14 @@ select tst.ok((public.mudar_status(:'turma_id', 'rodada1') ->> 'status') = 'roda
 select tst.ok(tst.erro_de(format($q$select public.mudar_status(%L, 'rodada1')$q$, :'turma_id')) like 'CB007:%', 'clique duplo em Iniciar -> TRANSICAO_INVALIDA');
 reset role;
 
--- ---------------------------------------------------------------- entrada tardia
+-- ---------------------------------------------------------------- sem entrada depois do início
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';
-select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo C', null, tst.acesso('CBMEDE'))$q$) like 'CB002:ENTRADA_FECHADA%', 'grupo novo em rodada sem liberação -> ENTRADA_FECHADA');
+select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo Tardio', null, tst.acesso('CBMEDE'))$q$) like 'CB002:ENTRADA_FECHADA%', 'grupo novo na rodada 1 -> ENTRADA_FECHADA');
 reset role;
-set role authenticated;
-set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
-select tst.ok((public.liberar_entrada(:'turma_id', true) ->> 'entrada_liberada')::boolean, 'facilitador libera entrada');
-reset role;
-set role anon;
-set request.jwt.claims = '{"role":"anon"}';
-select public.entrar_grupo('CBMEDE', 'Grupo C', null, tst.acesso('CBMEDE')) ->> 'token' as tok_c \gset
-select tst.ok(length(:'tok_c') = 43, 'grupo C entra na rodada com entrada liberada');
-reset role;
-set role authenticated;
-set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
-select public.liberar_entrada(:'turma_id', false) is not null as x \gset
-reset role;
+select tst.ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                           where n.nspname = 'public' and p.proname = 'liberar_entrada'),
+              'liberar_entrada não existe mais (sem exceção para grupo novo)');
 -- a rodada começou há 30 s (minuto 450): os envios abaixo são plausíveis
 update public.turmas set rodada_inicio = now() - interval '30 seconds' where id = :'turma_id';
 
@@ -320,7 +313,7 @@ update public.turmas set rodada_fim = now() - interval '6 minutes', rodada1_fim 
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';
 select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 1140, 10, '{}'::jsonb, 1, '{}'::jsonb)$q$, :'tok_b')) like 'CB009:%', 'depois da janela de 5 min -> RODADA_INVALIDA');
-select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo D', null, tst.acesso('CBMEDE'))$q$) like 'CB002:%', 'grupo novo não entra no debrief sem liberação (todos jogam as duas rodadas)');
+select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo D', null, tst.acesso('CBMEDE'))$q$) like 'CB002:%', 'grupo novo não entra no debrief (todos jogam as duas rodadas)');
 reset role;
 set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
@@ -332,6 +325,7 @@ update public.turmas set rodada_inicio = now() - interval '90 seconds' where id 
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';
 select tst.ok((public.enviar_estado(:'tok_a2', 2, 500, 1, '{"r2":true}'::jsonb, 50, '{}'::jsonb) ->> 'versao') = '1', 'rodada 2 começa com versão própria');
+select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo R2', null, tst.acesso('CBMEDE'))$q$) like 'CB002:ENTRADA_FECHADA%', 'grupo novo na rodada 2 -> ENTRADA_FECHADA');
 select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 500, 99, '{}'::jsonb, 50, '{}'::jsonb)$q$, :'tok_a2')) like 'CB009:%', 'envio para a rodada 1 durante a rodada 2 -> RODADA_INVALIDA');
 reset role;
 set role authenticated;
@@ -467,7 +461,7 @@ select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.p
                   and not ('search_path=""' = any(coalesce(p.proconfig, '{}')))) = 0,
               'toda função security definer de public tem search_path vazio');
 select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                where n.nspname = 'public' and p.prosecdef) = 22, '22 RPCs security definer');
+                where n.nspname = 'public' and p.prosecdef) = 21, '21 RPCs security definer');
 select tst.ok((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
                 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity) = 0,
               'RLS ligado em todas as tabelas de public');

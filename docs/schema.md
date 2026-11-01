@@ -47,13 +47,11 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 | Situação | Resultado |
 |---|---|
 | Turma `aberta` e nome novo, com o código de acesso | cria o grupo, devolve token e cor |
-| Turma em rodada (`rodada1`/`rodada2`), nome novo, `entrada_liberada = falso` | recusa: "A rodada já começou. Fale com o facilitador." |
-| Turma em rodada, nome novo, `entrada_liberada = verdadeiro` | cria o grupo, que entra na rodada atual |
 | Nome já existe e o computador tem o token desse grupo | reconecta (devolve o estado para restaurar) |
 | Nome já existe, sem token, `reconexao_liberada = verdadeiro`, com o código de acesso | gera novo token, restaura o estado salvo no servidor e desliga a liberação |
 | Nome já existe, sem token, sem liberação | recusa: "Esse grupo já está no jogo. Se é o seu, peça ao facilitador para liberar a reconexão." |
 | Turma `aberta`, nome novo | cria o grupo |
-| Turma em `rodada1`, `debrief` ou `rodada2`, nome novo, sem liberação | recusa: "O jogo já começou. Fale com o facilitador." (todo grupo joga as duas rodadas) |
+| Turma em `rodada1`, `debrief` ou `rodada2`, nome novo | recusa sempre com `ENTRADA_FECHADA`: "O jogo já começou e grupos novos não entram mais…" (todo grupo joga as duas rodadas; sem exceção desde a migração `20261103100100`, que removeu `liberar_entrada`; a coluna `entrada_liberada` fica sem uso, sempre falsa) |
 | Turma `encerrada` ou `arquivada` | recusa, inclusive reconexão |
 | Sala com `max_grupos` (12) grupos ativos | recusa: `TURMA_CHEIA` |
 
@@ -89,7 +87,7 @@ Todas são `security definer` com `search_path = ''` e nomes qualificados. Parâ
 | `registrar_serie(p_token, p_rodada, p_minuto, p_metricas)` | Um ponto por (grupo, rodada, minuto); reenvio não altera (`{registrado: false}`). |
 | `registrar_eventos(p_token, p_rodada, p_eventos)` | Lista de `{minuto, tipo, mensagem?, chave?}`; até 50 por chamada e 3000 por grupo e rodada. `chave` torna o reenvio idempotente. |
 
-**Do facilitador (só authenticated; cada uma confere `auth.uid()` em `facilitadores`):** `abrir_turma(p_codigo, p_nome, p_evento?, p_data?, p_substituir?)`, `mudar_status(p_turma_id, p_status)`, `pausar(p_turma_id)`, `retomar(p_turma_id)`, `liberar_entrada(p_turma_id, p_liberada?)`, `liberar_reconexao(p_grupo_id, p_liberada?)`, `liberar_full_capacity(p_turma_id, p_liberado?)`, `alternar_musica(p_turma_id, p_mudo?)` (sem `p_mudo`, inverte), `remover_grupo(p_grupo_id)`, `gerar_relatorio(p_turma_id, p_versao_regras?, p_local?)`. Devolvem o estado da turma com, por grupo, também `visto_em`, `reconexao_liberada` e `removido`. Pausar já pausada e retomar não pausada não fazem nada (clique duplo não dá erro). `remover_grupo` é lógico: o token deixa de valer, o nome fica livre e os dados ficam guardados, fora do ranking e do relatório. `gerar_relatorio` só depois de `encerrada`; congela grupos, ranking R1/R2, placar, séries e eventos em `relatorios.dados`, cria `slug` aleatório de 24 caracteres (144 bits), passa a turma para `arquivada`; chamar de novo devolve o mesmo slug. Grava também `dados.facilitador` (o `nome` em `facilitadores` de quem gerou) e `dados.local` (`p_local`, até 120 caracteres; padrão `Windsor Barra Hotel, Rio de Janeiro`). Devolve `{slug, turma}`.
+**Do facilitador (só authenticated; cada uma confere `auth.uid()` em `facilitadores`):** `abrir_turma(p_codigo, p_nome, p_evento?, p_data?, p_substituir?)`, `mudar_status(p_turma_id, p_status)`, `pausar(p_turma_id)`, `retomar(p_turma_id)`, `liberar_reconexao(p_grupo_id, p_liberada?)`, `liberar_full_capacity(p_turma_id, p_liberado?)`, `alternar_musica(p_turma_id, p_mudo?)` (sem `p_mudo`, inverte), `remover_grupo(p_grupo_id)`, `gerar_relatorio(p_turma_id, p_versao_regras?, p_local?)`. Devolvem o estado da turma com, por grupo, também `visto_em`, `reconexao_liberada` e `removido`. Pausar já pausada e retomar não pausada não fazem nada (clique duplo não dá erro). `remover_grupo` é lógico: o token deixa de valer, o nome fica livre e os dados ficam guardados, fora do ranking e do relatório. `gerar_relatorio` só depois de `encerrada`; congela grupos, ranking R1/R2, placar, séries e eventos em `relatorios.dados`, cria `slug` aleatório de 24 caracteres (144 bits), passa a turma para `arquivada`; chamar de novo devolve o mesmo slug. Grava também `dados.facilitador` (o `nome` em `facilitadores` de quem gerou) e `dados.local` (`p_local`, até 120 caracteres; padrão `Windsor Barra Hotel, Rio de Janeiro`). Devolve `{slug, turma}`.
 
 **Leituras do facilitador (só authenticated, mesma checagem; migração `20261101200000`):**
 

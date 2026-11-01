@@ -58,7 +58,6 @@ export const EstadoTurmaSchema = objetoCamel(
     /** Minuto calculado pelo servidor no instante da resposta (o hook recalcula entre consultas). */
     minuto: z.number().int().nullable().optional(),
     horaServidor: InstanteSchema,
-    entradaLiberada: z.boolean(),
     fullCapacityLiberado: z.boolean(),
     musicaMudo: z.boolean(),
     grupos: z.array(GrupoDaTurmaSchema),

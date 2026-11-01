@@ -59,7 +59,6 @@ function criarTurma(tela: TelaDemo, inicioMs: number, quemEntrou: string | null)
     pausada: false,
     pausaAcumuladaMs: 0,
     horaServidor: new Date().toISOString(),
-    entradaLiberada: false,
     fullCapacityLiberado: status === 'rodada2',
     musicaMudo: true,
     grupos: tela === 'espera' ? grupos.slice(0, 4) : grupos,

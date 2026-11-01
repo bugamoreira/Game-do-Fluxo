@@ -104,22 +104,11 @@ export function Sala({ turma, grupos, proxima, ocupado, acionar, origem }: Props
                 sala.
               </p>
             ) : (
-              <div className="flex flex-col gap-3">
-                <p className="text-sm">
-                  {turma.entradaLiberada
-                    ? 'Entrada liberada: um grupo novo pode entrar agora e joga a partir do horário da sala.'
-                    : 'O jogo já começou e a entrada de grupos novos está fechada. Libere só para um grupo atrasado.'}
-                </p>
-                <Button
-                  variante={turma.entradaLiberada ? 'contorno' : 'marinho'}
-                  tamanho="p"
-                  icone={<Icone nome={turma.entradaLiberada ? 'cadeado' : 'pessoa'} tamanho={16} />}
-                  carregando={ocupado === 'entrada'}
-                  onClick={() => acionar({ tipo: 'entrada' })}
-                >
-                  {turma.entradaLiberada ? 'Fechar entrada' : 'Liberar entrada'}
-                </Button>
-              </div>
+              <p className="flex items-start gap-2 text-sm">
+                <Icone nome="cadeado" tamanho={16} className="mt-0.5 shrink-0" />
+                O jogo já começou: nenhum grupo novo entra. Um grupo que já estava na sala e trocou de computador
+                volta pela reconexão liberada.
+              </p>
             )}
           </div>
         </Card>

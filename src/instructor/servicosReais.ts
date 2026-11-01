@@ -21,7 +21,6 @@ export const servicosReais: ServicosFacilitador = {
   mudarStatus: (id, status) => facilitadorService.mudarStatus(id, status),
   pausar: (id) => facilitadorService.pausar(id),
   retomar: (id) => facilitadorService.retomar(id),
-  liberarEntrada: (id, liberada) => facilitadorService.liberarEntrada(id, liberada),
   liberarReconexao: (grupoId, liberada) => facilitadorService.liberarReconexao(grupoId, liberada),
   liberarFullCapacity: (id, liberado) => facilitadorService.liberarFullCapacity(id, liberado),
   alternarMusica: (id, mudo) => facilitadorService.alternarMusica(id, mudo),

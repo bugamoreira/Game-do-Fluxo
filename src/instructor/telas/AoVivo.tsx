@@ -114,15 +114,6 @@ export function AoVivo({ turma, grupos, ranking, proxima, ocupado, acionar }: Pr
                     PCP liberado para todos os grupos.
                   </p>
                 )}
-                <Button
-                  variante="fantasma"
-                  tamanho="p"
-                  larguraTotal
-                  carregando={ocupado === 'entrada'}
-                  onClick={() => acionar({ tipo: 'entrada' })}
-                >
-                  {turma.entradaLiberada ? 'Fechar entrada de grupos novos' : 'Liberar entrada de grupo atrasado'}
-                </Button>
                 <div className="mt-1 border-t border-borda pt-4">
                   <Button
                     variante="contorno"

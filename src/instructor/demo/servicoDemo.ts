@@ -68,7 +68,6 @@ interface TurmaInterna {
   rodadaFim: number | null;
   pausadaEm: number | null;
   pausaAcumuladaMs: number;
-  entradaLiberada: boolean;
   fullCapacityLiberado: boolean;
   musicaMudo: boolean;
   grupos: GrupoInterno[];
@@ -131,7 +130,6 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
       pausaAcumuladaMs: t.pausaAcumuladaMs,
       minuto: minutoDe(t),
       horaServidor: iso(agora()),
-      entradaLiberada: t.entradaLiberada,
       fullCapacityLiberado: t.fullCapacityLiberado,
       musicaMudo: t.musicaMudo,
       grupos: t.grupos.filter((g) => facilitador || !g.removido).map((g) => grupoJson(g, facilitador)),
@@ -185,7 +183,6 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
       rodadaFim: null,
       pausadaEm: null,
       pausaAcumuladaMs: 0,
-      entradaLiberada: false,
       fullCapacityLiberado: false,
       musicaMudo: false,
       grupos: GRUPOS_DEMO.map((g, i) => ({
@@ -418,12 +415,6 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
         t.pausaAcumuladaMs += agora() - t.pausadaEm;
         t.pausadaEm = null;
       }
-      return json(t, true);
-    },
-
-    async liberarEntrada(id, liberada) {
-      const t = exigirTurma(id);
-      t.entradaLiberada = liberada;
       return json(t, true);
     },
 

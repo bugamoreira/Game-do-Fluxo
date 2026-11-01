@@ -6,7 +6,6 @@ export type AcaoPainel =
   | { tipo: AcaoAula }
   | { tipo: 'pausar' }
   | { tipo: 'musica' }
-  | { tipo: 'entrada' }
   | { tipo: 'revogarFullCapacity' }
   | { tipo: 'reconexao'; grupo: GrupoPainel }
   | { tipo: 'remover'; grupo: GrupoPainel }

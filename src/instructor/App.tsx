@@ -252,13 +252,6 @@ function Painel({
       case 'musica':
         void executar(chave, () => servicos.alternarMusica(id, !turma.musicaMudo));
         return;
-      case 'entrada':
-        void executar(
-          chave,
-          () => servicos.liberarEntrada(id, !turma.entradaLiberada),
-          turma.entradaLiberada ? 'Entrada de grupos novos fechada.' : 'Entrada liberada para grupos novos.',
-        );
-        return;
       case 'liberarFullCapacity':
         void executar(
           chave,

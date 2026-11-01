@@ -1,13 +1,13 @@
 // ============================================================
 // Quais ações pedem confirmação e com que texto. Puro e testado.
 // Regra: ação que não se desfaz (encerrar, remover, nova turma, substituir)
-// sempre confirma; iniciar o Lean sempre confirma; iniciar o Travado só
-// confirma se algum grupo estiver sem conexão.
+// sempre confirma; iniciar o Lean sempre confirma; iniciar o Travado sempre
+// confirma, listando os grupos, porque depois dele nenhum grupo novo entra.
 // ============================================================
 
 import { horaDoPlantao } from '../../shared/components/ui/cx';
 import { MINUTO_FIM } from '../../shared/hooks/relogio';
-import { contarProntos, type GrupoPainel } from './fases';
+import { contarProntos, gruposAtivos, type GrupoPainel } from './fases';
 import { listaNatural, plural } from './formato';
 
 export type AcaoConfirmavel =
@@ -26,6 +26,8 @@ export interface Confirmacao {
   destrutiva: boolean;
   /** Confirmação forte: só libera o botão depois de digitar este texto. */
   digitar?: string;
+  /** Grupos da sala, para conferir antes de iniciar; `semSinal` vem destacado. */
+  grupos?: { id: string; nome: string; cor: string; semSinal: boolean }[];
 }
 
 /** Devolve a confirmação a mostrar, ou `null` se a ação pode seguir direto. */
@@ -33,10 +35,28 @@ export function confirmacaoPara(acao: AcaoConfirmavel): Confirmacao | null {
   switch (acao.tipo) {
     case 'iniciar': {
       const nome = acao.rodada === 1 ? 'Plantão Travado' : 'Plantão Lean';
-      const { desconectados } = contarProntos(acao.grupos);
+      const { conectados, desconectados } = contarProntos(acao.grupos);
+      if (acao.rodada === 1) {
+        // Decisão do Gustavo: depois do início nenhum grupo novo entra; a sala só
+        // começa com todos conectados. Por isso sempre confere a lista antes.
+        const semSinal = desconectados.length > 0;
+        const nomes = listaNatural(desconectados.map((g) => g.nome));
+        return {
+          titulo: semSinal
+            ? `Iniciar o Plantão Travado com ${plural(desconectados.length, 'grupo', 'grupos')} sem sinal?`
+            : 'Iniciar o Plantão Travado?',
+          descricao:
+            `${plural(conectados, 'grupo conectado', 'grupos conectados')}. Depois de iniciar, nenhum grupo novo poderá entrar.` +
+            (semSinal
+              ? ` ${desconectados.length === 1 ? 'Está sem sinal' : 'Estão sem sinal'}: ${nomes}; ao voltar, o jogo avança sozinho até o horário da sala.`
+              : ''),
+          rotuloConfirmar: semSinal ? 'Iniciar mesmo assim' : 'Iniciar Plantão Travado',
+          destrutiva: false,
+          grupos: gruposAtivos(acao.grupos).map((g) => ({ id: g.id, nome: g.nome, cor: g.cor, semSinal: !g.conectado })),
+        };
+      }
       if (desconectados.length === 0) {
         // O Lean sempre confirma: um clique por engano encerra o debrief para a turma inteira.
-        if (acao.rodada === 1) return null;
         return {
           titulo: 'Iniciar o Plantão Lean?',
           descricao:

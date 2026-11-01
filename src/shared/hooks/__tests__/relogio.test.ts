@@ -70,7 +70,6 @@ function turmaBase(extra: Partial<EstadoTurma> = {}): Omit<EstadoTurma, 'horaSer
     pausada: false,
     pausadaEm: null,
     pausaAcumuladaMs: 0,
-    entradaLiberada: false,
     fullCapacityLiberado: false,
     musicaMudo: false,
     grupos: [],

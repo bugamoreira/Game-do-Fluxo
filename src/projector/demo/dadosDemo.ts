@@ -93,7 +93,6 @@ export function turmaDemo(fase: FaseDemo, minuto: number, agora: number): Estado
     pausaAcumuladaMs: 0,
     minuto: emRodada ? minuto : null,
     horaServidor: new Date(agora).toISOString(),
-    entradaLiberada: fase === 'aberta',
     fullCapacityLiberado: false,
     musicaMudo: false,
     grupos,

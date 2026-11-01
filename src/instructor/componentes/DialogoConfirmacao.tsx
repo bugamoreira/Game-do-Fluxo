@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Button, Modal } from '../../shared/components/ui';
+import { Button, Modal, TeamAvatar, cx } from '../../shared/components/ui';
 import { textoConfere, type Confirmacao } from '../logica/confirmacoes';
 
 interface DialogoConfirmacaoProps {
@@ -60,6 +60,25 @@ function CorpoConfirmacao({
         if (liberado && !carregando) onConfirmar();
       }}
     >
+      {confirmacao.grupos && confirmacao.grupos.length > 0 && (
+        <ul aria-label="Grupos na sala" className="mb-2 flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+          {confirmacao.grupos.map((g) => (
+            <li
+              key={g.id}
+              className={cx(
+                'flex items-center gap-3 rounded-2xl px-3 py-2',
+                g.semSinal ? 'bg-amarelo-suave font-bold text-marinho-profundo' : 'bg-fundo-app',
+              )}
+            >
+              <TeamAvatar nome={g.nome} cor={g.cor} conectado={!g.semSinal} />
+              <span className="min-w-0 flex-1 truncate text-sm">{g.nome}</span>
+              <span className={cx('text-xs', g.semSinal ? 'text-negativo-texto' : 'text-texto-suave')}>
+                {g.semSinal ? 'Sem sinal' : 'Conectado'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {confirmacao.digitar && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor={idCampo} className="text-sm font-semibold text-texto">

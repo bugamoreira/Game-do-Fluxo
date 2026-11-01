@@ -145,11 +145,6 @@ export const facilitadorService = {
     return acao(RPC.retomar, { p_turma_id: id(turmaId) });
   },
 
-  /** Abre (ou fecha) a entrada de grupos novos durante a rodada. */
-  async liberarEntrada(turmaId: string, liberada = true): Promise<EstadoTurma> {
-    return acao(RPC.liberarEntrada, { p_turma_id: id(turmaId), p_liberada: booleano(liberada) });
-  },
-
   /** Permite (ou revoga) que um grupo reassuma o time em outro computador, sem o token. */
   async liberarReconexao(grupoId: string, liberada = true): Promise<EstadoTurma> {
     return acao(RPC.liberarReconexao, { p_grupo_id: id(grupoId), p_liberada: booleano(liberada) });

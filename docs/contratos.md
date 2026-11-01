@@ -57,7 +57,7 @@ syncService.enviarEstado(token, estado: EstadoSimulacao): Promise<void>
 syncService.obterEstado(token, rodada): Promise<EstadoSimulacao | null>
 syncService.registrarSerie(token, rodada, minuto, metricas): Promise<void>
 syncService.registrarEventos(token, ocorrencias): Promise<void>
-facilitadorService.{login, sair, abrirTurma, mudarStatus, pausar, retomar, liberarEntrada,
+facilitadorService.{login, sair, abrirTurma, mudarStatus, pausar, retomar,
                     liberarReconexao, liberarFullCapacity, alternarMusica, removerGrupo}
 facilitadorService.sessaoAtual(): Promise<SessaoFacilitador | null>     // restaura a sessão do Supabase Auth
 facilitadorService.painelTurma(turmaId): Promise<EstadoTurma>           // visão do facilitador (vistoEm, removido...)
@@ -98,7 +98,7 @@ type StatusTurma = 'aberta' | 'rodada1' | 'debrief' | 'rodada2' | 'encerrada' | 
 interface EstadoTurma {
   id: string; codigo: string; nome: string; status: StatusTurma; rodada: Rodada | null;
   rodadaInicio: string | null; pausada: boolean; pausaAcumuladaMs: number; horaServidor: string;
-  entradaLiberada: boolean; fullCapacityLiberado: boolean; musicaMudo: boolean;
+  fullCapacityLiberado: boolean; musicaMudo: boolean;
   grupos: { id: string; nome: string; cor: string; conectado: boolean }[];
 }
 interface ItemRanking { grupoId: string; nome: string; cor: string; rodada: Rodada; pontuacao: number; metricas: Metricas; minuto: number }

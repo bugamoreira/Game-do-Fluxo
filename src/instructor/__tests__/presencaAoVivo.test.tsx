@@ -39,7 +39,6 @@ describe('presença na tela Ao vivo', () => {
       pausada: false,
       pausaAcumuladaMs: 0,
       horaServidor: '2026-11-25T10:01:00Z',
-      entradaLiberada: false,
       fullCapacityLiberado: false,
       musicaMudo: false,
       grupos: [],
@@ -70,5 +69,7 @@ describe('presença na tela Ao vivo', () => {
     expect(html).toContain('Sem sinal há 15 s');
     expect(html).toContain('1 de 2 conectados');
     expect(html).not.toContain('Saiu');
+    // Sem exceção para grupo novo depois do início (decisão do Gustavo).
+    expect(html).not.toContain('Liberar entrada');
   });
 });

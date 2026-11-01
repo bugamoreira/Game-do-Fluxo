@@ -123,6 +123,14 @@ await etapa('Iniciar rodada 1', async () => {
   exigir(t.status === 'rodada1' && t.rodada === 1, `status ${t.status}`);
 });
 
+await etapa('Depois do início, grupo novo não entra (ENTRADA_FECHADA) e não há "Liberar entrada"', async () => {
+  const { error } = await publico.rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Grupo Tardio ${Date.now().toString(36).slice(-4)}`, p_acesso: ctx.acesso });
+  exigir(error?.message === 'ENTRADA_FECHADA', `veio ${JSON.stringify(error)}`);
+  const lib = await facilitador.rpc('liberar_entrada', { p_turma_id: ctx.turmaId, p_liberada: true });
+  exigir(lib.error, 'liberar_entrada ainda existe');
+  return error.details;
+});
+
 await etapa('enviar_estado (rodada 1)', async () => {
   const ra = await rpc(publico, 'enviar_estado', {
     p_token: ctx.tokA, p_rodada: 1, p_minuto: 421, p_versao: 1,

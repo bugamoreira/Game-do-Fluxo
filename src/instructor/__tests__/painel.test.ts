@@ -17,7 +17,6 @@ function turma(parcial: Partial<EstadoTurma> = {}): EstadoTurma {
     pausada: false,
     pausaAcumuladaMs: 0,
     horaServidor: '2026-11-25T10:01:00Z',
-    entradaLiberada: false,
     fullCapacityLiberado: false,
     musicaMudo: false,
     grupos: [],

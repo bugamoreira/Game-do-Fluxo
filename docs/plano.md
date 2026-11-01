@@ -94,5 +94,6 @@ Merge no `main`, site `plantaocbmede` ligado ao GitHub, variáveis de ambiente n
 - Pesos da pontuação: decididos com os números do motor recalibrado.
 - Ranking final pela melhora do Travado para o Lean (empate pelo Lean); carga do gestor com destaque em decisões reativas e alertas.
 - Código de acesso de 4 dígitos (no telão) para entrar na turma.
+- Sem entrada de grupos depois do início; a sala só começa com todos conectados. A confirmação de "Iniciar Travado" lista os grupos e destaca quem está sem sinal; "Liberar entrada" de grupo novo foi removida (só a reconexão de quem já estava continua).
 - Emergência cirúrgica sem vaga na RPA: risco alto aguardando vaga, óbito só após deteriorar.
 - Publicação guiada passo a passo: `docs/publicacao.md`.

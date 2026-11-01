@@ -102,9 +102,6 @@ export function MockFacilitador() {
                 <Button variante="contorno" icone={<Icone nome="musica" tamanho={18} />} larguraTotal>
                   Silenciar música
                 </Button>
-                <Button variante="fantasma" tamanho="p" larguraTotal>
-                  Liberar entrada de grupo atrasado
-                </Button>
               </div>
             </Card>
           </div>

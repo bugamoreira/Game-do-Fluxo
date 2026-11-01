@@ -35,7 +35,6 @@ export interface ServicosFacilitador {
   mudarStatus(turmaId: string, status: StatusTurma): Promise<EstadoTurma>;
   pausar(turmaId: string): Promise<EstadoTurma>;
   retomar(turmaId: string): Promise<EstadoTurma>;
-  liberarEntrada(turmaId: string, liberada: boolean): Promise<EstadoTurma>;
   liberarReconexao(grupoId: string, liberada: boolean): Promise<EstadoTurma>;
   liberarFullCapacity(turmaId: string, liberado: boolean): Promise<EstadoTurma>;
   alternarMusica(turmaId: string, mudo: boolean): Promise<EstadoTurma>;

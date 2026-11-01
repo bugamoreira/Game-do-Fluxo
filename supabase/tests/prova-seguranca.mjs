@@ -130,7 +130,6 @@ async function main() {
     mudar_status: { p_turma_id: ZERO, p_status: 'rodada1' },
     pausar: { p_turma_id: ZERO },
     retomar: { p_turma_id: ZERO },
-    liberar_entrada: { p_turma_id: ZERO, p_liberada: true },
     liberar_reconexao: { p_grupo_id: ZERO, p_liberada: true },
     liberar_full_capacity: { p_turma_id: ZERO, p_liberado: true },
     alternar_musica: { p_turma_id: ZERO },
@@ -144,6 +143,8 @@ async function main() {
   for (const [nome, args] of Object.entries(rpcsFacilitador)) {
     await deveFalhar(`RPC ${nome} sem login`, rpc(nome, args));
   }
+  // "Liberar entrada" de grupo novo foi removida (sem grupos novos depois do início)
+  await deveFalhar('RPC liberar_entrada não existe mais', rpc('liberar_entrada', { p_turma_id: ZERO, p_liberada: true }));
   // auxiliares internas não podem ser alcançáveis
   await deveFalhar('RPC interna hash_token', rpc('hash_token', { p_token: 'x' }));
   await deveFalhar('RPC interna exigir_facilitador', rpc('exigir_facilitador', {}));

@@ -4,7 +4,7 @@
 // Ensaio geral com navegadores de verdade (etapa D1).
 //
 // Sobe o backend local e o Vite apontando para ele, abre o facilitador,
-// dois telões (logado e anônimo) e seis grupos (mais um sétimo atrasado),
+// dois telões (logado e anônimo) e seis grupos (um sétimo tenta entrar depois do início e é recusado),
 // joga as duas rodadas clicando na tela e verifica as regras de acesso,
 // reconexão, pausa e relatório (docs/design.md §5, docs/pos-mortem-flame.md).
 //
@@ -637,25 +637,22 @@ async function incidenteOutroComputador(g, browser) {
 }
 
 async function incidenteSetimoGrupo(browser) {
+  // Decisão do Gustavo: depois do início nenhum grupo novo entra, sem exceção.
   const g = novoGrupo(grupos.length + 1);
   g.ctx = await novoContexto(browser, g.nome, { grupo: true });
   g.page = await g.ctx.newPage();
   const r1 = await entrarPelaTela(g);
   await foto(g.page, '05d-setimo-recusado');
   verificar('5d', 'Grupo novo no meio da rodada é recusado', r1.startsWith('alerta:') && /começou/.test(r1), r1);
-  await fac.page.getByRole('button', { name: 'Liberar entrada de grupo atrasado' }).click({ timeout: 20000 });
-  await fac.page.getByRole('button', { name: 'Fechar entrada de grupos novos' }).waitFor({ timeout: 8000 }).catch(() => {});
+  const noAoVivo = await fac.page.getByRole('button', { name: /Liberar entrada/ }).count();
+  await irPara(fac.page, 'Sala');
+  const naSala = await fac.page.getByRole('button', { name: /Liberar entrada/ }).count();
+  await foto(fac.page, '05d-sala-sem-liberar-entrada');
+  await irPara(fac.page, 'Ao vivo');
+  verificar('5d', 'Não existe botão de liberar entrada de grupo novo (Ao vivo e Sala)', noAoVivo === 0 && naSala === 0, `Ao vivo ${noAoVivo}, Sala ${naSala}`);
   const r2 = await entrarPelaTela(g, { navegar: false });
-  await dormir(2000);
-  const rel = await lerRelogio(g.page);
-  const srv = await estadoTurma();
-  await foto(g.page, '05d-setimo-dentro');
-  verificar('5d', 'Com a entrada liberada, o grupo atrasado entra no plantão', r2 === 'plantao', r2);
-  verificar('5d', 'Grupo atrasado joga no horário da sala', rel != null && Math.abs(rel - srv.minuto) <= 2, `grupo ${hora(rel)} × servidor ${hora(srv.minuto)}`);
-  await fac.page.getByRole('button', { name: 'Fechar entrada de grupos novos' }).click({ timeout: 20000 }).catch(() => nota('não achou "Fechar entrada de grupos novos"'));
-  grupos.push(g);
-  vigiar(g.nome, () => g.page);
-  ligarRobo(g);
+  verificar('5d', 'Nova tentativa do grupo novo continua recusada', r2.startsWith('alerta:'), r2);
+  await g.ctx.close().catch(() => {});
 }
 
 async function incidentePausa() {
@@ -815,8 +812,13 @@ async function main() {
     let inicioR1 = 0;
     await etapa('4. Iniciar o Plantão Travado', async () => {
       await fac.page.getByRole('button', { name: /Iniciar Plantão Travado/ }).click();
-      const conf = await confirmarSeHouver(fac.page, ['Iniciar mesmo assim']);
-      if (conf) nota(`iniciar pediu confirmação (há grupo sem conexão): ${conf}`);
+      const dialogo = fac.page.getByRole('dialog');
+      const texto = await dialogo.waitFor({ timeout: 5000 }).then(() => dialogo.innerText()).catch(() => '');
+      verificar('4', 'Confirmação de "Iniciar Travado" avisa que nenhum grupo novo entra depois e lista os grupos',
+        /grupos? conectados?\. Depois de iniciar, nenhum grupo novo poderá entrar\./.test(texto) && grupos.every((g) => texto.includes(g.nome)),
+        texto.replace(/\s+/g, ' ').slice(0, 300));
+      const conf = await confirmarSeHouver(fac.page, ['Iniciar Plantão Travado', 'Iniciar mesmo assim']);
+      if (conf) nota(`confirmação ao iniciar: ${conf}`);
       inicioR1 = Date.now();
       const tempos = await medirInicio('Plantão Travado · Rodada 1');
       const lentos = tempos.filter(([, s]) => s == null || s > 3);
@@ -857,7 +859,7 @@ async function main() {
       ligarRobo(g);
     });
     await etapa('5c. Reconectar em outro computador', () => incidenteOutroComputador(grupos[2], browser));
-    await etapa('5d. Sétimo grupo atrasado', () => incidenteSetimoGrupo(browser));
+    await etapa('5d. Sétimo grupo recusado depois do início', () => incidenteSetimoGrupo(browser));
     await etapa('5e. Pausar e retomar', () => incidentePausa());
 
     await etapa('4c. Placar no meio da rodada (com o 7º grupo)', async () => {
