@@ -39,7 +39,7 @@ Os tokens vão para o `@theme` do Tailwind em `src/index.css` e são a única fo
 
 - `public/img/brand/abramede.png`: logo ABRAMEDE (fundo azul-marinho).
 - `public/img/brand/edleaders-escuro.png`: ED Leaders, recortado da arte recebida. A arte tem a marca-d'água de gerador de imagem no canto (removida no recorte); o ideal é receber o original em SVG.
-- `public/img/rio/`: três fotos do Rio (vista aérea, Cristo na névoa, cachoeira). Uso: fundo da landing, da sala de espera e do pódio, sempre com véu azul-marinho por cima, como no site.
+- `public/img/rio/`: fotos do Rio (vista aérea, Cristo na névoa, cachoeira, panorama do Pão de Açúcar, bondinho, Cristo aéreo, Cristo nas montanhas) e o Windsor Barra Hotel, local do evento. As do site foram recortadas de capturas de tela: boas para fundo com véu, não para tela cheia nítida no telão. Uso: fundo da landing, da sala de espera e do pódio, sempre com véu azul-marinho por cima, como no site.
 - Pendente: logo próprio do CBMEDE 2026, se existir (o site usa só o da ABRAMEDE) e as imagens originais do site, que dependem de liberar `cbmede2026.com.br`, `images.unsplash.com` e `bucket.livenotes.com.br` na rede desta sessão.
 
 ## 4. Componentes base (`src/shared/components/ui/`)
