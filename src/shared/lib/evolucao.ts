@@ -110,6 +110,10 @@ const DESCRICOES: Readonly<Record<string, DescricaoEvento>> = {
   full_capacity: { rotulo: 'PCP (Full Capacity)', problema: false },
   full_capacity_liberado: { rotulo: 'PCP liberado', problema: false },
   full_capacity_revogado: { rotulo: 'PCP suspenso', problema: false },
+  emergencia_aguardando_sala: { rotulo: 'Emergência cirúrgica sem sala', problema: true },
+  deterioracao_emergencia: { rotulo: 'Deterioração de emergência esperando sala', problema: true },
+  cirurgia_atrasada: { rotulo: 'Cirurgia atrasada (sala ocupada)', problema: true },
+  aguardando_rpa: { rotulo: 'Sala presa esperando a RPA', problema: true },
 };
 
 export function descreverEvento(tipo: string): DescricaoEvento | null {

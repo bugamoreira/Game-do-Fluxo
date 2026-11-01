@@ -10,10 +10,10 @@ import { calcScore, criarPaciente, hospMult, mkInit, mkSx, mkSxR2 } from '../gam
 import { CAP } from '../constants';
 import { gerarChegadas, gerarLotesAlta } from './agenda';
 import {
-  ALVO_ESPERA, ATENCAO_ANTES_MIN, ATRASO_SALA1_R1, BLOQUEIO_CASCATA_MIN, ENF_EXTRA_VAGAS,
+  ALVO_ESPERA, ATENCAO_ANTES_MIN, ATRASO_MAX_ELETIVA_MIN, ATRASO_SALA1_R1, BLOQUEIO_CASCATA_MIN, DURACAO_EMERGENCIA_CX_MIN, ENF_EXTRA_VAGAS,
   FAST_TRACK_FATOR_DECISAO, FAST_TRACK_VAGAS, FLUXISTA_INTERVALO_MIN, FLUXO_RAPIDO_BONUS, FLUXO_RAPIDO_OCUPACAO,
-  LAB_ACRESCIMO_CHEGADA, LABORATORIO, LIMIAR_RISCO_BOARDING, LOTES_ALTA, LWBS_LIMITE_CORREDOR,
-  NIR_ESPERA_MIN, NIR_MAX_USOS, NIR_TRANSFERENCIA_R1_MIN, NIR_TRANSFERENCIA_R2_MIN, OBITO_APOS_DET_MIN, P_DET_BOARDING, P_DET_ESPERA, P_DET_LEITO_INADEQUADO,
+  LAB_ACRESCIMO_CHEGADA, LABORATORIO, LIMIAR_EMERGENCIA_SALA_MIN, LIMIAR_RISCO_BOARDING, LOTES_ALTA, LWBS_LIMITE_CORREDOR, NUM_SALAS,
+  NIR_ESPERA_MIN, NIR_MAX_USOS, NIR_TRANSFERENCIA_R1_MIN, NIR_TRANSFERENCIA_R2_MIN, OBITO_APOS_DET_MIN, P_DET_BOARDING, P_DET_EMERGENCIA_SALA, P_DET_ESPERA, P_DET_LEITO_INADEQUADO,
   P_EMERGENCIA_CIRURGICA, P_IR_AO_CORREDOR, P_LWBS, P_OBITO, P_OBS_PROLONGADA, P_PCR, P_SOCIAL, P_SOCIAL_FAMILIA,
   P_TOMOGRAFO, PCR_DURACAO_MIN, PRIORIDADE, SALA_VERMELHA_EXTRA, SOCIAL_DURACAO_R1, SOCIAL_DURACAO_R2,
   SOCIAL_FAMILIA_DURACAO_R1, TOMOGRAFO,
@@ -21,7 +21,7 @@ import {
 import { MINUTO_FIM_PLANTAO, MINUTO_INICIO_PLANTAO } from './relogio';
 import { CANAL_DEMANDA, CANAL_EVENTOS, criarGerador, estadoDoCanal, type Gerador } from './rng';
 import type {
-  Acao, CargaGestor, ChaveLote, CirurgiaSim, ErroAcao, EstadoSimulacao, Metricas, Ocorrencia,
+  Acao, CargaGestor, ChaveLote, CirurgiaSim, ErroAcao, EstadoSimulacao, Metricas, Ocorrencia, SalaCirurgica,
   PacienteSim, ResultadoPasso, Risco, Rodada, SetorSim, TipoOcorrencia,
 } from './types';
 
@@ -119,12 +119,22 @@ function fmtHora(min: number): string {
   return `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, '0') : ''}`;
 }
 
-function fimCirurgia(s: CirurgiaSim): number {
-  return Math.round((s.stH + s.dur) * 60);
-}
-
 function inicioCirurgia(s: CirurgiaSim): number {
   return Math.round(s.stH * 60);
+}
+
+function salaLivre(numero: number): SalaCirurgica {
+  return { numero, status: 'livre', ocupante: null, cirurgiaId: null, pacienteId: null, inicio: null, fimPrevisto: null, dest: null };
+}
+
+/** As salas operatórias, todas livres (início do plantão). */
+export function criarSalas(): SalaCirurgica[] {
+  return Array.from({ length: NUM_SALAS }, (_, i) => salaLivre(i + 1));
+}
+
+/** Emergência cirúrgica esperando sala no DE. */
+function emergenciaAguardando(p: PacienteSim): boolean {
+  return Boolean(p.emergenciaCx) && p.sector === 'de' && !p.dead;
 }
 
 /** Capacidade de um setor para movimentos do grupo (DE perde 1 maca durante a parada cardíaca). */
@@ -153,6 +163,11 @@ export function calcularRisco(p: PacienteSim, minuto: number): Risco {
     return p.bMin >= limiar - ATENCAO_ANTES_MIN ? 'atencao' : 'baixo';
   }
   if (p.leitoInadequado && p.sector === 'enf' && !p.det) return 'atencao';
+  if (emergenciaAguardando(p)) {
+    const espera = minuto - (p.emergenciaDesde ?? minuto);
+    if (p.det || espera >= LIMIAR_EMERGENCIA_SALA_MIN) return 'alto';
+    return 'atencao';
+  }
   return 'baixo';
 }
 
@@ -192,6 +207,7 @@ export function criarEstadoInicial(rodada: Rodada, semente: number): EstadoSimul
     rng: ge.estado(),
     pacientes,
     cirurgias,
+    salas: criarSalas(),
     stats: { ...STATS_ZERO },
     eventos: { ...EVENTOS_ZERO },
     flags: {},
@@ -223,11 +239,12 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
   const R: Record<string, boolean> = { ...estado.flags };
   const ferramentas = { ...estado.ferramentas };
   const cirurgias = estado.cirurgias.map(s => ({ ...s }));
+  // Estado salvo antes das salas operatórias existirem: começa com todas livres.
+  const salas: SalaCirurgica[] = (estado.salas ?? criarSalas()).map(s => ({ ...s }));
   const carga = copiarCarga(estado.carga);
   const tomo = TOMOGRAFO[estado.rodada];
   const lab = LABORATORIO[estado.rodada];
-  const emAvaliacao = (p: PacienteSim): boolean => (p.sector === 'de' || p.sector === 'fast_track') && !p.ready && !p.obsProlong;
-  const rpaReservada = (): number => contar(P, 'rpa') + cirurgias.filter(s => s.st === 'andamento').length;
+  const emAvaliacao = (p: PacienteSim): boolean => (p.sector === 'de' || p.sector === 'fast_track') && !p.ready && !p.obsProlong && !p.emergenciaCx;
 
   const deteriorar = (p: PacienteSim, tipo: TipoOcorrencia, msg: string): void => {
     p.det = true; p.detMin = cm; p.sev = PIORA[p.sev]; S.dets++; carga.alertas.deterioracao++;
@@ -293,25 +310,27 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
     }
   }
 
-  // Emergência cirúrgica do DE (RPA conta as cirurgias em andamento como reservadas)
+  // Emergência cirúrgica do DE: entra na primeira sala operatória livre (no bloco do centro
+  // cirúrgico, com prioridade sobre as eletivas). Sem sala livre, espera no DE com risco alto.
   if (ch >= 9 && ch < 16 && rand() < P_EMERGENCIA_CIRURGICA) {
-    const emg = P.find(p => p.sector === 'de' && p.sev === 'red' && !p.dead && !p.postOp && !p.foraDoPerfil && !p.transferenciaAte);
+    const emg = P.find(p => p.sector === 'de' && p.sev === 'red' && !p.dead && !p.postOp && !p.foraDoPerfil && !p.transferenciaAte && !p.emergenciaCx);
     if (emg) {
       carga.emergencias++;
-      if (rpaReservada() >= CAP.rpa) carga.emergenciasSemSala++;
-      if (rpaReservada() < CAP.rpa) {
-        emg.sector = 'rpa'; emg.postOp = true; emg.ready = true; emg.dest = 'uti'; emg.bStart = null; emg.bMin = 0;
-        emg.name = `EMG-${emg.name.split(' ')[0]}`;
-        registrar(ctx, 'emergencia_cirurgica', `EMERGÊNCIA CIRÚRGICA: ${emg.name} foi operado e está na RPA.`, 'danger', { som: 'cascade', pacienteId: emg.id });
-      } else {
-        obito(emg, 'emergencia_obito', `SEM VAGA NA RPA PARA A EMERGÊNCIA CIRÚRGICA! Óbito evitável de ${emg.name}.`);
+      emg.emergenciaCx = true; emg.emergenciaDesde = cm; emg.emergenciaInicioCx = null;
+      emg.ready = false; emg.dest = 'uti'; emg.bStart = null; emg.bMin = 0;
+      emg.name = `EMG-${emg.name.split(' ')[0]}`;
+      if (!salas.some(s => s.status === 'livre')) {
+        carga.emergenciasSemSala++;
+        registrar(ctx, 'emergencia_aguardando_sala',
+          `EMERGÊNCIA CIRÚRGICA SEM SALA LIVRE: ${emg.name} aguarda no DE a primeira sala operatória que liberar. Risco alto!`, 'danger',
+          { som: 'cascade', pacienteId: emg.id });
       }
     }
   }
 
   // Observação prolongada
   if (ch >= 9 && ch < 15 && rand() < P_OBS_PROLONGADA) {
-    const pp = P.find(p => p.sector === 'de' && !p.ready && !p.obsProlong && !p.foraDoPerfil);
+    const pp = P.find(p => p.sector === 'de' && !p.ready && !p.obsProlong && !p.foraDoPerfil && !p.emergenciaCx);
     if (pp) {
       pp.obsProlong = true; pp.obsEnd = cm + rnd(300, 480); pp.deNeed = 99999;
       registrar(ctx, 'obs_prolongada', `OBSERVAÇÃO PROLONGADA: ${pp.name} vai ocupar a maca por cerca de ${horas(pp.obsEnd - cm)}.`, 'warning', { pacienteId: pp.id });
@@ -425,6 +444,15 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
     }
   });
 
+  // Emergência cirúrgica esperando sala: risco alto a partir do limiar
+  P.forEach(p => {
+    if (!emergenciaAguardando(p) || p.det || p.emergenciaDesde == null) return;
+    const espera = cm - p.emergenciaDesde;
+    if (espera >= LIMIAR_EMERGENCIA_SALA_MIN && rand() < P_DET_EMERGENCIA_SALA) {
+      deteriorar(p, 'deterioracao_emergencia', `DETERIORAÇÃO: ${p.name}, emergência cirúrgica, piorou depois de ${espera} min esperando sala operatória.`);
+    }
+  });
+
   // Espera na triagem/corredor além do tempo-alvo
   P.forEach(p => {
     if (!naFila(p) || p.retorno) return;
@@ -443,6 +471,8 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
       if (rand() < P_OBITO) obito(p, 'obito', `ÓBITO EVITÁVEL: ${p.name} morreu depois de ${fmtHora(p.bMin)} em boarding.`);
     } else if (naFila(p)) {
       if (rand() < P_OBITO) obito(p, 'obito_espera', `ÓBITO EVITÁVEL: ${p.name} morreu esperando atendimento.`);
+    } else if (emergenciaAguardando(p)) {
+      if (rand() < P_OBITO) obito(p, 'emergencia_obito', `ÓBITO EVITÁVEL: ${p.name} morreu esperando sala operatória para a cirurgia de emergência.`);
     }
   });
 
@@ -510,38 +540,120 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
 
   P.forEach(p => { if (p.prep > 0) p.prep--; });
 
-  // ── Centro cirúrgico: decisão no horário de início ────────
-  cirurgias.forEach(s => {
-    if (s.st === 'scheduled' && cm >= inicioCirurgia(s)) {
-      const leitoLivre = s.dest === 'uti' ? contar(P, 'uti') < CAP.uti : contar(P, 'enf') < CAP.enf;
-      const altaPronta = s.dest === 'uti'
-        ? P.some(p => p.sector === 'uti' && p.dischReady && p.prep <= 0)
-        : P.some(altaEnfPronta);
-      if (rpaReservada() < CAP.rpa && (leitoLivre || altaPronta)) {
-        s.st = 'andamento';
-        if (!leitoLivre) carga.automatico.cirurgiasViabilizadas++;
-        registrar(ctx, 'cirurgia_iniciada', `${s.label} iniciada (sala ${s.sala}).`, 'info');
-      } else {
-        s.st = 'cancelled'; S.cxCan++; carga.alertas.cancelamento++;
-        const disch = P.find(altaEnfPronta);
-        if (disch) {
-          disch.dischReady = false; disch.blocked = true; disch.bloqueioAte = cm + BLOQUEIO_CASCATA_MIN;
-          registrar(ctx, 'cirurgia_cancelada', `${s.label} cancelada antes de iniciar: sem leito/RPA. ${disch.name} perde a alta por ${horas(BLOQUEIO_CASCATA_MIN)}. EFEITO CASCATA.`, 'danger',
-            { som: 'cascade', pacienteId: disch.id, cascata: { texto: `${s.label} cancelada → ${disch.name} perde a alta → leito não gira`, duracaoMs: 8000 } });
-        } else {
-          registrar(ctx, 'cirurgia_cancelada', `${s.label} cancelada antes de iniciar: sem leito/RPA.`, 'danger',
-            { som: 'cascade', cascata: { texto: 'Cirurgia cancelada → menos giro → mais boarding', duracaoMs: 6000 } });
-        }
+  // ── Centro cirúrgico: 4 salas, emergências e eletivas (mesma regra nas duas rodadas) ──
+  const ocupar = (sala: SalaCirurgica, dados: Omit<SalaCirurgica, 'numero'>): void => { Object.assign(sala, dados); };
+  const destinoTexto = (d: 'enf' | 'uti' | null | string): string => (d === 'uti' ? 'UTI' : 'ENF');
+
+  // 1. Cirurgias que terminam agora: o paciente vai para a RPA se houver vaga; senão fica na sala.
+  const recemTerminadas: SalaCirurgica[] = [];
+  salas.forEach(sala => {
+    if (sala.status !== 'cirurgia' || sala.fimPrevisto === null || cm < sala.fimPrevisto) return;
+    let pid = sala.pacienteId;
+    if (sala.cirurgiaId !== null) {
+      const s = cirurgias.find(c => c.id === sala.cirurgiaId);
+      if (s) {
+        const np = paraPacienteSim(criarPaciente(ctx.proximoId++, `PO-${s.label.replace('Cx ', '')}`, 'rpa', s.dest, s.dest === 'uti' ? 'red' : 'orange', true));
+        np.postOp = true;
+        np.arrMin = cm;
+        np.sector = 'cc';
+        P.push(np);
+        pid = np.id;
+        s.st = 'aguardando_rpa';
       }
     }
-    if (s.st === 'andamento' && cm >= fimCirurgia(s) && contar(P, 'rpa') < CAP.rpa) {
-      s.st = 'done';
-      const np = paraPacienteSim(criarPaciente(ctx.proximoId++, `PO-${s.label.replace('Cx ', '')}`, 'rpa', s.dest, s.dest === 'uti' ? 'red' : 'orange', true));
-      np.postOp = true;
-      np.arrMin = cm;
-      P.push(np);
-      registrar(ctx, 'cirurgia_concluida', `${np.name} chegou à RPA e precisa de leito na ${s.dest === 'uti' ? 'UTI' : 'ENF'}.`, 'info', { pacienteId: np.id });
+    sala.status = 'aguardando_rpa';
+    sala.pacienteId = pid;
+    recemTerminadas.push(sala);
+  });
+
+  // 2. Saída das salas para a RPA, pela ordem de término (a RPA esvazia pela ação do grupo).
+  salas
+    .filter(sala => sala.status === 'aguardando_rpa')
+    .sort((a, b) => (a.fimPrevisto ?? 0) - (b.fimPrevisto ?? 0) || a.numero - b.numero)
+    .forEach(sala => {
+      if (contar(P, 'rpa') >= CAP.rpa) return;
+      const p = P.find(x => x.id === sala.pacienteId);
+      if (p && !p.dead) {
+        p.sector = 'rpa'; p.postOp = true; p.ready = true; p.bStart = null; p.bMin = 0; p.emergenciaCx = false;
+        const esperou = !recemTerminadas.includes(sala);
+        registrar(ctx, 'cirurgia_concluida',
+          esperou
+            ? `${p.name} saiu da sala ${sala.numero} para a RPA e precisa de leito na ${destinoTexto(sala.dest)}.`
+            : `${p.name} chegou à RPA e precisa de leito na ${destinoTexto(sala.dest)}.`,
+          'info', { pacienteId: p.id });
+      }
+      const s = sala.cirurgiaId !== null ? cirurgias.find(c => c.id === sala.cirurgiaId) : undefined;
+      if (s) s.st = 'done';
+      ocupar(sala, salaLivre(sala.numero));
+    });
+  recemTerminadas.filter(sala => sala.status === 'aguardando_rpa').forEach(sala => {
+    const p = P.find(x => x.id === sala.pacienteId);
+    registrar(ctx, 'aguardando_rpa',
+      `SALA ${sala.numero} OCUPADA: ${p?.name ?? 'o paciente'} terminou a cirurgia, mas a RPA está cheia e ele fica na sala até abrir vaga.`, 'warning',
+      p ? { pacienteId: p.id } : {});
+  });
+
+  // 3. Emergências esperando sala: entram na primeira sala livre, com prioridade sobre as eletivas.
+  P.filter(emergenciaAguardando)
+    .sort((a, b) => (a.emergenciaDesde ?? 0) - (b.emergenciaDesde ?? 0) || a.id - b.id)
+    .forEach(p => {
+      const sala = salas.find(x => x.status === 'livre');
+      if (!sala) return;
+      ocupar(sala, { status: 'cirurgia', ocupante: p.name, cirurgiaId: null, pacienteId: p.id, inicio: cm, fimPrevisto: cm + DURACAO_EMERGENCIA_CX_MIN, dest: 'uti' });
+      const espera = cm - (p.emergenciaDesde ?? cm);
+      p.sector = 'cc'; p.emergenciaCx = false; p.emergenciaInicioCx = cm; p.postOp = true; p.ready = false; p.bStart = null; p.bMin = 0;
+      registrar(ctx, 'emergencia_cirurgica',
+        espera > 0
+          ? `EMERGÊNCIA CIRÚRGICA: ${p.name} entrou na sala ${sala.numero} depois de ${espera} min de espera no DE.`
+          : `EMERGÊNCIA CIRÚRGICA: ${p.name} entrou na sala ${sala.numero} para a cirurgia.`,
+        'danger', { som: 'cascade', pacienteId: p.id });
+    });
+
+  // 4. Eletivas: começam no horário se a sala delas estiver livre e houver leito de destino previsto.
+  //    Sala ocupada: atrasam; sem começar até ATRASO_MAX_ELETIVA_MIN depois do horário, ou sem tempo
+  //    de terminar até as 19h, são canceladas.
+  cirurgias.forEach(s => {
+    if (s.st !== 'scheduled' || cm < inicioCirurgia(s)) return;
+    const sala = salas.find(x => x.numero === s.sala);
+    const durMin = Math.round(s.dur * 60);
+    const atraso = cm - inicioCirurgia(s);
+    const cancelar = (msg: string, cascata: boolean): void => {
+      s.st = 'cancelled'; S.cxCan++; carga.alertas.cancelamento++;
+      const disch = cascata ? P.find(altaEnfPronta) : undefined;
+      if (disch) {
+        disch.dischReady = false; disch.blocked = true; disch.bloqueioAte = cm + BLOQUEIO_CASCATA_MIN;
+        registrar(ctx, 'cirurgia_cancelada', `${msg} ${disch.name} perde a alta por ${horas(BLOQUEIO_CASCATA_MIN)}. EFEITO CASCATA.`, 'danger',
+          { som: 'cascade', pacienteId: disch.id, cascata: { texto: `${s.label} cancelada → ${disch.name} perde a alta → leito não gira`, duracaoMs: 8000 } });
+      } else {
+        registrar(ctx, 'cirurgia_cancelada', msg, 'danger',
+          { som: 'cascade', cascata: { texto: 'Cirurgia cancelada → menos giro → mais boarding', duracaoMs: 6000 } });
+      }
+    };
+    if (!sala || sala.status !== 'livre') {
+      if (atraso >= ATRASO_MAX_ELETIVA_MIN || cm + durMin > MINUTO_FIM) {
+        cancelar(`${s.label} cancelada: sala ocupada. A sala ${s.sala} não liberou a tempo.`, false);
+      } else if (atraso === 0) {
+        registrar(ctx, 'cirurgia_atrasada', `${s.label} atrasada: a sala ${s.sala} está ocupada${sala?.ocupante ? ` (${sala.ocupante})` : ''}.`, 'warning');
+      }
+      return;
     }
+    if (cm + durMin > MINUTO_FIM) {
+      cancelar(`${s.label} cancelada: não há tempo de terminar até as 19h.`, false);
+      return;
+    }
+    const leitoLivre = s.dest === 'uti' ? contar(P, 'uti') < CAP.uti : contar(P, 'enf') < CAP.enf;
+    const altaPronta = s.dest === 'uti'
+      ? P.some(p => p.sector === 'uti' && p.dischReady && p.prep <= 0)
+      : P.some(altaEnfPronta);
+    if (!leitoLivre && !altaPronta) {
+      cancelar(`${s.label} cancelada antes de iniciar: sem leito de destino na ${destinoTexto(s.dest)}.`, true);
+      return;
+    }
+    s.st = 'andamento';
+    s.inicioReal = cm;
+    if (!leitoLivre) carga.automatico.cirurgiasViabilizadas++;
+    ocupar(sala, { status: 'cirurgia', ocupante: s.label, cirurgiaId: s.id, pacienteId: null, inicio: cm, fimPrevisto: cm + durMin, dest: s.dest });
+    registrar(ctx, 'cirurgia_iniciada', `${s.label} iniciada (sala ${s.sala})${atraso > 0 ? ` com ${atraso} min de atraso` : ''}.`, 'info');
   });
 
   P.forEach(p => { p.risco = calcularRisco(p, cm); });
@@ -564,6 +676,7 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
       rng: ctx.g.estado(),
       pacientes: P,
       cirurgias,
+      salas,
       stats: S,
       eventos: E,
       flags: R,
@@ -820,13 +933,17 @@ export function metricas(estado: EstadoSimulacao): Metricas {
     autoCirurgiasViabilizadas: C.automatico.cirurgiasViabilizadas,
     emergencias: C.emergencias,
     emergenciasSemSala: C.emergenciasSemSala,
+    emergenciasAguardandoSala: P.filter(emergenciaAguardando).length,
+    cxAtrasadas: estado.cirurgias.filter(s => s.inicioReal != null && s.inicioReal > inicioCirurgia(s)).length,
+    salasAguardandoRpa: (estado.salas ?? []).filter(s => s.status === 'aguardando_rpa').length,
   };
 }
 
 /** Aviso de RPA quase cheia antes da próxima cirurgia começar. */
 export function alertaRpa(estado: EstadoSimulacao): string | null {
   const cm = estado.minuto;
-  const reservada = contar(estado.pacientes, 'rpa') + estado.cirurgias.filter(s => s.st === 'andamento').length;
+  // Quem está em cirurgia vai precisar de vaga na RPA ao terminar.
+  const reservada = contar(estado.pacientes, 'rpa') + (estado.salas ?? []).filter(s => s.status !== 'livre').length;
   const nxt = estado.cirurgias.find(s => s.st === 'scheduled' && cm < inicioCirurgia(s));
   if (!nxt || reservada < 2) return null;
   const mL = inicioCirurgia(nxt) - cm;

@@ -153,8 +153,17 @@ export function eventoAtivo(estado: EstadoSimulacao): EventoAtivo | null {
       icone: 'relogio',
     };
   }
+  const aguardandoSala = estado.pacientes.filter(p => p.emergenciaCx && p.sector === 'de' && !p.dead);
+  if (aguardandoSala.length > 0) {
+    const nomes = aguardandoSala.map(p => p.name).join(', ');
+    return { rotulo: 'Centro cirúrgico', titulo: 'Emergência cirúrgica sem sala', texto: `${nomes} ${aguardandoSala.length === 1 ? 'aguarda' : 'aguardam'} sala operatória no DE, com risco alto. Tire o pós-operatório da RPA para liberar as salas.`, icone: 'alerta' };
+  }
+  const presas = (estado.salas ?? []).filter(s => s.status === 'aguardando_rpa');
+  if (presas.length > 0) {
+    return { rotulo: 'Centro cirúrgico', titulo: presas.length === 1 ? `Sala ${presas[0]!.numero} presa esperando a RPA` : `${presas.length} salas presas esperando a RPA`, texto: 'O paciente já operou, mas a RPA está cheia: a sala fica ocupada e as próximas cirurgias atrasam. Tire o pós-operatório da RPA.', icone: 'alerta' };
+  }
   const rpa = alertaRpa(estado);
-  if (rpa) return { rotulo: 'Centro cirúrgico', titulo: 'RPA quase cheia', texto: `${rpa}. Tire o pós-operatório da RPA para não cancelar a cirurgia.`, icone: 'alerta' };
+  if (rpa) return { rotulo: 'Centro cirúrgico', titulo: 'RPA quase cheia', texto: `${rpa}. Tire o pós-operatório da RPA para a sala não ficar presa ao fim da cirurgia.`, icone: 'alerta' };
   if (e.lab) return { rotulo: 'Evento ativo', titulo: 'Atraso no laboratório', texto: `Resultados atrasados até as ${horaDoPlantao(e.labEnd)}.`, icone: 'tubo' };
   const deteriorados = estado.pacientes.filter(p => emBoarding(p) && p.det).length;
   if (deteriorados > 0) {
@@ -163,9 +172,35 @@ export function eventoAtivo(estado: EstadoSimulacao): EventoAtivo | null {
   return null;
 }
 
+export interface LinhaSala {
+  numero: number;
+  status: 'livre' | 'cirurgia' | 'aguardando_rpa';
+  /** "Livre", "Cx Eletiva 2 até 10:30", "PO-Eletiva 1 aguardando RPA" */
+  texto: string;
+}
+
+/** As salas operatórias para o cartão do centro cirúrgico: ocupante, status e horário previsto. */
+export function linhasSalas(estado: EstadoSimulacao): LinhaSala[] {
+  const nomeDe = (id: number | null) => (id === null ? null : (estado.pacientes.find(p => p.id === id)?.name ?? null));
+  return (estado.salas ?? []).map(s => {
+    if (s.status === 'livre') return { numero: s.numero, status: s.status, texto: 'Livre' };
+    if (s.status === 'cirurgia') {
+      return { numero: s.numero, status: s.status, texto: `${s.ocupante ?? 'Cirurgia'}${s.fimPrevisto !== null ? ` até ${horaDoPlantao(s.fimPrevisto)}` : ''}` };
+    }
+    return { numero: s.numero, status: s.status, texto: `${nomeDe(s.pacienteId) ?? s.ocupante ?? 'Paciente'} aguardando vaga na RPA` };
+  });
+}
+
+/** Eletivas atrasadas agora: o horário passou e a sala delas está ocupada. */
+export function eletivasAtrasadas(estado: EstadoSimulacao): { label: string; sala: number; atrasoMin: number }[] {
+  return estado.cirurgias
+    .filter(s => s.st === 'scheduled' && estado.minuto >= Math.round(s.stH * 60))
+    .map(s => ({ label: s.label, sala: s.sala, atrasoMin: estado.minuto - Math.round(s.stH * 60) }));
+}
+
 /** Próxima cirurgia agendada (para o cartão do centro cirúrgico). */
 export function proximaCirurgia(estado: EstadoSimulacao) {
   return estado.cirurgias
-    .filter(s => s.st === 'scheduled')
+    .filter(s => s.st === 'scheduled' && estado.minuto < Math.round(s.stH * 60))
     .sort((a, b) => a.stH - b.stH)[0] ?? null;
 }

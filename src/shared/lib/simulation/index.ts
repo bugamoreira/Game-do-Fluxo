@@ -1,6 +1,6 @@
 export * from './types';
 export {
-  criarEstadoInicial, passo, avancarAte, aplicarAcao, destinosPossiveis, pontuacao, metricas,
+  criarEstadoInicial, criarSalas, passo, avancarAte, aplicarAcao, destinosPossiveis, pontuacao, metricas,
   liberarFullCapacity, revogarFullCapacity, alertaRpa, capacidadeSetor, encerrado, ehErro, calcularRisco, slaPct, paraPacienteSim, atendidosNoAlvo,
   MINUTO_INICIO, MINUTO_FIM, LOG_MAX,
 } from './motor';

@@ -81,7 +81,7 @@ export const TIPOS_EVENTO_RELEVANTE: ReadonlySet<TipoOcorrencia> = new Set<TipoO
   'deterioracao', 'deterioracao_espera', 'deterioracao_leito_inadequado', 'retorno_de',
   'cirurgia_cancelada', 'surto', 'lwbs', 'de_lotado', 'corredor',
   'nir', 'nir_concluido', 'full_capacity', 'full_capacity_liberado', 'full_capacity_revogado',
-  'leito_inadequado',
+  'leito_inadequado', 'emergencia_aguardando_sala', 'deterioracao_emergencia', 'cirurgia_atrasada', 'aguardando_rpa',
 ]);
 
 /** Converte ocorrências em eventos do servidor, com chave idempotente (reenvio não duplica). */

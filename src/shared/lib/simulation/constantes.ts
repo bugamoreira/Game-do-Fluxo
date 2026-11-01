@@ -117,6 +117,19 @@ export const ENF_EXTRA_VAGAS = 2;
 export const P_PCR = 0.008;
 export const PCR_DURACAO_MIN = 60;
 export const P_EMERGENCIA_CIRURGICA = 0.005;
+
+// ── Centro cirúrgico (mesma regra nas duas rodadas) ──
+
+/** Salas operatórias. */
+export const NUM_SALAS = 4;
+/** Duração da cirurgia de emergência (min). */
+export const DURACAO_EMERGENCIA_CX_MIN = 90;
+/** Emergência sem sala: a partir de quantos minutos de espera corre risco de deteriorar. */
+export const LIMIAR_EMERGENCIA_SALA_MIN = 30;
+/** Probabilidade por minuto de a emergência deteriorar depois do limiar (risco alto). */
+export const P_DET_EMERGENCIA_SALA = 1 / 30;
+/** Eletiva com a sala ocupada: atrasa até este limite; depois disso, é cancelada. */
+export const ATRASO_MAX_ELETIVA_MIN = 120;
 export const P_OBS_PROLONGADA = 0.004;
 export const P_TOMOGRAFO = 0.005;
 /** Tomógrafo: duração e acréscimo no tempo de decisão (R1 quebra; R2 manutenção preventiva). */

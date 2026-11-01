@@ -2,15 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { calcScore, mkSx } from '../../game-engine';
 import { CAP } from '../../constants';
 import {
-  aplicarAcao, avancarAte, calcularRisco, criarEstadoInicial, destinosPossiveis, ehErro, liberarFullCapacity, revogarFullCapacity,
+  aplicarAcao, avancarAte, calcularRisco, criarEstadoInicial, criarSalas, destinosPossiveis, ehErro, liberarFullCapacity, revogarFullCapacity,
   metricas, passo, pontuacao, slaPct, MINUTO_FIM, MINUTO_INICIO,
 } from '../motor';
 import {
-  BLOQUEIO_CASCATA_MIN, ENF_EXTRA_VAGAS, FAST_TRACK_VAGAS, LOTES_ALTA, P_DET_LEITO_INADEQUADO, TAXA_CHEGADA_POR_HORA,
+  ATRASO_MAX_ELETIVA_MIN, BLOQUEIO_CASCATA_MIN, DURACAO_EMERGENCIA_CX_MIN, ENF_EXTRA_VAGAS, LIMIAR_EMERGENCIA_SALA_MIN, OBITO_APOS_DET_MIN, P_DET_EMERGENCIA_SALA, FAST_TRACK_VAGAS, LOTES_ALTA, P_DET_LEITO_INADEQUADO, TAXA_CHEGADA_POR_HORA,
 } from '../constantes';
 import { passivo, puxaFluxo, simularPartida } from '../estrategias';
 import { criarGerador } from '../rng';
-import type { Acao, CirurgiaSim, ErroAcao, EstadoSimulacao, Ocorrencia, ResultadoPasso, Rodada } from '../types';
+import type { Acao, CirurgiaSim, ErroAcao, EstadoSimulacao, Ocorrencia, ResultadoPasso, Rodada, SalaCirurgica } from '../types';
 import { comPacientes, congelarProfundo, paciente } from './helpers';
 
 function ok(r: ResultadoPasso | ErroAcao): ResultadoPasso {
@@ -118,16 +118,6 @@ describe('estado inicial e demanda', () => {
     for (const a of e.cirurgias) for (const b of e.cirurgias) if (a.id < b.id) expect(sobrepoem(a, b)).toBe(false);
   });
 
-  it('emergência cirúrgica com a RPA cheia é óbito nas duas rodadas', () => {
-    for (const r of [1, 2] as Rodada[]) {
-      const rpa = [2, 3, 4].map(id => paciente(id, { sector: 'rpa', ready: true, postOp: true }));
-      const vermelho = paciente(1, { sector: 'de', sev: 'red', dest: 'uti', deNeed: 9999 });
-      const rs = variosRng(comPacientes(base(r, 600), [vermelho, ...rpa]), 3000).filter(x => x.ocorrencias.some(o => o.tipo === 'emergencia_obito'));
-      expect(rs.length).toBeGreaterThan(0);
-      expect(rs[0]!.estado.pacientes[0]).toMatchObject({ sector: 'obito', dead: true });
-      expect(rs[0]!.estado.carga.emergenciasSemSala).toBe(1);
-    }
-  });
 });
 
 describe('determinismo, imutabilidade e relógio', () => {
@@ -327,38 +317,185 @@ describe('altas: mesmos pacientes, horários diferentes', () => {
   });
 });
 
-describe('centro cirúrgico', () => {
+describe('centro cirúrgico: 4 salas, emergências e eletivas', () => {
   const cx = (extra: Partial<CirurgiaSim> = {}): CirurgiaSim => ({ id: 1, label: 'Cx Eletiva 1', sala: 1, stH: 7, dur: 2, dest: 'enf', st: 'scheduled', ...extra });
+  const sala = (numero: number, extra: Partial<SalaCirurgica> = {}): SalaCirurgica => ({
+    numero, status: 'livre', ocupante: null, cirurgiaId: null, pacienteId: null, inicio: null, fimPrevisto: null, dest: null, ...extra,
+  });
+  const salasCom = (...ocupadas: SalaCirurgica[]): SalaCirurgica[] =>
+    criarSalas().map(s => ocupadas.find(o => o.numero === s.numero) ?? s);
+  const rpaCheia = () => [2, 3, 4].map(id => paciente(id, { sector: 'rpa', ready: true, postOp: true }));
+  /** Primeira variação de gerador em que o evento de emergência dispara. */
+  function comEmergencia(e: EstadoSimulacao): ResultadoPasso {
+    const r = variosRng(e, 3000).find(x => x.estado.carga.emergencias > e.carga.emergencias);
+    if (!r) throw new Error('emergência não disparou');
+    return r;
+  }
 
-  it('cancela antes de iniciar quando a RPA está reservada (pacientes + cirurgias em andamento)', () => {
-    const rpa = [paciente(2, { sector: 'rpa', ready: true, postOp: true })];
-    const andamento = [cx({ id: 8, st: 'andamento', stH: 6.5 }), cx({ id: 9, st: 'andamento', stH: 6.5 })];
-    const r = passo(comPacientes(base(), rpa, { cirurgias: [cx(), ...andamento] }));
-    expect(r.estado.cirurgias[0]!.st).toBe('cancelled');
-    expect(r.estado.stats.cxCan).toBe(1);
-    expect(r.ocorrencias).toContainEqual(expect.objectContaining({ tipo: 'cirurgia_cancelada', msg: 'Cx Eletiva 1 cancelada antes de iniciar: sem leito/RPA.' }));
+  it('o estado expõe as 4 salas, todas livres no início, nas duas rodadas', () => {
+    for (const r of [1, 2] as Rodada[]) {
+      const e = criarEstadoInicial(r, 3);
+      expect(e.salas.map(s => [s.numero, s.status])).toEqual([[1, 'livre'], [2, 'livre'], [3, 'livre'], [4, 'livre']]);
+    }
+  });
+
+  it('eletiva com a sala livre começa no horário e ocupa a sala até o término previsto', () => {
+    const r = passo(comPacientes(base(), [], { cirurgias: [cx({ stH: 471 / 60 })], salas: criarSalas() }));
+    expect(r.estado.cirurgias[0]).toMatchObject({ st: 'andamento', inicioReal: 471 });
+    expect(r.estado.salas[0]).toMatchObject({ status: 'cirurgia', ocupante: 'Cx Eletiva 1', cirurgiaId: 1, inicio: 471, fimPrevisto: 591, dest: 'enf' });
+    expect(r.ocorrencias).toContainEqual(expect.objectContaining({ tipo: 'cirurgia_iniciada', msg: 'Cx Eletiva 1 iniciada (sala 1).' }));
+  });
+
+  it('a falta de RPA não cancela mais a cirurgia: a eletiva começa com a RPA cheia', () => {
+    const r = passo(comPacientes(base(), rpaCheia(), { cirurgias: [cx()], salas: criarSalas() }));
+    expect(r.estado.cirurgias[0]!.st).toBe('andamento');
+    expect(r.estado.stats.cxCan).toBe(0);
   });
 
   it('cancela sem leito de destino, mas começa se houver alta pronta liberando o leito', () => {
     const enfCheia = Array.from({ length: 85 }, (_, i) => paciente(100 + i, { sector: 'enf' }));
-    expect(passo(comPacientes(base(), enfCheia, { cirurgias: [cx()] })).estado.cirurgias[0]!.st).toBe('cancelled');
+    const r1 = passo(comPacientes(base(), enfCheia, { cirurgias: [cx()], salas: criarSalas() }));
+    expect(r1.estado.cirurgias[0]!.st).toBe('cancelled');
+    expect(r1.ocorrencias).toContainEqual(expect.objectContaining({ tipo: 'cirurgia_cancelada', msg: 'Cx Eletiva 1 cancelada antes de iniciar: sem leito de destino na ENF.' }));
     enfCheia[0] = { ...enfCheia[0]!, dischReady: true, prep: 0 };
-    const r = passo(comPacientes(base(), enfCheia, { cirurgias: [cx()] }));
+    const r = passo(comPacientes(base(), enfCheia, { cirurgias: [cx()], salas: criarSalas() }));
     expect(r.estado.cirurgias[0]!.st).toBe('andamento');
     expect(r.estado.carga.automatico.cirurgiasViabilizadas).toBe(1);
   });
 
-  it('em andamento, termina no horário e manda o pós-operatório para a RPA', () => {
-    const e = comPacientes(base(1, 539), [], { cirurgias: [cx({ st: 'andamento' })] });
+  it('ao terminar com vaga na RPA, o pós-operatório vai para a RPA e a sala fica livre', () => {
+    const e = comPacientes(base(1, 590), [], {
+      cirurgias: [cx({ st: 'andamento', inicioReal: 471 })],
+      salas: salasCom(sala(1, { status: 'cirurgia', ocupante: 'Cx Eletiva 1', cirurgiaId: 1, inicio: 471, fimPrevisto: 591, dest: 'enf' })),
+    });
     const r = passo(e);
     expect(r.estado.cirurgias[0]!.st).toBe('done');
-    expect(r.estado.pacientes).toContainEqual(expect.objectContaining({ name: 'PO-Eletiva 1', sector: 'rpa', postOp: true }));
+    expect(r.estado.salas[0]!.status).toBe('livre');
+    expect(r.estado.pacientes).toContainEqual(expect.objectContaining({ name: 'PO-Eletiva 1', sector: 'rpa', postOp: true, ready: true }));
+    expect(r.ocorrencias).toContainEqual(expect.objectContaining({ tipo: 'cirurgia_concluida', msg: 'PO-Eletiva 1 chegou à RPA e precisa de leito na ENF.' }));
+  });
+
+  it('ao terminar sem vaga na RPA, o paciente fica na sala (ocupada) e sai assim que abrir vaga', () => {
+    const e = comPacientes(base(1, 590), rpaCheia(), {
+      cirurgias: [cx({ st: 'andamento', inicioReal: 471 })],
+      salas: salasCom(sala(1, { status: 'cirurgia', ocupante: 'Cx Eletiva 1', cirurgiaId: 1, inicio: 471, fimPrevisto: 591, dest: 'enf' })),
+    });
+    const r = passo(e);
+    const po = r.estado.pacientes.find(p => p.name === 'PO-Eletiva 1')!;
+    expect(po.sector).toBe('cc');
+    expect(r.estado.salas[0]).toMatchObject({ status: 'aguardando_rpa', pacienteId: po.id });
+    expect(r.estado.cirurgias[0]!.st).toBe('aguardando_rpa');
+    expect(metricas(r.estado)).toMatchObject({ rpaOcc: CAP.rpa, salasAguardandoRpa: 1 });
+    expect(r.ocorrencias.some(o => o.tipo === 'aguardando_rpa' && o.msg.startsWith('SALA 1 OCUPADA'))).toBe(true);
+
+    // O grupo tira um pós-operatório da RPA: no minuto seguinte o paciente sai da sala.
+    const liberou = { ...r.estado, pacientes: r.estado.pacientes.map(p => (p.id === 2 ? { ...p, sector: 'uti' as const } : p)) };
+    const r2 = passo(liberou);
+    expect(r2.estado.pacientes.find(p => p.id === po.id)!.sector).toBe('rpa');
+    expect(r2.estado.salas[0]!.status).toBe('livre');
+    expect(r2.estado.cirurgias[0]!.st).toBe('done');
+    expect(r2.ocorrencias).toContainEqual(expect.objectContaining({ msg: 'PO-Eletiva 1 saiu da sala 1 para a RPA e precisa de leito na ENF.' }));
+  });
+
+  it('eletiva com a sala ocupada atrasa e começa quando a sala libera, dentro do limite', () => {
+    const ocupada = sala(1, { status: 'aguardando_rpa', ocupante: 'Cx Anterior', pacienteId: 50 });
+    const preso = paciente(50, { sector: 'cc', postOp: true, ready: true });
+    let e = comPacientes(base(), [preso, ...rpaCheia()], { cirurgias: [cx({ stH: 471 / 60 })], salas: salasCom(ocupada) });
+    const r = passo(e);
+    expect(r.estado.cirurgias[0]!.st).toBe('scheduled');
+    expect(r.ocorrencias).toContainEqual(expect.objectContaining({ tipo: 'cirurgia_atrasada', msg: 'Cx Eletiva 1 atrasada: a sala 1 está ocupada (Cx Anterior).' }));
+    expect(metricas(r.estado).cxAtrasadas).toBe(0);
+    e = avancarAte(r.estado, 500).estado;
+    expect(e.cirurgias[0]!.st).toBe('scheduled');
+    // Abre vaga na RPA: o paciente preso sai, a sala libera e a eletiva começa com atraso.
+    e = { ...e, pacientes: e.pacientes.map(p => (p.id === 2 ? { ...p, sector: 'uti' as const } : p)) };
+    const r2 = passo(e);
+    expect(r2.estado.cirurgias[0]).toMatchObject({ st: 'andamento', inicioReal: 501 });
+    expect(r2.ocorrencias.some(o => o.msg === 'Cx Eletiva 1 iniciada (sala 1) com 30 min de atraso.')).toBe(true);
+    expect(metricas(r2.estado).cxAtrasadas).toBe(1);
+  });
+
+  it('eletiva cancelada se a sala não liberar até 120 min depois do horário', () => {
+    const ocupada = sala(1, { status: 'aguardando_rpa', ocupante: 'Cx Anterior', pacienteId: 50 });
+    const preso = paciente(50, { sector: 'cc', postOp: true, ready: true });
+    const e = comPacientes(base(), [preso, ...rpaCheia()], { cirurgias: [cx()], salas: salasCom(ocupada) });
+    const antes = avancarAte(e, 420 + ATRASO_MAX_ELETIVA_MIN - 1).estado;
+    expect(antes.cirurgias[0]!.st).toBe('scheduled');
+    const r = passo(antes);
+    expect(r.estado.cirurgias[0]!.st).toBe('cancelled');
+    expect(r.estado.stats.cxCan).toBe(1);
+    expect(r.ocorrencias).toContainEqual(expect.objectContaining({ tipo: 'cirurgia_cancelada', msg: 'Cx Eletiva 1 cancelada: sala ocupada. A sala 1 não liberou a tempo.' }));
+  });
+
+  it('eletiva cancelada se não houver tempo de terminar até as 19h', () => {
+    const tarde = cx({ stH: 17.5, dur: 2 });
+    const r = passo(comPacientes(base(1, 1049), [], { cirurgias: [tarde], salas: criarSalas() }));
+    expect(r.estado.cirurgias[0]!.st).toBe('cancelled');
+    expect(r.ocorrencias.some(o => o.msg === 'Cx Eletiva 1 cancelada: não há tempo de terminar até as 19h.')).toBe(true);
+  });
+
+  it('emergência com sala livre vai direto para a sala; ao terminar, vai para a RPA', () => {
+    for (const r of [1, 2] as Rodada[]) {
+      const vermelho = paciente(1, { sector: 'de', sev: 'red', dest: 'uti', deNeed: 9999 });
+      const res = comEmergencia(comPacientes(base(r, 600), [vermelho], { salas: criarSalas() }));
+      const emg = res.estado.pacientes[0]!;
+      expect(emg).toMatchObject({ sector: 'cc', postOp: true, emergenciaInicioCx: 601 });
+      expect(emg.name.startsWith('EMG-')).toBe(true);
+      expect(res.estado.salas[0]).toMatchObject({ status: 'cirurgia', pacienteId: 1, fimPrevisto: 601 + DURACAO_EMERGENCIA_CX_MIN, dest: 'uti' });
+      expect(res.estado.carga.emergenciasSemSala).toBe(0);
+      const fim = avancarAte(res.estado, 601 + DURACAO_EMERGENCIA_CX_MIN).estado;
+      expect(fim.pacientes.find(p => p.id === 1)).toMatchObject({ sector: 'rpa', ready: true, dest: 'uti' });
+      expect(fim.salas[0]!.status).toBe('livre');
+    }
+  });
+
+  it('emergência sem sala livre fica no DE com risco alto e entra na primeira sala que liberar, antes da eletiva', () => {
+    const ocupadas = [1, 2, 3, 4].map(n => sala(n, { status: 'cirurgia', ocupante: `Cx ${n}`, inicio: 560, fimPrevisto: 640 + n }));
+    const vermelho = paciente(1, { sector: 'de', sev: 'red', dest: 'uti', deNeed: 9999 });
+    const eletiva = cx({ id: 7, label: 'Cx Eletiva 9', sala: 1, stH: 10.5 });
+    const res = comEmergencia(comPacientes(base(1, 600), [vermelho], { salas: ocupadas, cirurgias: [eletiva] }));
+    const emg = res.estado.pacientes[0]!;
+    expect(emg).toMatchObject({ sector: 'de', emergenciaCx: true, emergenciaDesde: 601 });
+    expect(res.estado.carga.emergenciasSemSala).toBe(1);
+    expect(metricas(res.estado).emergenciasAguardandoSala).toBe(1);
+    expect(res.ocorrencias.some(o => o.tipo === 'emergencia_aguardando_sala')).toBe(true);
+    expect(calcularRisco(emg, 601)).toBe('atencao');
+    expect(calcularRisco(emg, 601 + LIMIAR_EMERGENCIA_SALA_MIN)).toBe('alto');
+    // Não decide destino pelo grupo enquanto espera a cirurgia.
+    expect(destinosPossiveis(res.estado, 1)).toEqual([]);
+    // A sala 1 termina às 641 (RPA livre): a emergência entra nela; a eletiva das 10h30 atrasa.
+    const depois = avancarAte(res.estado, 641).estado;
+    const e1 = depois.pacientes.find(p => p.id === 1)!;
+    if (!e1.dead) {
+      expect(e1).toMatchObject({ sector: 'cc', emergenciaInicioCx: 641 });
+      expect(depois.salas[0]).toMatchObject({ status: 'cirurgia', pacienteId: 1 });
+      expect(depois.cirurgias[0]!.st).toBe('scheduled');
+    }
+  });
+
+  it('emergência esperando sala: deteriora com risco alto depois do limiar e só morre depois de deteriorar e seguir esperando', () => {
+    const ocupadas = [1, 2, 3, 4].map(n => sala(n, { status: 'cirurgia', ocupante: `Cx ${n}`, inicio: 560, fimPrevisto: 1140 }));
+    const esperando = paciente(1, { sector: 'de', sev: 'red', dest: 'uti', deNeed: 9999, emergenciaCx: true, emergenciaDesde: 600, name: 'EMG-Teste' });
+    const e = comPacientes(base(1, 600 + LIMIAR_EMERGENCIA_SALA_MIN - 2), [esperando], { salas: ocupadas });
+    // Antes do limiar, não deteriora.
+    expect(variosRng(e, 400).some(x => x.ocorrencias.some(o => o.tipo === 'deterioracao_emergencia'))).toBe(false);
+    const noLimiar = { ...e, minuto: 600 + LIMIAR_EMERGENCIA_SALA_MIN };
+    const deteriorou = variosRng(noLimiar, 400).filter(x => x.ocorrencias.some(o => o.tipo === 'deterioracao_emergencia'));
+    expect(deteriorou.length).toBeGreaterThan(400 * P_DET_EMERGENCIA_SALA * 0.5);
+    // Sem deteriorar, não morre; deteriorado e esperando além de OBITO_APOS_DET_MIN, pode morrer.
+    expect(variosRng(noLimiar, 400).some(x => x.ocorrencias.some(o => o.tipo === 'emergencia_obito'))).toBe(false);
+    const det = { ...noLimiar, minuto: 800, pacientes: [{ ...esperando, det: true, detMin: 800 - OBITO_APOS_DET_MIN }] };
+    const mortes = variosRng(det, 3000).filter(x => x.ocorrencias.some(o => o.tipo === 'emergencia_obito'));
+    expect(mortes.length).toBeGreaterThan(0);
+    expect(mortes[0]!.estado.pacientes[0]).toMatchObject({ sector: 'obito', dead: true });
   });
 
   it('a alta bloqueada pelo efeito cascata libera depois de 120 min', () => {
-    const rpa = [2, 3, 4].map(id => paciente(id, { sector: 'rpa', ready: true, postOp: true }));
-    const alta = paciente(5, { sector: 'enf', dischReady: true, prep: 0 });
-    let e = passo(comPacientes(base(), [...rpa, alta], { cirurgias: [cx()] })).estado;
+    const enfCheia = Array.from({ length: 84 }, (_, i) => paciente(100 + i, { sector: 'enf' }));
+    const alta = paciente(5, { sector: 'enf', dischReady: true, prep: 0, social: false });
+    // Cirurgia para a UTI cheia, sem alta da UTI: cancela por falta de leito e trava a alta da ENF.
+    const utiCheia = Array.from({ length: CAP.uti }, (_, i) => paciente(300 + i, { sector: 'uti' }));
+    let e = passo(comPacientes(base(), [...enfCheia, alta, ...utiCheia], { cirurgias: [cx({ dest: 'uti' })], salas: criarSalas() })).estado;
     expect(e.pacientes.find(p => p.id === 5)).toMatchObject({ blocked: true, dischReady: false, bloqueioAte: 471 + BLOQUEIO_CASCATA_MIN });
     e = avancarAte(e, 471 + BLOQUEIO_CASCATA_MIN - 1).estado;
     expect(e.pacientes.find(p => p.id === 5)!.blocked).toBe(true);
@@ -366,6 +503,22 @@ describe('centro cirúrgico', () => {
     expect(r.estado.pacientes.find(p => p.id === 5)).toMatchObject({ blocked: false, dischReady: true });
     expect(r.ocorrencias.some(o => o.tipo === 'bloqueio_fim')).toBe(true);
   });
+
+  it('nas duas rodadas, a RPA nunca passa de 3 e cada sala tem no máximo um ocupante', () => {
+    for (const r of [1, 2] as Rodada[]) {
+      let e = criarEstadoInicial(r, 2);
+      const problemas: string[] = [];
+      while (e.minuto < MINUTO_FIM) {
+        e = passo(e).estado;
+        const rpa = e.pacientes.filter(p => p.sector === 'rpa').length;
+        if (rpa > CAP.rpa) problemas.push(`${e.minuto}: RPA ${rpa}`);
+        const ocupantes = e.salas.map(s => s.pacienteId).filter((x): x is number => x !== null);
+        if (new Set(ocupantes).size !== ocupantes.length) problemas.push(`${e.minuto}: paciente em duas salas`);
+        for (const p of e.pacientes) if (p.sector === 'cc' && !ocupantes.includes(p.id)) problemas.push(`${e.minuto}: ${p.name} no CC sem sala`);
+      }
+      expect(problemas).toEqual([]);
+    }
+  }, 60_000);
 });
 
 describe('ferramentas e eventos', () => {

@@ -10,7 +10,8 @@ export type Rodada = Round;
  * Setores do motor. Além dos de `Sector`: `fast_track` (área dos verdes na R2, 4 vagas),
  * `enf_extra` (corredor da enfermaria do PCP/Full Capacity, 2 vagas) e `obito` (saiu do leito).
  */
-export type SetorSim = Sector | 'fast_track' | 'enf_extra' | 'obito';
+/** `cc`: paciente numa sala operatória (emergência em cirurgia ou pós-operatório aguardando vaga na RPA). */
+export type SetorSim = Sector | 'fast_track' | 'enf_extra' | 'obito' | 'cc';
 
 /** Halo de risco na tela. */
 export type Risco = 'baixo' | 'atencao' | 'alto';
@@ -40,12 +41,39 @@ export interface PacienteSim extends Omit<Patient, 'sector' | 'dest' | 'offSvc'>
   retorno: boolean;
   /** Alta bloqueada por efeito cascata até este minuto (0 = sem prazo) */
   bloqueioAte: number;
+  /** Emergência cirúrgica aguardando sala operatória livre (fica no DE, com risco alto) */
+  emergenciaCx?: boolean;
+  /** Minuto em que a emergência cirúrgica foi indicada */
+  emergenciaDesde?: number | null;
+  /** Minuto em que a emergência entrou na sala operatória */
+  emergenciaInicioCx?: number | null;
 }
 
-export type StatusCirurgia = SurgeryStatus | 'andamento';
+/** `aguardando_rpa`: a cirurgia terminou e o paciente segue na sala até abrir vaga na RPA. */
+export type StatusCirurgia = SurgeryStatus | 'andamento' | 'aguardando_rpa';
 
 export interface CirurgiaSim extends Omit<Surgery, 'st'> {
   st: StatusCirurgia;
+  /** Minuto em que começou de fato (atrasa se a sala estiver ocupada) */
+  inicioReal?: number | null;
+}
+
+export type StatusSala = 'livre' | 'cirurgia' | 'aguardando_rpa';
+
+/** Uma das salas operatórias do centro cirúrgico (estado exposto à tela). */
+export interface SalaCirurgica {
+  numero: number;
+  status: StatusSala;
+  /** Rótulo de quem ocupa a sala (ex.: "Cx Eletiva 2", "EMG-Ana"); null se livre */
+  ocupante: string | null;
+  /** Cirurgia eletiva na sala (id em `cirurgias`), se for o caso */
+  cirurgiaId: number | null;
+  /** Paciente na sala (emergência em cirurgia, ou qualquer pós-operatório aguardando RPA) */
+  pacienteId: number | null;
+  inicio: number | null;
+  /** Previsão de término da cirurgia (minuto do plantão) */
+  fimPrevisto: number | null;
+  dest: 'enf' | 'uti' | null;
 }
 
 export interface ChegadaPlanejada {
@@ -95,6 +123,8 @@ export interface EstadoSimulacao {
   rng: number;
   pacientes: PacienteSim[];
   cirurgias: CirurgiaSim[];
+  /** As 4 salas operatórias: ocupante, status e horário previsto */
+  salas: SalaCirurgica[];
   stats: Stats;
   eventos: Events;
   /** Rounds e mensagens já disparados */
@@ -139,7 +169,7 @@ export interface CargaGestor {
   };
   /** Emergências cirúrgicas do plantão */
   emergencias: number;
-  /** Emergências que encontraram a RPA cheia (viram óbito) */
+  /** Emergências que não encontraram sala operatória livre e tiveram de esperar no DE */
   emergenciasSemSala: number;
 }
 
@@ -167,7 +197,8 @@ export type TipoOcorrencia =
   | 'round_enf' | 'round_uti' | 'bloqueio_fim'
   | 'cirurgia_iniciada' | 'cirurgia_cancelada' | 'cirurgia_concluida'
   | 'alta' | 'movimento' | 'leito_inadequado'
-  | 'nir' | 'nir_concluido' | 'full_capacity' | 'full_capacity_liberado' | 'full_capacity_revogado';
+  | 'nir' | 'nir_concluido' | 'full_capacity' | 'full_capacity_liberado' | 'full_capacity_revogado'
+  | 'emergencia_aguardando_sala' | 'deterioracao_emergencia' | 'cirurgia_atrasada' | 'aguardando_rpa';
 
 /** Algo que aconteceu num passo ou ação: vira entrada de log, som e eventos_jogo. */
 export interface Ocorrencia {
@@ -242,6 +273,12 @@ export interface Metricas {
   autoCirurgiasViabilizadas: number;
   emergencias: number;
   emergenciasSemSala: number;
+  /** Emergências cirúrgicas esperando sala agora (no DE) */
+  emergenciasAguardandoSala: number;
+  /** Eletivas que começaram depois do horário (sala ocupada) */
+  cxAtrasadas: number;
+  /** Salas operatórias ocupadas por paciente que já operou e espera vaga na RPA */
+  salasAguardandoRpa: number;
 }
 
 /** Robô de decisão: olha o estado e devolve a próxima ação, ou null para não fazer nada. */

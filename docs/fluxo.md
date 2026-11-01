@@ -32,8 +32,11 @@ Ocupação hospitalar = (ENF + UTI) / 100 leitos, começando em 84%.
 - **Tempo de decisão no DE:** cada paciente precisa de um tempo até ficar "pronto". Esse tempo anda mais devagar quando o hospital está cheio: na R1, ×1,2 acima de 75% de ocupação, ×1,5 acima de 85% e ×2 acima de 92%; na R2 a penalidade é menor.
 - **Boarding:** paciente pronto para ENF ou UTI que continua no DE. Com 3h, deteriora; com 6h, óbito evitável.
 - **Altas da enfermaria:** a R1 tem round médico às 11h (6 a 8 altas, com 2 a 3h de preparo), às 14h e às 17h. Na R2, o Bed Huddle às 8h e o Discharge Lounge liberam o leito na hora. A UTI dá step-down para a ENF às 11h e às 15h.
-- **Centro cirúrgico:** 7 cirurgias. Na R1 concentradas de manhã, com atraso na sala 1; na R2 redistribuídas (surgical smoothing). Cirurgia que termina com a RPA lotada é cancelada e pode bloquear uma alta (efeito cascata).
-- **Eventos aleatórios** (mais frequentes ou mais graves na R1): parada cardíaca (prende 1 maca por 1h), tomógrafo quebrado (+120 min), atraso de laboratório, surto de 3 pacientes (garantido às 12h na R1), paciente social que prende leito, observação prolongada, emergência cirúrgica (óbito se a RPA estiver cheia sem sala reservada) e deterioração de paciente fora do perfil.
+- **Centro cirúrgico (4 salas, mesma regra nas duas rodadas):** 7 cirurgias eletivas. Na R1 concentradas de manhã, com atraso na sala 1; na R2 redistribuídas (surgical smoothing), o que deixa as salas mais livres.
+  - Cirurgia só começa com **sala livre**. Eletiva no horário: começa se a sala dela estiver livre e houver leito de destino previsto (sem leito na ENF/UTI, é cancelada antes de iniciar e pode bloquear uma alta: efeito cascata). Com a sala ocupada, **atrasa**; se não começar até 120 min depois do horário, ou se não houver tempo de terminar até as 19h, é cancelada ("Cx X cancelada: sala ocupada").
+  - Ao **terminar**, o paciente vai para a RPA se houver vaga; senão **fica na sala** (a sala continua ocupada) e sai para a RPA assim que abrir vaga. A falta de RPA não cancela cirurgia: prende a sala e atrasa as próximas.
+  - A RPA tem 3 vagas e esvazia pela ação do grupo (tirar o pós-operatório para ENF/UTI). A tela mostra cada sala (ocupante, status, horário previsto), o paciente preso esperando a RPA e as eletivas atrasadas.
+- **Eventos aleatórios** (mais frequentes ou mais graves na R1): parada cardíaca (prende 1 maca por 1h), tomógrafo quebrado (+120 min), atraso de laboratório, surto de 3 pacientes (garantido às 12h na R1), paciente social que prende leito, observação prolongada, emergência cirúrgica (entra na primeira sala livre, com prioridade sobre as eletivas; sem sala livre, fica no DE como "emergência cirúrgica aguardando sala", com risco alto: pode deteriorar a partir de 30 min de espera e só morre se deteriorar e continuar esperando; a cirurgia dura 90 min e depois o paciente segue para a RPA) e deterioração de paciente fora do perfil.
 - **Só na R2:** Fluxista (alta automática do DE a cada 20 min), Fast Track (verdes mais rápidos), fluxo puxado (DE acima de 80% acelera as decisões).
 
 ## O que o grupo decide (clicar no paciente → clicar no destino)
@@ -41,7 +44,7 @@ Ocupação hospitalar = (ENF + UTI) / 100 leitos, começando em 84%.
 - Liberar alta do DE, internar na ENF ou na UTI.
 - Mandar paciente de UTI para a ENF ("fora do perfil": libera o DE, mas arrisca deterioração e penaliza).
 - Dar alta da ENF ou da UTI quando estiver pronta.
-- Tirar o pós-operatório da RPA (para não cancelar a próxima cirurgia).
+- Tirar o pós-operatório da RPA (para a sala não ficar presa ao fim da cirurgia e a próxima cirurgia ou a emergência não esperarem).
 - **R2:** NIR (transferir para outra unidade; 3 usos, 1h de intervalo entre eles) e Full Capacity (2 verdes ao corredor, só com autorização do facilitador).
 
 ## Pontuação atual (`calcScore`)
@@ -65,7 +68,7 @@ Começa em 1500 e o mínimo é 50.
 
 1. **Sala 4 reservada para emergências** só existe no modo solo. No multiplayer a rodada sempre começa sem reserva, e nenhum controle do facilitador decide isso.
 2. **Full Capacity** manda o paciente para o mesmo "corredor" de superlotação do DE. Ele passa a contar para o limite que dispara LWBS e não tem saída definida.
-3. **Emergência cirúrgica com sala reservada e RPA cheia:** o paciente fica marcado como bloqueado no DE sem regra de saída clara.
+3. ~~Emergência cirúrgica com sala reservada e RPA cheia~~ resolvido: as 4 salas são modeladas no motor; a emergência espera sala no DE com risco alto e entra na primeira que liberar.
 4. **Bloqueio social** é penalizado (−15) mesmo sendo um evento aleatório, fora do controle do grupo.
 5. **Alta do DE** não pontua; só a alta da ENF vale +3. Confirmar se é intencional.
 6. **O log enviado ao banco no fim da rodada** sai incompleto: usa uma cópia antiga da lista de eventos.
