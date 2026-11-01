@@ -1,6 +1,6 @@
 # Schema — dados, acesso e máquina de estados
 
-> Proposta para o CBMEDE 2026. Nada aqui foi aplicado no banco. A etapa B4 escreve as migrações em `supabase/migrations/` e só as aplica com autorização do Gustavo. As tabelas do FLAME (`rooms`, `teams`, `game_state`, `game_logs`) ficam intactas como arquivo.
+> Proposta para o CBMEDE 2026. Nada aqui foi aplicado no banco. As migrações estão em `supabase/migrations/` (etapa B4, validadas num Postgres local) e só serão aplicadas com autorização do Gustavo. Como aplicar, cadastrar o facilitador e reverter: `supabase/README.md`. As tabelas do FLAME (`rooms`, `teams`, `game_state`, `game_logs`) ficam intactas como arquivo.
 
 ## Princípios
 
@@ -36,27 +36,79 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 
 - Transições validadas no servidor; qualquer outra é recusada.
 - `rodada_inicio` é gravado ao iniciar cada rodada; pausar e retomar acumulam `pausa_acumulada_ms`.
-- **Minuto do plantão** = 420 + ⌊(agora − rodada_inicio − pausa_acumulada) / 1000⌋, limitado a 1140 (7h → 19h).
+- **Minuto do plantão** = 420 + ⌊(agora − rodada_inicio − pausa_acumulada) / 1000 ms⌋, limitado a 1140 (7h → 19h): 1 segundo real = 1 minuto simulado, rodada de 12 minutos. Durante a pausa, "agora" é o início da pausa; depois de encerrar, é `rodada_fim`. `estado_turma` já devolve o `minuto` calculado e a `hora_servidor`.
+- **Encerrar** grava `rodada_fim` e fecha a pausa em curso. Por 30 s depois disso o servidor ainda aceita envios da rodada que acabou, para o último placar (minuto 1140) não se perder na corrida com o clique do facilitador.
+- **Nova turma com o mesmo código:** `abrir_turma` arquiva sozinho a anterior se ela estiver `encerrada` ou `aberta` sem grupos; em qualquer outro caso recusa com `CODIGO_EM_USO` e só arquiva com `p_substituir = true`. Nada é apagado (lição 2 do pós-mortem).
+- Qualquer facilitador cadastrado comanda qualquer turma (equipe pequena, um evento por vez).
 
 ## Regras de entrada (RPC `entrar_grupo(codigo, nome)`)
 
 | Situação | Resultado |
 |---|---|
 | Turma `aberta` e nome novo | cria o grupo, devolve token e cor |
-| Turma em rodada, nome novo, `entrada_liberada = falso` | recusa: "A rodada já começou. Fale com o facilitador." |
+| Turma em rodada (`rodada1`/`rodada2`), nome novo, `entrada_liberada = falso` | recusa: "A rodada já começou. Fale com o facilitador." |
 | Turma em rodada, nome novo, `entrada_liberada = verdadeiro` | cria o grupo, que entra na rodada atual |
 | Nome já existe e o computador tem o token desse grupo | reconecta (devolve o estado para restaurar) |
 | Nome já existe, sem token, `reconexao_liberada = verdadeiro` | gera novo token, restaura o estado salvo no servidor e desliga a liberação |
 | Nome já existe, sem token, sem liberação | recusa: "Esse grupo já está no jogo. Se é o seu, peça ao facilitador para liberar a reconexão." |
-| Turma `encerrada` ou `arquivada` | recusa |
+| Turma `aberta` ou `debrief`, nome novo | cria o grupo (no `debrief` ele joga a rodada 2) |
+| Turma `encerrada` ou `arquivada` | recusa, inclusive reconexão |
+| Sala com `max_grupos` (12) grupos ativos | recusa: `TURMA_CHEIA` |
+
+Nome: espaços normalizados, 2 a 30 caracteres, comparação sem diferenciar maiúsculas ("Grupo A" = "grupo  a"). Cor: a primeira livre de 8 cores fixas (repete a partir do 9º grupo). O token (32 bytes aleatórios, 43 caracteres base64url) volta **uma vez**, só quando é gerado; o banco guarda só o sha256. Reconexão pelo próprio token não troca o token.
 
 ## RPCs
 
-**Públicas:** `estado_turma(codigo)` (status, rodada, relógio, hora do servidor, flags), `ranking(codigo)`, `obter_relatorio(slug)`.
+Todas são `security definer` com `search_path = ''` e nomes qualificados. Parâmetros com prefixo `p_` (é o nome que vai no `supabase.rpc`). Todas devolvem `jsonb`, com chaves em snake_case (o B2 converte para o formato do contrato 4 no schema Zod).
 
-**Do grupo (exigem token):** `entrar_grupo`, `enviar_estado(token, rodada, minuto, versao, estado, pontuacao, metricas)` (recusa versão antiga e rodada que não é a atual), `obter_estado(token, rodada)`, `registrar_serie`, `registrar_eventos`.
+**Públicas (anon e authenticated):**
 
-**Do facilitador (exigem login e cadastro em `facilitadores`):** `abrir_turma`, `mudar_status`, `pausar`, `retomar`, `liberar_entrada`, `liberar_reconexao(grupo)`, `liberar_full_capacity`, `alternar_musica`, `remover_grupo`, `gerar_relatorio`.
+| RPC | Devolve |
+|---|---|
+| `estado_turma(p_codigo, p_token?)` | `id, codigo, nome, evento, data, status, rodada, rodada_inicio, rodada_fim, pausada, pausada_em, pausa_acumulada_ms, minuto, hora_servidor, entrada_liberada, full_capacity_liberado, musica_mudo, grupos[{id, nome, cor, conectado}]`. Com `p_token` válido, marca o grupo como visto (presença na sala de espera) e acrescenta `token_valido`. Busca a turma ativa com o código ou, se não houver, a mais recente (arquivada). |
+| `ranking(p_codigo)` | `[{posicao, grupo_id, nome, cor, rodada, pontuacao, minuto, metricas}]`, rodada 1 e depois rodada 2 |
+| `obter_relatorio(p_slug)` | `{slug, criado_em, versao_regras, dados}` |
+
+**Do grupo (anon e authenticated; o token identifica o grupo, não há parâmetro de grupo):**
+
+| RPC | Regra |
+|---|---|
+| `entrar_grupo(p_codigo, p_nome, p_token?)` | Tabela acima. Devolve `{turma_id, status, rodada, grupo{id, nome, cor}, token, reconectado, estado_salvo, hora_servidor}`; `token` é `null` quando não foi gerado token novo. |
+| `enviar_estado(p_token, p_rodada, p_minuto, p_versao, p_estado, p_pontuacao, p_metricas)` | Recusa `p_versao` ≤ guardada (`VERSAO_ANTIGA`) e rodada que não é a atual (`RODADA_INVALIDA`). Grava estado e placar e atualiza `grupos.visto_em`. Estado ≤ 512 KB, métricas ≤ 16 KB, minuto 420–1140. |
+| `obter_estado(p_token, p_rodada?)` | Último estado do próprio grupo (`{rodada, minuto, versao, estado, atualizado_em}`) ou `null`. Sem rodada, usa a atual. |
+| `registrar_serie(p_token, p_rodada, p_minuto, p_metricas)` | Um ponto por (grupo, rodada, minuto); reenvio não altera (`{registrado: false}`). |
+| `registrar_eventos(p_token, p_rodada, p_eventos)` | Lista de `{minuto, tipo, mensagem?, chave?}`; até 50 por chamada e 3000 por grupo e rodada. `chave` torna o reenvio idempotente. |
+
+**Do facilitador (só authenticated; cada uma confere `auth.uid()` em `facilitadores`):** `abrir_turma(p_codigo, p_nome, p_evento?, p_data?, p_substituir?)`, `mudar_status(p_turma_id, p_status)`, `pausar(p_turma_id)`, `retomar(p_turma_id)`, `liberar_entrada(p_turma_id, p_liberada?)`, `liberar_reconexao(p_grupo_id, p_liberada?)`, `liberar_full_capacity(p_turma_id, p_liberado?)`, `alternar_musica(p_turma_id, p_mudo?)` (sem `p_mudo`, inverte), `remover_grupo(p_grupo_id)`, `gerar_relatorio(p_turma_id, p_versao_regras?)`. Devolvem o estado da turma com, por grupo, também `visto_em`, `reconexao_liberada` e `removido`. Pausar já pausada e retomar não pausada não fazem nada (clique duplo não dá erro). `remover_grupo` é lógico: o token deixa de valer, o nome fica livre e os dados ficam guardados, fora do ranking e do relatório. `gerar_relatorio` só depois de `encerrada`; congela grupos, ranking R1/R2, placar, séries e eventos em `relatorios.dados`, cria `slug` aleatório de 24 caracteres (144 bits), passa a turma para `arquivada`; chamar de novo devolve o mesmo slug.
+
+## Erros
+
+`raise exception` com `message` = código estável, `detail` = frase para a tela, `hint` = código e SQLSTATE próprio. No supabase-js: `error.message` é o código, `error.details` a frase. O PostgREST responde HTTP 400 para todos.
+
+| Código | SQLSTATE | Quando |
+|---|---|---|
+| `TURMA_NAO_ENCONTRADA` | CB001 | código ou id de turma inexistente |
+| `ENTRADA_FECHADA` | CB002 | rodada em andamento sem entrada liberada; turma encerrada/arquivada |
+| `GRUPO_JA_ATIVO` | CB003 | nome em uso, sem o token do grupo e sem reconexão liberada |
+| `TOKEN_INVALIDO` | CB004 | token malformado, inexistente ou de grupo removido |
+| `VERSAO_ANTIGA` | CB005 | `enviar_estado` com versão ≤ guardada |
+| `NAO_AUTORIZADO` | CB006 | RPC de facilitador sem login ou sem cadastro em `facilitadores` |
+| `TRANSICAO_INVALIDA` | CB007 | transição fora do diagrama; pausar fora de rodada; relatório antes de encerrar |
+| `DADOS_INVALIDOS` | CB008 | nome, minuto, tamanho ou formato fora dos limites; grupo inexistente |
+| `RODADA_INVALIDA` | CB009 | envio para rodada que não é a atual (ou depois dos 30 s de tolerância) |
+| `TURMA_CHEIA` | CB010 | `max_grupos` atingido |
+| `CODIGO_EM_USO` | CB011 | `abrir_turma` com turma ativa de mesmo código e grupos, sem `p_substituir` |
+| `RELATORIO_NAO_ENCONTRADO` | CB012 | slug malformado ou inexistente |
+| `LIMITE_EXCEDIDO` | CB013 | mais de 50 eventos por chamada ou 3000 por rodada |
+
+Sem permissão de EXECUTE (anon chamando RPC de facilitador) o PostgREST responde 401 `permission denied` antes de entrar na função.
+
+## Acesso direto às tabelas
+
+- `anon` e `authenticated` não têm INSERT, UPDATE, DELETE nem TRUNCATE em nenhuma tabela nova (revogados; não depende só do RLS).
+- Leitura pública por GRANT de coluna + RLS: `turmas` (sem `facilitador_id`, `max_grupos`), `grupos` (sem `token_hash`; `reconexao_liberada` só para logados), `placar`. Views `turmas_publicas`, `grupos_publicos` (com `conectado` = visto nos últimos 15 s) e `placar_publico`, todas `security_invoker`.
+- `estado_jogo`, `serie_metricas`, `eventos_jogo` e `relatorios`: só o facilitador lê direto (política para `authenticated` que exige cadastro em `facilitadores`); `anon` não tem GRANT.
+- Funções auxiliares ficam no schema `interno`, que não é exposto pelo PostgREST e não tem USAGE para ninguém além do dono.
 
 ## Volume esperado
 
@@ -65,3 +117,6 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 ## Prova de segurança (etapa B4, D3)
 
 Script que, com a chave pública, tenta: escrever direto em cada tabela, ler `estado_jogo` e `token_hash`, mudar o status da turma, enviar estado com token de outro grupo e ler relatório sem o slug. Todas as tentativas precisam falhar, e o resultado vai para `docs/`.
+
+- `supabase/tests/prova-seguranca.mjs`: o script acima, contra o projeto real, depois de aplicado (`supabase/README.md`, seção 5). Ainda não foi rodado.
+- `supabase/tests/rodar-local.sh`: o mesmo raciocínio dentro do banco, num Postgres local, com os papéis `anon` e `authenticated` de verdade (110+ verificações, incluindo catálogo: RLS em todas as tabelas, nenhuma política de escrita, `search_path` fixo em toda `security definer`).
