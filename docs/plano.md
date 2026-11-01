@@ -38,7 +38,9 @@ Fase E  Publicação única ..................... (por mim, com autorização)
 | **B3 Design system** | Tokens no `@theme`, os componentes de `docs/design.md` §4 e uma página local de catálogo (`/ui.html`, fora do build de produção) para revisão. | `src/index.css`, `src/shared/components/ui/` |
 | **B4 Banco e segurança** | Migrações versionadas em `supabase/migrations/`; sala de teste separada da sala do evento; facilitador com login real (Supabase Auth) no lugar da senha no código; políticas em que só o facilitador muda a sala ou apaga grupos; script que prova o que um visitante consegue ou não fazer. **Nada é aplicado no banco sem o seu ok.** | `supabase/`, `docs/schema.md` |
 
-## Portão 2 — Revisão da pontuação
+## Portão 2 — Revisão da lógica do jogo e da pontuação
+
+Pauta completa em `docs/revisao-logica.md` (chegadas, DE, deterioração, altas, CC/RPA, eventos, pontuação e, principalmente, o Plantão Lean).
 
 Com o motor do B1, simulo estratégias típicas ("segura no PS", "puxa fluxo", "usa fora do perfil", "ignora a RPA") e apresento quanto cada uma pontua na R1 e na R2. Você decide os pesos com critério pedagógico; as mudanças entram com teste.
 
