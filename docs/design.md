@@ -13,7 +13,7 @@
 
 | Regra | Detalhe |
 |---|---|
-| Moldura CBMEDE | Azul-marinho `#1F2A6B` (estrutura, títulos, barra lateral), amarelo `#F5C518` (destaque, foco, "você está aqui") e verde `#3DB54A` (ação principal). |
+| Moldura CBMEDE | Azul-marinho `#1B2A6B` (valor oficial do site) (estrutura, títulos, barra lateral), amarelo `#F5C518` (destaque, foco, "você está aqui") e verde `#3DB54A` (ação principal). |
 | Manchester é sagrado | Vermelho, laranja, amarelo e verde de gravidade (`--sev-*`) só aparecem em paciente e risco. Nenhum botão ou enfeite usa essas cores. O amarelo da marca e o amarelo Manchester ficam visualmente distintos: o da marca vai em fundo e preenchimento, o Manchester vai em ponto ou borda do paciente. |
 | Setores em tons pastel | Cada setor tem um tom de fundo fixo, como os cartões de ativos das referências: DE lavanda, ENF menta, UTI pêssego, RPA/CC creme, corredor e triagem cinza. O tom identifica o setor; a lotação aparece por barra e número, não por troca de cor do cartão. |
 | Cartão escuro = momento | O cartão azul-marinho profundo (como o "Earn free crypto" e o "Sell Order" das referências) é reservado para o que exige atenção agora: evento ativo no jogo, próxima ação do facilitador, chamada no telão. No máximo um por tela. |
@@ -25,7 +25,7 @@
 
 Os tokens vão para o `@theme` do Tailwind em `src/index.css` e são a única fonte. A landing passa a consumi-los (ADR 0001).
 
-- **Tipografia:** Sora. Títulos 700–800, texto 400, números `tabular-nums`. Escala: 12 / 14 / 16 / 20 / 28 / 40 / 64 (telão até 120).
+- **Tipografia (a mesma do site oficial):** Sora para títulos (700) e texto (300–500); Space Mono para rótulos em caixa alta ("— FALE CONOSCO"), relógio do plantão e números do placar. Escala: 12 / 14 / 16 / 20 / 28 / 40 / 64 (telão até 120).
 - **Superfícies:** fundo de app `#F4F5FA`, cartão branco, borda `#E3E5F0`, sombra suave (`0 4px 18px rgba(31,42,107,.06)`).
 - **Raios:** cartão 20, cartão grande 28, pílula 999, chip 10.
 - **Espaçamento:** base 4 (8, 12, 16, 24, 32, 48).
@@ -33,6 +33,13 @@ Os tokens vão para o `@theme` do Tailwind em `src/index.css` e são a única fo
 - **Gravidade (Manchester):** `--sev-red #E53935`, `--sev-orange #F57C00`, `--sev-yellow #FBC02D`, `--sev-green #43A047`.
 - **Tema:** claro em orientações, jogo e facilitador; escuro azul-marinho no telão (projeção em auditório).
 - **Acessibilidade (cap. 14):** contraste AA, foco visível em amarelo, alvos de pelo menos 40 px, nada comunicado só por cor (gravidade também por letra ou ícone).
+
+## 3b. Ativos de marca e imagem
+
+- `public/img/brand/abramede.png`: logo ABRAMEDE (fundo azul-marinho).
+- `public/img/brand/edleaders-escuro.png`: ED Leaders, recortado da arte recebida. A arte tem a marca-d'água de gerador de imagem no canto (removida no recorte); o ideal é receber o original em SVG.
+- `public/img/rio/`: três fotos do Rio (vista aérea, Cristo na névoa, cachoeira). Uso: fundo da landing, da sala de espera e do pódio, sempre com véu azul-marinho por cima, como no site.
+- Pendente: logo próprio do CBMEDE 2026, se existir (o site usa só o da ABRAMEDE) e as imagens originais do site, que dependem de liberar `cbmede2026.com.br`, `images.unsplash.com` e `bucket.livenotes.com.br` na rede desta sessão.
 
 ## 4. Componentes base (`src/shared/components/ui/`)
 
@@ -72,7 +79,11 @@ Regras de acesso à sala:
 
 Regras de transição:
 - Perdeu a conexão: a simulação continua no computador do grupo e aparece "Reconectando…". Ao voltar, o placar sincroniza.
-- Fechou a aba: reabrir no mesmo computador retoma a sessão; entrar com o mesmo nome reassume o time em vez de dar erro.
+- **Reconexão só com o estado completo.** A simulação roda no computador do grupo; o banco hoje recebe só o placar resumido. Reassumir um time sem o estado completo (pacientes, eventos, relógio) dessincroniza o jogo. Regras:
+  1. O computador do grupo salva o estado completo localmente e envia uma cópia ao banco a cada poucos segundos.
+  2. Ao reconectar, o jogo restaura a cópia mais recente (local; se não houver, a do banco). Sem cópia válida, não reconecta: o facilitador decide se o grupo entra de novo do zero.
+  3. O relógio da rodada é o da sala (horário de início gravado pelo facilitador). Se o grupo ficou fora 2 minutos, o jogo avança esses 2 minutos com o motor, sem decisões do grupo, e todos seguem no mesmo horário de plantão. Isso depende do motor determinístico da etapa B1.
+- O modo **Treinar sozinho** continua existindo (100% local, sem servidor) e fica nas orientações como plano B e para treino.
 - "Nova turma" (F5) é a única ação que limpa grupos, e pede confirmação.
 - O modo solo ("Treinar sozinho") fica acessível pelas orientações, totalmente local, como plano B.
 
