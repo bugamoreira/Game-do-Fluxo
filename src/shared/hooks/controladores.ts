@@ -71,7 +71,9 @@ export class ControladorEstadoTurma extends LojaObservavel<InstantaneoTurma> {
     }
   }
 
+  /** Antecipa a consulta e recalcula já o minuto com o relógio local (ex.: a aba voltou a ficar visível). */
   tentarAgora(): void {
+    this.recalcularMinuto();
     this.ciclo.tentarAgora();
   }
 

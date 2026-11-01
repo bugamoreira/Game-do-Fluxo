@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useStore } from 'zustand';
 import { criarStoreJogo, type AcoesStoreJogo, type EstadoStoreJogo } from './storeJogo';
 import { TIQUE_JOGO_MS } from './sincronia';
+import { aoVoltar } from '../../shared/hooks/aoVoltar';
 
 export const storeJogo = criarStoreJogo();
 
@@ -23,12 +24,18 @@ export function useRelogioDoJogo(ativo: boolean, obterAlvo: (minutoLocal: number
 
   useEffect(() => {
     if (!ativo) return;
-    const id = window.setInterval(() => {
+    const tique = () => {
       const estado = storeJogo.getState().estado;
       if (!estado) return;
       const alvo = alvoRef.current(estado.minuto);
       if (alvo !== null) storeJogo.getState().avancarPara(alvo);
-    }, TIQUE_JOGO_MS);
-    return () => window.clearInterval(id);
+    };
+    const id = window.setInterval(tique, TIQUE_JOGO_MS);
+    // Aba oculta tem timers atrasados: ao voltar, o jogo alcança o relógio da sala na hora.
+    const cancelarVoltar = aoVoltar(tique);
+    return () => {
+      window.clearInterval(id);
+      cancelarVoltar();
+    };
   }, [ativo]);
 }
