@@ -23,11 +23,11 @@ Fase D  Integração e ensaio .................. (subagentes de QA e revisão)
 Fase E  Publicação única ..................... (por mim, com autorização)
 ```
 
-## Fase A — Especificação (em andamento)
+## Fase A — Especificação (concluída, aguardando Portão 1)
 
 - [x] `docs/pos-mortem-flame.md`, `docs/fluxo.md`, `docs/design.md`, ADR 0001
-- [ ] `docs/schema.md`: tabelas, quem lê e quem escreve o quê, máquina de estados da sala
-- [ ] `docs/contratos.md`: tipos e interfaces que os subagentes vão compartilhar (estado da sala, payload do placar, API dos services, props dos componentes base). É o que permite trabalho paralelo sem conflito.
+- [x] `docs/schema.md`: tabelas, quem lê e quem escreve o quê, máquina de estados da sala
+- [x] `docs/contratos.md`: tipos e interfaces que os subagentes vão compartilhar (estado da sala, payload do placar, API dos services, props dos componentes base). É o que permite trabalho paralelo sem conflito.
 
 ## Fase B — Fundações (paralelo, cada agente na sua cópia isolada do repositório)
 
