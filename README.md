@@ -1,186 +1,49 @@
-# Simulador do Plantao — ED Leaders x FLAME 2026
+# Simulador do Plantão — CBMEDE 2026
 
-Jogo educacional multiplayer de gestao de fluxo hospitalar. Ensina Theory of Constraints e Lean aplicados a emergencia atraves de simulacao pratica.
+Jogo educacional de gestão de fluxo na emergência, da ED Leaders com a ABRAMEDE, para o curso pré-congresso do CBMEDE 2026 (Rio de Janeiro, novembro de 2026). Cada grupo coordena o fluxo de um hospital em duas rodadas com a mesma demanda: o **Plantão Travado**, em que tudo depende do gestor, e o **Plantão Lean**, em que ferramentas automáticas puxam o fluxo. A comparação mostra o efeito do Lean no boarding, nos óbitos evitáveis e na carga do gestor.
 
-**URL:** [plantaoflame.netlify.app](https://plantaoflame.netlify.app)
+Endereço do evento: **plantaocbmede.netlify.app** (publicado só depois do ensaio aprovado).
 
----
+## Telas
 
-## Conceito
+| Endereço | Quem usa | O que faz |
+|---|---|---|
+| `/` | grupos | Orientações e teste do computador |
+| `/jogar.html` | grupos | O jogo (entrada pelo código da sala; `?modo=solo` para treinar sem sala) |
+| `/instrutor.html` | facilitador | Login, abrir a turma, iniciar e encerrar rodadas, debrief, resultado e relatório |
+| `/projetor.html` | telão | Sala aberta, ranking ao vivo, debrief e pódio, com música por rodada |
+| `/relatorio.html?r=<código>` | todos | Relatório da turma para compartilhar e imprimir |
 
-O jogador assume o papel de **coordenador de fluxo** de um hospital com 100 leitos (85 ENF + 15 UTI). O gargalo esta na **saida**, nao na entrada.
+Jogo, painel, telão e relatório têm modo demonstração sem servidor (`?demo=1`).
 
-- **Rodada 1 (Plantao Travado):** Sem ferramentas Lean. O hospital congela.
-- **Rodada 2 (Plantao Lean):** Ferramentas ativas (NIR, Pull System, Surgical Smoothing, Porta-Decisao). Mesma demanda, resultado oposto.
+## Como funciona
 
-3 telas sincronizadas via Supabase Realtime:
-- **Orientações** (`index.html`) — landing com passo a passo e teste do computador
-- **Jogador** (`jogar.html`) — simulacao interativa
-- **Facilitador** (`instrutor.html`) — dashboard de controle
-- **Projetor** (`projetor.html`) — ranking ao vivo + musica adaptativa
-
----
-
-## Stack
-
-| Camada | Tecnologia |
-|--------|-----------|
-| Frontend | React 18 via CDN + Babel Standalone (sem build step) |
-| Backend | Supabase (PostgreSQL + Realtime + RLS) |
-| Audio | Tone.js v14 (sintese em tempo real) |
-| Deploy | Netlify (static, auto-deploy do GitHub) |
-
----
-
-## Estrutura de Arquivos
-
-```
-public/
-  index.html              # Landing de orientações ao aluno
-  jogar.html              # Tela do jogador (entry point)
-  instrutor.html          # Tela do facilitador
-  projetor.html           # Tela de projecao
-  img/
-    edleaders.png         # Logo ED Leaders
-    flame-banner.jpg      # Banner FLAME
-  js/
-    app.js                # UI principal + multiplayer (~1.660 linhas)
-    game-engine.js        # Motor de simulacao — funcoes puras (~162 linhas)
-    music.js              # Musica adaptativa Tone.js (~185 linhas)
-    supabase-config.js    # Cliente Supabase (URL + anon key)
-    error-boundary.js     # Error Boundary React compartilhado
-netlify.toml              # Config Netlify (publish = "public")
-```
-
----
-
-## Banco de Dados (Supabase)
-
-**Projeto:** `okmafynejwrwnmvyruwy`
-**Regiao:** default
-
-### Schema
-
-```
-rooms
-  id          UUID PK (gen_random_uuid)
-  code        TEXT UNIQUE NOT NULL        # Codigo da sala (ex: "FLAME")
-  status      TEXT DEFAULT 'waiting'      # waiting|round1|debrief|round2|finished
-  round       INT DEFAULT 0
-  allow_late_join  BOOL DEFAULT false
-  music_muted      BOOL DEFAULT false
-  full_cap_approved BOOL DEFAULT false
-  created_at  TIMESTAMPTZ DEFAULT now()
-
-teams
-  id          UUID PK (gen_random_uuid)
-  room_id     UUID FK -> rooms.id
-  name        TEXT NOT NULL               # CHECK: 2-30 chars
-  color       TEXT                        # Hex color (#FF3B3B)
-  created_at  TIMESTAMPTZ DEFAULT now()
-
-game_state
-  id          UUID PK (gen_random_uuid)
-  team_id     UUID FK -> teams.id
-  room_id     UUID FK -> rooms.id
-  round       INT NOT NULL                # CHECK: 1 ou 2
-  sim_minute  INT DEFAULT 420             # Minuto simulado (420 = 07:00)
-  score       INT DEFAULT 1000            # CHECK: 0-5000
-  metrics     JSONB DEFAULT '{}'          # deOcc, enfOcc, utiOcc, boarding, deaths...
-  updated_at  TIMESTAMPTZ DEFAULT now()
-  UNIQUE(team_id, round)                  # Upsert conflict target
-
-game_logs (append-only)
-  id          UUID PK (gen_random_uuid)
-  team_id     UUID FK -> teams.id
-  room_id     UUID FK -> rooms.id
-  round       INT NOT NULL                # CHECK: 1 ou 2
-  events      JSONB DEFAULT '[]'
-  final_score INT
-  final_stats JSONB DEFAULT '{}'
-  created_at  TIMESTAMPTZ DEFAULT now()
-```
-
-### RLS (Row Level Security)
-
-| Tabela | SELECT | INSERT | UPDATE | DELETE |
-|--------|--------|--------|--------|--------|
-| rooms | Todos | Validado (code 2-10 chars) | Validado (status enum) | Sim |
-| teams | Todos | Validado (nome 2-30 chars, cor hex) | Sim | Sim |
-| game_state | Todos | Validado (round 1-2, score 0-5000) | Validado (score 0-5000) | Sim |
-| game_logs | Todos | Validado (round 1-2) | Bloqueado | Bloqueado |
-
-### Realtime
-
-Tabelas em `supabase_realtime` publication: `rooms`, `teams`, `game_state`
-REPLICA IDENTITY FULL em todas as tabelas.
-
----
-
-## Mecanicas do Jogo
-
-### Setores
-- **DE** (Dept. Emergencia) — 15 macas, triagem por cor (Manchester)
-- **ENF** (Enfermaria) — 85 leitos
-- **UTI** — 15 leitos
-- **RPA** (Recuperacao Pos-Anestesica) — 3 leitos
-- **CC** (Centro Cirurgico) — 4 salas, 7 cirurgias/dia
-
-### Scoring (base 1500, floor 50)
-- Alta hospitalar (ENF->Alta): +3 pts
-- Boarding >3h (deterioracao): -40 pts
-- Boarding >6h (obito): -150 pts
-- Cirurgia cancelada: -80 pts
-- R2 perfeito (0 obitos + 0 cirurgias canceladas): +300 bonus
-
-### Ferramentas Lean (R2)
-- **NIR** (Nucleo Interno de Regulacao) — transferencia externa
-- **Pull System** — alta precoce ENF
-- **Surgical Smoothing** — redistribuicao cirurgica
-- **Porta-Decisao** — 40% mais rapido
-- **Full Capacity** — corredor emergencial (requer autorizacao facilitador)
-
----
-
-## Fluxo Multiplayer (Padrao Kahoot)
-
-1. Facilitador abre `instrutor.html` -> cria sala FLAME
-2. Jogadores abrem `index.html` (orientações + teste) -> `jogar.html` -> entram com nome do time
-3. Projetor abre `projetor.html` -> mostra ranking ao vivo
-4. Facilitador inicia R1 -> todos comecam simultaneamente
-5. Game state sincroniza a cada 1s (upsert) + polling 1.5s (safety net)
-6. Facilitador encerra R1 -> debrief -> inicia R2
-7. Podio final com ranking comparativo R1 vs R2
-
----
+- **Motor** (`src/shared/lib/simulation/`): simulação pura e determinística; mesma semente e mesmas ações dão o mesmo resultado. Regras em `docs/fluxo.md`.
+- **Servidor**: Supabase (Postgres + Auth). O navegador não escreve em tabela nenhuma: toda escrita passa por funções no banco (RPC) que validam quem chama e se a ação faz sentido no momento. O grupo se identifica por um token gerado ao entrar; o facilitador, por login no Supabase Auth. Desenho completo em `docs/schema.md`.
+- **Sincronização**: consulta periódica (cerca de 1 s) pelo mesmo domínio do site, com proxy para `/rest` e `/auth`. Não há Realtime nem WebSocket (`docs/pos-mortem-flame.md`). O relógio do plantão é o do servidor; o grupo que perde a conexão não é expulso: guarda uma cópia local do jogo e reenvia ao voltar.
+- **Services** (`src/shared/services/`): únicos módulos que falam com o Supabase; toda resposta é validada com Zod.
 
 ## Desenvolvimento
 
-**Ferramenta:** Claude Code (Anthropic) — Claude Opus 4.6
-**Responsavel:** Gustavo Fernandes Moreira — ED Leaders
+Requisitos: Node 20+ e, para o banco local, Postgres 16.
 
-### Setup local
 ```bash
-git clone https://github.com/bugamoreira/Game-do-Fluxo.git
-cd Game-do-Fluxo
-# Abrir public/index.html no navegador (ou usar live server)
-# Nao precisa de npm install — tudo via CDN
+npm ci
+npm run dev                  # http://localhost:3000, com .env (veja .env.example)
+npm run build                # checagem de tipos + build de produção
+npx tsc --noEmit && npx eslint src && npx vitest run --exclude '.claude/**'
 ```
 
-### Deploy
-```bash
-git push origin main  # Netlify auto-deploy
-```
+**Ensaio completo sem internet** (não toca no Supabase real): `npm run backend:local` num terminal e `npm run dev:local` em outro. Credenciais de teste, teste de fumaça e prova de segurança em `scripts/backend-local/README.md`.
 
-### Supabase
-- Dashboard: https://supabase.com/dashboard/project/okmafynejwrwnmvyruwy
-- Realtime habilitado em rooms, teams, game_state
-- RLS granular com constraints de validacao
+**Banco**: as migrações ficam em `supabase/migrations/` e são validadas com `bash supabase/tests/rodar-local.sh`. Aplicar no projeto real, cadastrar o facilitador e reverter: `supabase/README.md` (só com autorização).
 
----
+## Configuração
 
-## Branding
+`.env` (não versionado) com `VITE_SUPABASE_URL` e `VITE_SUPABASE_KEY` (chave anônima, pública por natureza). Nenhuma senha ou chave de serviço vai para o código. Em produção, as mesmas variáveis ficam no Netlify, e o `netlify.toml` faz o proxy e os cabeçalhos de segurança.
 
-- **ED Leaders** — marca principal (logo circular)
-- **FLAME 2026** — 2o Congresso Latino-americano de Medicina de Emergencia
-- **ABRAMEDE** — apoio institucional
+## Documentação
+
+`docs/plano.md` (plano e decisões), `docs/fluxo.md` (regras), `docs/design.md` (marca e telas), `docs/schema.md` (banco), `docs/contratos.md` (interfaces), `docs/revisao-logica.md`, `docs/adr/`.
+
+Responsável: Gustavo Fernandes Moreira — ED Leaders.

@@ -1,179 +1,52 @@
-# Diretrizes de Trabalho — Simulador do Plantao (FLAME 2026)
+# Simulador do Plantão — CBMEDE 2026
 
-## Regras Absolutas
+Jogo educacional de gestão de fluxo na emergência para o curso pré-congresso do CBMEDE 2026 (25 a 28 de novembro, Rio de Janeiro). Cerca de seis grupos jogam no próprio computador o Plantão Travado (rodada 1) e o Plantão Lean (rodada 2); o facilitador conduz a turma e o telão projeta o ranking.
 
-- **NUNCA fazer deploy sem autorizacao expressa do Gustavo** ("deployar", "pode subir", "ok")
-- **NUNCA fazer push para `main`** sem autorizacao — `main` = producao (plantaoflame.netlify.app)
-- Desenvolvimento acontece em branches (`feat/vite-migration`, etc.)
-- Merge para `main` apenas apos teste funcional completo
+## Regras absolutas
 
-## Projeto
+- **Nada de deploy, push para `main` ou aplicação de migração no Supabase sem autorização expressa do Gustavo.** `main` é produção.
+- **Publicação única** em `plantaocbmede.netlify.app`, só depois do ensaio aprovado (`docs/plano.md`). O `plantaoflame.netlify.app` está congelado.
+- **Nenhuma credencial no código.** Facilitador entra pelo Supabase Auth; as variáveis `VITE_*` são públicas no bundle e só levam a chave anônima.
+- Não apague dados nem rode SQL no projeto real sem perguntar.
 
-- **O que e**: Jogo educacional multiplayer de gestao de fluxo hospitalar
-- **Evento**: FLAME 2026, 29 de abril — 2o Congresso Latino-americano de Medicina de Emergencia
-- **Branding**: ED Leaders (principal), FLAME 2026, ABRAMEDE
-- **URL producao**: plantaoflame.netlify.app (FLAME, congelado) → plantaocbmede.netlify.app (CBMEDE 2026, a publicar)
-- **GitHub**: bugamoreira/Game-do-Fluxo
-- **Supabase**: okmafynejwrwnmvyruwy.supabase.co
+## Onde está o contexto
 
-## Stack (branch feat/vite-migration)
+- `docs/plano.md` (fases e decisões do Gustavo), `docs/fluxo.md` (regras do jogo), `docs/design.md` (marca e telas), `docs/schema.md` (tabelas, RPCs e erros), `docs/contratos.md` (motor, services, hooks), `docs/pos-mortem-flame.md`, `docs/adr/`.
+- Banco: `supabase/README.md`. Ensaio local: `scripts/backend-local/README.md`.
+- Playbook de engenharia (fora do repositório): `19-seguranca/README.md`, `07-service-layer.md`, `09-validacao-runtime.md`. Se não estiver acessível na sessão, diga isso em vez de improvisar.
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Build | Vite 6 |
-| Framework | React 19 |
-| Linguagem | TypeScript (strict mode) |
-| State | useState + useRef (Zustand planejado para Fase 2) |
-| Backend | Supabase (PostgreSQL + Realtime + RLS) |
-| Audio | Tone.js v15 (sintese adaptativa) |
-| Deploy | Netlify (auto-deploy do git push main) |
-| Validacao | Zod (planejado para Fase 2) |
+## Arquitetura
 
-## Estrutura de Arquivos
+| Pasta | O que é |
+|---|---|
+| `src/shared/lib/simulation/` | Motor puro e determinístico (semente, `passo`, `aplicarAcao`, `metricas`) |
+| `src/shared/services/` | Únicos módulos que falam com o Supabase (RPC + Auth); respostas validadas com Zod (`src/shared/schemas/`) |
+| `src/shared/hooks/` | Consulta periódica (1 s) com reconexão e relógio do servidor; **sem Realtime** |
+| `src/shared/components/ui/` | Design system (catálogo local em `ui.html`) |
+| `src/player/` | Jogo do grupo (`jogar.html`), telas J1–J6 |
+| `src/instructor/` | Painel do facilitador (`instrutor.html`), F0–F5 |
+| `src/projector/` | Telão (`projetor.html`), P1–P4, e música |
+| `src/report/` | Relatório da turma (`relatorio.html?r=<slug>`) |
+| `src/landing/` | Orientações e teste do computador (`index.html`, TS puro) |
+| `supabase/` | Migrações, rollback e testes SQL locais |
+| `scripts/backend-local/` | Postgres temporário + servidor que imita o Supabase, para o ensaio |
 
-```
-index.html                    # Landing de orientações ao aluno (estática, src/landing/)
-jogar.html                    # Player entry point
-instrutor.html                # Instructor entry point
-projetor.html                 # Projector entry point
-vite.config.ts                # Multi-entry build (3 HTMLs)
-tsconfig.json                 # Strict mode
-.env                          # VITE_SUPABASE_URL + VITE_SUPABASE_KEY (nao commitado)
-.env.example                  # Template
-netlify.toml                  # command="npm run build", publish="dist"
+Toda escrita passa por RPC `security definer` que valida quem chama; o navegador fala só com o próprio domínio (proxy `/rest` e `/auth` no `netlify.toml` e no `vite.config.ts`). Jogo, painel, telão e relatório têm modo demonstração (`?demo=1`). `src/shared/types/` e `src/shared/lib/game-engine.ts` ainda fornecem tipos e a fórmula de pontos ao motor; `src/shared/stores/game-store.ts` e os componentes soltos em `src/shared/components/` (`Podium`, `TeamRow`, `ScoreBar`, `PSvg`) são legado do FLAME e não devem ser usados em código novo.
 
-src/
-  shared/                     # Codigo compartilhado entre as 3 apps
-    types/
-      game.ts                 # Patient, Surgery, Stats, Events, LogEntry, Phase, Round, etc
-      supabase.ts             # DbRoom, DbTeam, DbGameState, DbGameLog
-    lib/
-      supabase.ts             # createClient com env vars
-      game-engine.ts          # Funcoes puras: mkInit, calcScore, rollDest, hospMult, etc
-      music.ts                # Tone.js ES module: SimsMusic.init/update/sfx/toggleMute
-      format.ts               # fmt, pctOf, rnd, pick, getScoreColor
-      constants.ts            # CAP, SEV, TICK, SH, EH, BOARD_*, NAMES, TEAM_COLORS
-    components/
-      ErrorBoundary.tsx       # Fallback visual de erro (class component)
-      ScoreBar.tsx             # Barra de score parametrizavel
-      TeamRow.tsx              # Linha de ranking
-      Podium.tsx               # Podio final com medalhas
-      PSvg.tsx                 # Icone SVG de paciente
-    hooks/                    # (Fase 2: useSupabaseRoom, useSession)
-    stores/                   # (Fase 2: Zustand game-store)
+## Regras de trabalho
 
-  landing/                    # Landing de orientações (TS puro + CSS, sem React — ver docs/adr/0001)
-    main.ts                   # Teste do computador (navegador, tela, servidor, som)
-    connectivityService.ts    # Ping na API REST validado com Zod
-    landing.css               # Tokens visuais CBMEDE
+- TypeScript estrito; componente não fala com banco (só com service); Zod em toda borda (RPC, `localStorage`, URL).
+- Autorização é no servidor. RPC nova: `security definer`, `set search_path = ''`, nomes qualificados, `grant execute` só a quem precisa, teste em `supabase/tests/local/`.
+- Mudou comportamento, atualize `docs/` no mesmo commit. Conventional Commits em português; norma culta em todo texto.
+- Uma etapa por vez, com tipos, lint, testes e build verdes antes da próxima.
 
-  player/                     # App do jogador
-    main.tsx                  # createRoot + ErrorBoundary
-    App.tsx                   # Game component (~700 linhas: tick, move, render)
-    components/
-      RoleSelector.tsx        # Tela inicial (Jogador / Facilitador)
-      LobbyScreen.tsx         # Entrada na sala FLAME
-      WaitingScreen.tsx       # Aguardando facilitador
-      MenuScreen.tsx          # Solo: Plantao Travado ou Lean
-      GameOverModal.tsx       # Modal de fim de rodada + comparativo R1 vs R2
-      Chip.tsx                # Paciente no DE/RPA/UTI
-      MiniChip.tsx            # Paciente na ENF (compacto)
-      SurgeryPanel.tsx        # Painel CC com cirurgias
-      FacilitadorLogin.tsx    # Login → redirect instrutor.html
-
-  instructor/                 # App do facilitador
-    main.tsx
-    App.tsx                   # Dashboard + Login + Ranking + Controles
-
-  projector/                  # App do projetor
-    main.tsx
-    App.tsx                   # Ranking ao vivo + Musica + Podio
-
-public/                       # Assets estaticos (Vite copia para dist)
-  img/
-    edleaders.png
-    flame-banner.jpg
-```
-
-## Convencoes de Codigo
-
-### TypeScript
-- `strict: true` no tsconfig — sem `any` exceto em migracoes incrementais
-- Tipos definidos em `src/shared/types/` — nunca inline
-- Funcoes puras em `src/shared/lib/` — sem side effects
-- Componentes React em `.tsx`, logica pura em `.ts`
-
-### Componentes React
-- Functional components (sem class, exceto ErrorBoundary)
-- Props tipadas com interfaces no mesmo arquivo
-- Componentes compartilhados em `src/shared/components/`
-- Componentes especificos de cada app em `src/{app}/components/`
-
-### Supabase
-- Cliente em `src/shared/lib/supabase.ts` — NUNCA hardcoded
-- Env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`
-- RLS granular (nao "Allow all")
-- Realtime: REPLICA IDENTITY FULL em todas as tabelas
-- game_logs e append-only (sem UPDATE/DELETE)
-
-### Game Engine
-- Funcoes puras em `game-engine.ts` — sem React, sem DOM, sem side effects
-- Constantes em `constants.ts` — nunca magic numbers
-- Formatacao em `format.ts` — `fmt()` e amigos deduplicados (uma unica fonte)
-
-### Multiplayer (Padrao Kahoot)
-1. Facilitador cria sala → status "waiting"
-2. Jogadores entram → team aparece no facilitador via Realtime + polling
-3. Facilitador inicia → todos recebem via Realtime subscription
-4. Score sincroniza a cada 1s (upsert) + polling 1.5s (safety net)
-5. Heartbeat: jogador verifica se team existe a cada 3s
-
-### Inline Styles (temporario)
-- Atualmente ~800 inline styles (`style={{...}}`)
-- Fase 3 migrara para Tailwind v4
-- Ate la: manter consistencia com o padrao existente
-
-## Banco de Dados (Supabase)
-
-### Tabelas
-- `rooms`: id, code, status, round, allow_late_join, music_muted, full_cap_approved
-- `teams`: id, room_id, name (2-30 chars), color (hex)
-- `game_state`: id, team_id, room_id, round (1|2), sim_minute, score (0-5000), metrics (JSONB)
-- `game_logs`: id, team_id, room_id, round, events, final_score, final_stats (append-only)
-
-### RLS
-- SELECT: aberto para todos
-- INSERT: validado (nome, round, score range)
-- UPDATE: validado (status enum, score range)
-- DELETE: permitido em rooms/teams/game_state (facilitador reset), bloqueado em game_logs
-
-### Realtime
-- Publication: rooms, teams, game_state
-- REPLICA IDENTITY FULL em todas
-
-## Scripts
+## Comandos
 
 ```bash
-npm run dev       # Vite dev server (HMR, port 3000)
-npm run build     # tsc --noEmit && vite build
-npm run preview   # Servir dist/ local
-npm run typecheck # tsc --noEmit
-npm run test      # vitest run (Fase 4)
+npm run dev            # Vite em http://localhost:3000 (precisa de .env com VITE_SUPABASE_URL e VITE_SUPABASE_KEY)
+npm run build          # tsc --noEmit + vite build
+npx tsc --noEmit && npx eslint src && npx vitest run --exclude '.claude/**'
+bash supabase/tests/rodar-local.sh       # migrações num Postgres temporário
+npm run backend:local  # backend de ensaio (outro terminal: npm run dev:local)
+npm run fumaca:local && npm run prova:local   # com o backend local no ar
 ```
-
-## Branches
-
-| Branch | Proposito |
-|--------|-----------|
-| `main` | Producao (CDN React, online no Netlify) |
-| `feat/vite-migration` | Migracao Vite + TS (Fase 1 completa, build OK) |
-
-## Roadmap
-
-| Fase | Status | Descricao |
-|------|--------|-----------|
-| 1. Vite + TS | COMPLETA | Build funcional, zero erros TS |
-| 2. Zustand + Zod + Reconnection | Pendente | State management, validacao, resiliencia |
-| 3. Tailwind v4 | Pendente | Substituir inline styles |
-| 4. Testes + CI/CD | Pendente | Vitest + GitHub Actions |
-| 5. Sentry + ESLint | Pendente | Monitoring + code quality |
