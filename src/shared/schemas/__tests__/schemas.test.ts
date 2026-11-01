@@ -180,9 +180,12 @@ describe('Evento do jogo', () => {
 });
 
 describe('Relatório', () => {
-  it('gerar_relatorio: { slug, turma } → slug; recusa slug curto', () => {
-    expect(RelatorioGeradoSchema.parse({ slug: 'Ab3dEf6hIj9kLm2nOp5qRs8t', turma: {} }).slug).toBe('Ab3dEf6hIj9kLm2nOp5qRs8t');
-    expect(RelatorioGeradoSchema.safeParse({ slug: 'curto' }).success).toBe(false);
+  it('gerar_relatorio: { slug, turma } → slug e turma; recusa slug curto', () => {
+    const r = RelatorioGeradoSchema.parse({ slug: 'Ab3dEf6hIj9kLm2nOp5qRs8t', turma: turmaSnake });
+    expect(r.slug).toBe('Ab3dEf6hIj9kLm2nOp5qRs8t');
+    expect(r.turma.codigo).toBe(turmaSnake.codigo);
+    expect(RelatorioGeradoSchema.safeParse({ slug: 'curto', turma: turmaSnake }).success).toBe(false);
+    expect(RelatorioGeradoSchema.safeParse({ slug: 'Ab3dEf6hIj9kLm2nOp5qRs8t' }).success).toBe(false);
   });
   it('obter_relatorio: exige dados como objeto', () => {
     const base = { slug: 'Ab3dEf6hIj9kLm2nOp5qRs8t', criado_em: '2026-11-01T15:00:00Z', versao_regras: 'v1' };

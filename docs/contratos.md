@@ -55,9 +55,14 @@ syncService.enviarEstado(token, estado: EstadoSimulacao): Promise<void>
 syncService.obterEstado(token, rodada): Promise<EstadoSimulacao | null>
 syncService.registrarSerie(token, rodada, minuto, metricas): Promise<void>
 syncService.registrarEventos(token, ocorrencias): Promise<void>
-facilitadorService.{login, abrirTurma, mudarStatus, pausar, retomar, liberarEntrada,
+facilitadorService.{login, sair, abrirTurma, mudarStatus, pausar, retomar, liberarEntrada,
                     liberarReconexao, liberarFullCapacity, alternarMusica, removerGrupo}
-relatorioService.gerar(turmaId): Promise<{ slug: string }>
+facilitadorService.sessaoAtual(): Promise<SessaoFacilitador | null>     // restaura a sessão do Supabase Auth
+facilitadorService.painelTurma(turmaId): Promise<EstadoTurma>           // visão do facilitador (vistoEm, removido...)
+facilitadorService.seriesTurma(turmaId, rodada?): Promise<PontoSerieTurma[]>
+facilitadorService.eventosTurma(turmaId, { desdeMinuto?, rodada?, limite? }): Promise<EventoTurma[]>
+facilitadorService.gerarRelatorio(turmaId, { versaoRegras?, local? }): Promise<{ slug; turma: EstadoTurma }>
+relatorioService.gerar(turmaId, versaoRegras?, local?): Promise<{ slug; turma: EstadoTurma }>   // atalho
 relatorioService.obter(slug): Promise<Relatorio>
 ```
 

@@ -30,6 +30,9 @@ export const RPC = {
   alternarMusica: 'alternar_musica',
   removerGrupo: 'remover_grupo',
   gerarRelatorio: 'gerar_relatorio',
+  painelTurma: 'painel_turma',
+  seriesTurma: 'series_turma',
+  eventosTurma: 'eventos_turma',
 } as const;
 
 export type NomeRpc = (typeof RPC)[keyof typeof RPC];

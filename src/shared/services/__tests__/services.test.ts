@@ -3,10 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // O cliente real exige window e variáveis de ambiente: aqui ele é substituído.
 const rpc = vi.fn();
 const signInWithPassword = vi.fn();
+const getSession = vi.fn();
 vi.mock('../../lib/supabase', () => ({
   sb: {
     rpc: (...args: unknown[]) => rpc(...args),
-    auth: { signInWithPassword: (...args: unknown[]) => signInWithPassword(...args), signOut: vi.fn() },
+    auth: {
+      signInWithPassword: (...args: unknown[]) => signInWithPassword(...args),
+      getSession: () => getSession(),
+      signOut: vi.fn(),
+    },
   },
 }));
 
@@ -71,6 +76,7 @@ const estado = { versao: 7, rodada: 1 as const, minuto: 480, pacientes: [] };
 beforeEach(() => {
   rpc.mockReset();
   signInWithPassword.mockReset();
+  getSession.mockReset();
 });
 
 describe('turmaService', () => {
@@ -358,6 +364,74 @@ describe('facilitadorService', () => {
     expect(rpc).toHaveBeenCalledWith('alternar_musica', { p_turma_id: turma.id, p_mudo: null });
   });
 
+  it('sessaoAtual: restaura a sessão salva; sem sessão ou com falha devolve null', async () => {
+    getSession.mockResolvedValueOnce({ data: { session: { user: { id: 'u1', email: 'f@x.com' } } }, error: null });
+    expect(await facilitadorService.sessaoAtual()).toEqual({ userId: 'u1', email: 'f@x.com' });
+    getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+    expect(await facilitadorService.sessaoAtual()).toBeNull();
+    getSession.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    expect(await facilitadorService.sessaoAtual()).toBeNull();
+  });
+
+  it('painelTurma: p_turma_id e devolve a visão do facilitador (removidos e visto_em)', async () => {
+    responder({
+      data: {
+        ...turma,
+        grupos: [
+          { id: 'g1', nome: 'Azul', cor: '#1E88E5', conectado: true, visto_em: '2026-11-01T12:00:00Z', reconexao_liberada: false, removido: false },
+          { id: 'g2', nome: 'Verde', cor: '#43A047', conectado: false, visto_em: null, reconexao_liberada: false, removido: true },
+        ],
+      },
+    });
+    const r = await facilitadorService.painelTurma(turma.id);
+    expect(rpc).toHaveBeenCalledWith('painel_turma', { p_turma_id: turma.id });
+    expect(r.grupos.map((g) => g.removido)).toEqual([false, true]);
+    expect(r.grupos[0]?.vistoEm).toBe('2026-11-01T12:00:00Z');
+  });
+
+  it('seriesTurma: converte os pontos e descarta métricas não numéricas', async () => {
+    responder({
+      data: [
+        { grupo_id: 'g1', nome: 'Azul', cor: '#1E88E5', rodada: 1, minuto: 450, metricas: { deOcc: 9, boarding: 2, rotulo: 'x' } },
+      ],
+    });
+    const r = await facilitadorService.seriesTurma(turma.id, 1);
+    expect(rpc).toHaveBeenCalledWith('series_turma', { p_turma_id: turma.id, p_rodada: 1 });
+    expect(r).toEqual([{ grupoId: 'g1', nome: 'Azul', cor: '#1E88E5', rodada: 1, minuto: 450, metricas: { deOcc: 9, boarding: 2 } }]);
+    responder({ data: null });
+    expect(await facilitadorService.seriesTurma(turma.id)).toEqual([]);
+    expect(rpc).toHaveBeenLastCalledWith('series_turma', { p_turma_id: turma.id, p_rodada: null });
+  });
+
+  it('eventosTurma: filtros com padrão e limite validado antes de chamar', async () => {
+    responder({
+      data: [
+        { id: 7, grupo_id: 'g1', nome: 'Azul', cor: '#1E88E5', rodada: 1, minuto: 460, tipo: 'surto', mensagem: '', criado_em: '2026-11-01T12:00:00Z' },
+      ],
+    });
+    const r = await facilitadorService.eventosTurma(turma.id, { rodada: 1 });
+    expect(rpc).toHaveBeenCalledWith('eventos_turma', { p_turma_id: turma.id, p_desde_minuto: null, p_rodada: 1, p_limite: 100 });
+    expect(r[0]).toMatchObject({ id: 7, grupoId: 'g1', tipo: 'surto', minuto: 460 });
+    await expect(facilitadorService.eventosTurma(turma.id, { limite: 501 })).rejects.toBeInstanceOf(DadosInvalidos);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('gerarRelatorio: devolve slug e turma; local só vai quando informado', async () => {
+    const SLUG = 'Ab3dEf6hIj9kLm2nOp5qRs8t';
+    responder({ data: { slug: SLUG, turma: { ...turma, status: 'arquivada' } } });
+    const r = await facilitadorService.gerarRelatorio(turma.id);
+    expect(rpc).toHaveBeenCalledWith('gerar_relatorio', { p_turma_id: turma.id, p_versao_regras: null });
+    expect(r.slug).toBe(SLUG);
+    expect(r.turma.status).toBe('arquivada');
+    responder({ data: { slug: SLUG, turma } });
+    await facilitadorService.gerarRelatorio(turma.id, { local: ' Centro de Convenções ' });
+    expect(rpc).toHaveBeenLastCalledWith('gerar_relatorio', {
+      p_turma_id: turma.id,
+      p_versao_regras: null,
+      p_local: 'Centro de Convenções',
+    });
+  });
+
   it('mudarStatus recusa status fora da máquina de estados sem chamar o servidor', async () => {
     // @ts-expect-error status inválido de propósito
     await expect(facilitadorService.mudarStatus('t1', 'waiting')).rejects.toBeInstanceOf(DadosInvalidos);
@@ -370,7 +444,7 @@ describe('relatorioService', () => {
 
   it('gerar: p_turma_id e slug da resposta { slug, turma }', async () => {
     responder({ data: { slug: SLUG, turma } });
-    expect(await relatorioService.gerar(turma.id)).toEqual({ slug: SLUG });
+    expect(await relatorioService.gerar(turma.id)).toMatchObject({ slug: SLUG, turma: { id: turma.id } });
     expect(rpc).toHaveBeenCalledWith('gerar_relatorio', { p_turma_id: turma.id, p_versao_regras: null });
   });
 

@@ -7,13 +7,25 @@ import { z } from 'zod';
 import {
   AbrirTurmaEntradaSchema,
   EstadoTurmaSchema,
+  FiltroEventosSchema,
+  GerarRelatorioEntradaSchema,
   IdSchema,
   LoginEntradaSchema,
   MudarStatusEntradaSchema,
+  RelatorioGeradoSchema,
+  RespostaEventosTurmaSchema,
+  RespostaSeriesTurmaSchema,
+  RodadaSchema,
   SessaoFacilitadorSchema,
   umaLinha,
   type AbrirTurmaEntrada,
   type EstadoTurma,
+  type EventoTurma,
+  type FiltroEventos,
+  type GerarRelatorioEntrada,
+  type PontoSerieTurma,
+  type RelatorioGerado,
+  type Rodada,
   type SessaoFacilitador,
   type StatusTurma,
 } from '../schemas';
@@ -54,6 +66,24 @@ export const facilitadorService = {
     const r = SessaoFacilitadorSchema.safeParse({ userId: data.user?.id, email: data.user?.email ?? entrada.email });
     if (!r.success) throw new RespostaInvalida('login', r.error);
     return r.data;
+  },
+
+  /**
+   * Sessão salva neste navegador (Supabase Auth), para restaurar o painel ao
+   * recarregar a página ou para o telão aberto pela janela do facilitador.
+   * Devolve `null` sem sessão, com sessão inválida ou sem rede: quem chama
+   * simplesmente pede o login de novo.
+   */
+  async sessaoAtual(): Promise<SessaoFacilitador | null> {
+    try {
+      const { data, error } = await sb.auth.getSession();
+      const usuario = data.session?.user;
+      if (error || !usuario) return null;
+      const r = SessaoFacilitadorSchema.safeParse({ userId: usuario.id, email: usuario.email ?? '' });
+      return r.success ? r.data : null;
+    } catch {
+      return null;
+    }
   },
 
   /** Encerra a sessão do facilitador neste navegador. */
@@ -121,5 +151,59 @@ export const facilitadorService = {
   /** Remove um grupo (lógico: o token deixa de valer, o nome fica livre, os dados ficam guardados). */
   async removerGrupo(grupoId: string): Promise<EstadoTurma> {
     return acao(RPC.removerGrupo, { p_grupo_id: id(grupoId) });
+  },
+
+  /**
+   * Estado da turma na visão do facilitador (grupos com `vistoEm`,
+   * `reconexaoLiberada`, `removido`). Usado na consulta periódica do painel.
+   * @throws {TurmaNaoEncontrada} | {NaoAutorizado} | {SemConexao} | {RespostaInvalida}
+   */
+  async painelTurma(turmaId: string): Promise<EstadoTurma> {
+    return acao(RPC.painelTurma, { p_turma_id: id(turmaId) });
+  },
+
+  /**
+   * Séries de métricas (um ponto a cada 30 min simulados) de todos os grupos ativos.
+   * @throws {TurmaNaoEncontrada} | {NaoAutorizado} | {SemConexao} | {RespostaInvalida}
+   */
+  async seriesTurma(turmaId: string, rodada?: Rodada): Promise<PontoSerieTurma[]> {
+    return chamarEValidar(
+      RPC.seriesTurma,
+      { p_turma_id: id(turmaId), p_rodada: rodada === undefined ? null : validarEntrada(RodadaSchema, rodada) },
+      RespostaSeriesTurmaSchema,
+    );
+  },
+
+  /**
+   * Eventos recentes da turma (óbitos, surto, NIR...), mais recentes primeiro.
+   * @throws {TurmaNaoEncontrada} | {NaoAutorizado} | {SemConexao} | {RespostaInvalida}
+   */
+  async eventosTurma(turmaId: string, filtro: FiltroEventos = {}): Promise<EventoTurma[]> {
+    const f = validarEntrada(FiltroEventosSchema, filtro);
+    return chamarEValidar(
+      RPC.eventosTurma,
+      {
+        p_turma_id: id(turmaId),
+        p_desde_minuto: f.desdeMinuto ?? null,
+        p_rodada: f.rodada ?? null,
+        p_limite: f.limite ?? 100,
+      },
+      RespostaEventosTurmaSchema,
+    );
+  },
+
+  /**
+   * Congela os dados da turma encerrada no relatório (com o nome do facilitador e
+   * o local), passa-a para `arquivada` e devolve o slug e a turma. Chamar de novo
+   * devolve o mesmo slug.
+   * @throws {TransicaoInvalida} turma ainda não encerrada
+   * @throws {DadosInvalidos} | {NaoAutorizado} | {SemConexao} | {RespostaInvalida}
+   */
+  async gerarRelatorio(turmaId: string, opcoes: GerarRelatorioEntrada = {}): Promise<RelatorioGerado> {
+    const o = validarEntrada(GerarRelatorioEntradaSchema, opcoes);
+    const params: Record<string, unknown> = { p_turma_id: id(turmaId), p_versao_regras: o.versaoRegras ?? null };
+    // Sem local, o banco usa o padrão (Windsor Barra Hotel, Rio de Janeiro).
+    if (o.local !== undefined) params.p_local = o.local;
+    return chamarEValidar(RPC.gerarRelatorio, params, RelatorioGeradoSchema);
   },
 };

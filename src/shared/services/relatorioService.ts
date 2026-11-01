@@ -1,26 +1,20 @@
 // Relatório da turma: gerado pelo facilitador, lido por qualquer pessoa com o link.
 
-import { z } from 'zod';
-import { IdSchema, RelatorioGeradoSchema, RelatorioSchema, SlugSchema, type Relatorio } from '../schemas';
+import { RelatorioSchema, SlugSchema, type Relatorio, type RelatorioGerado } from '../schemas';
 import { RelatorioNaoEncontrado } from './erros';
-import { RPC, chamarEValidar, validarEntrada } from './rpc';
+import { facilitadorService } from './facilitadorService';
+import { RPC, chamarEValidar } from './rpc';
 
 export const relatorioService = {
   /**
    * Congela os dados da turma encerrada, passa-a para `arquivada` e devolve o slug
-   * público. Chamar de novo devolve o mesmo slug.
+   * público e a turma. Chamar de novo devolve o mesmo slug.
+   * Atalho para `facilitadorService.gerarRelatorio`.
    * @throws {TransicaoInvalida} turma ainda não encerrada
    * @throws {NaoAutorizado} | {SemConexao} | {RespostaInvalida}
    */
-  async gerar(turmaId: string, versaoRegras?: string): Promise<{ slug: string }> {
-    return chamarEValidar(
-      RPC.gerarRelatorio,
-      {
-        p_turma_id: validarEntrada(IdSchema, turmaId),
-        p_versao_regras: versaoRegras === undefined ? null : validarEntrada(z.string().max(40), versaoRegras),
-      },
-      RelatorioGeradoSchema,
-    );
+  async gerar(turmaId: string, versaoRegras?: string, local?: string): Promise<RelatorioGerado> {
+    return facilitadorService.gerarRelatorio(turmaId, { versaoRegras, local });
   },
 
   /**
