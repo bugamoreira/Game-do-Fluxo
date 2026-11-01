@@ -196,7 +196,7 @@ describe('modo demonstração', () => {
 });
 
 describe('tabela de pontuação das regras', () => {
-  const zero = { boardHrs: 0, dets: 0, deaths: 0, cxCan: 0, lwbs: 0, offS: 0, socB: 0, altaHosp: 0 };
+  const zero = { boardHrs: 0, dets: 0, deaths: 0, cxCan: 0, lwbs: 0, offS: 0, socB: 0, altaHosp: 0, atendidosNoAlvo: 0 };
 
   it('confere com calcScore (se o motor mudar, o texto das regras precisa mudar)', () => {
     // Base com 2 óbitos: sem o bônus de zero óbito, cada item mexe só no seu peso.
@@ -208,5 +208,7 @@ describe('tabela de pontuação das regras', () => {
       expect(calcScore(s) - ref, p.item).toBe(p.pontos);
     }
     expect(calcScore({ ...zero, deaths: 100 })).toBe(PONTUACAO_MINIMA);
+    // Caso social não penaliza (evento aleatório).
+    expect(calcScore({ ...base, socB: 3 })).toBe(ref);
   });
 });

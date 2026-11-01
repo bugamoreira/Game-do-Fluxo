@@ -82,12 +82,12 @@ export interface ItemPontuacao {
   item: string;
   pontos: number;
   /** Campo de `ScoreInput` correspondente (para conferência automática). */
-  campo: 'boardHrs' | 'dets' | 'deaths' | 'cxCan' | 'lwbs' | 'offS' | 'socB' | 'altaHosp';
+  campo: 'boardHrs' | 'dets' | 'deaths' | 'cxCan' | 'lwbs' | 'offS' | 'altaHosp' | 'atendidosNoAlvo';
 }
 
 /** Pontuação vigente (`calcScore`, src/shared/lib/game-engine.ts). A mesma fórmula vale nas duas rodadas. */
 export const PONTUACAO_INICIAL = 1500;
-export const PONTUACAO_MINIMA = 50;
+export const PONTUACAO_MINIMA = 0;
 export const BONUS_SEM_OBITO = 150;
 export const PONTUACAO: ItemPontuacao[] = [
   { item: 'Cada hora de boarding', pontos: -10, campo: 'boardHrs' },
@@ -96,6 +96,6 @@ export const PONTUACAO: ItemPontuacao[] = [
   { item: 'Cirurgia cancelada', pontos: -80, campo: 'cxCan' },
   { item: 'Saída sem atendimento (LWBS)', pontos: -40, campo: 'lwbs' },
   { item: 'Internação em leito inadequado', pontos: -25, campo: 'offS' },
-  { item: 'Leito preso por paciente social', pontos: -15, campo: 'socB' },
   { item: 'Alta hospitalar', pontos: 3, campo: 'altaHosp' },
+  { item: 'Paciente atendido dentro do tempo-alvo de Manchester', pontos: 2, campo: 'atendidosNoAlvo' },
 ];
