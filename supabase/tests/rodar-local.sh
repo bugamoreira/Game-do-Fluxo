@@ -19,7 +19,7 @@ if [ "$(id -u)" = "0" ]; then
   RUNAS=(runuser -u postgres --)
 fi
 
-"${RUNAS[@]}" "$BIN/initdb" -D "$DATA" -U postgres -A trust >/dev/null
+"${RUNAS[@]}" "$BIN/initdb" -D "$DATA" -U postgres -A trust -E UTF8 --locale=C >/dev/null
 "${RUNAS[@]}" "$BIN/pg_ctl" -D "$DATA" -o "-p $PORTA -k $SOCK -c listen_addresses=''" \
   -l "$TMP/pg.log" -w start >/dev/null
 trap '"${RUNAS[@]}" "$BIN/pg_ctl" -D "$DATA" -m fast stop >/dev/null' EXIT

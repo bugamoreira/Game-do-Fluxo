@@ -195,6 +195,14 @@ describe('grupoService.entrar', () => {
 
   it('nome curto é recusado antes de ir ao servidor', async () => {
     await expect(grupoService.entrar('CBMEDE', 'A')).rejects.toBeInstanceOf(DadosInvalidos);
+  });
+
+  it('recusa nome com caractere invisível ou sem 2 letras ou dígitos, sem chamar o servidor', async () => {
+    rpc.mockClear();
+    await expect(grupoService.entrar('CBMEDE', 'Grupo\u200BAzul')).rejects.toBeInstanceOf(DadosInvalidos);
+    await expect(grupoService.entrar('CBMEDE', '\u202EGrupo Azul')).rejects.toBeInstanceOf(DadosInvalidos);
+    await expect(grupoService.entrar('CBMEDE', '-- !!')).rejects.toBeInstanceOf(DadosInvalidos);
+    expect(rpc).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
   });
 });

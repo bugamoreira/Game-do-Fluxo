@@ -89,6 +89,12 @@ select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'x')$q$) like 
               'nome com 1 caractere -> DADOS_INVALIDOS');
 select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', repeat('y', 31))$q$) like 'CB008:%',
               'nome com 31 caracteres -> DADOS_INVALIDOS');
+select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo' || chr(8203) || 'A')$q$) like 'CB008:%',
+              'nome com espaço de largura zero -> DADOS_INVALIDOS');
+select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', chr(8238) || 'Grupo Z')$q$) like 'CB008:%',
+              'nome com inversão de direção (U+202E) -> DADOS_INVALIDOS');
+select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', '-- !!')$q$) like 'CB008:%',
+              'nome sem 2 letras ou dígitos -> DADOS_INVALIDOS');
 select tst.ok(jsonb_array_length(public.estado_turma('CBMEDE') -> 'grupos') = 2, 'estado_turma lista 2 grupos');
 select tst.ok((public.estado_turma('CBMEDE', :'tok_a') ->> 'token_valido')::boolean, 'estado_turma com token marca presença');
 
@@ -382,6 +388,7 @@ select tst.ok((public.ranking('EMPATE') -> 0 ->> 'nome') = 'Primeiro'
 reset role;
 
 -- ---------------------------------------------------------------- catálogo
+select tst.ok(interno.normalizar_nome(' Ação   Já ') = 'Ação Já', 'nome com acentos é aceito e normalizado');
 select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                 where n.nspname = 'public' and p.prosecdef
                   and not ('search_path=""' = any(coalesce(p.proconfig, '{}')))) = 0,

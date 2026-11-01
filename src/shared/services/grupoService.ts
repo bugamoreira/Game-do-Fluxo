@@ -6,15 +6,23 @@ import { RespostaInvalida } from './erros';
 import { RPC, chamarEValidar, validarEntrada } from './rpc';
 import { normalizarCodigo } from './turmaService';
 
+/** Caracteres de formatação invisíveis ou de direção de texto (mesma regra de `interno.normalizar_nome`). */
+export const INVISIVEIS = /[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/;
+const LETRA_OU_DIGITO = /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/g;
+
 const NomeGrupoSchema = z
   .string()
+  .refine((s) => !INVISIVEIS.test(s), { message: 'O nome do grupo tem caracteres invisíveis. Digite o nome de novo.' })
   .trim()
   .transform((s) => s.replace(/\s+/g, ' '))
   .pipe(
     z
       .string()
       .min(2, { message: 'O nome do grupo precisa ter de 2 a 30 caracteres.' })
-      .max(30, { message: 'O nome do grupo precisa ter de 2 a 30 caracteres.' }),
+      .max(30, { message: 'O nome do grupo precisa ter de 2 a 30 caracteres.' })
+      .refine((s) => (s.match(LETRA_OU_DIGITO) ?? []).length >= 2, {
+        message: 'O nome do grupo precisa ter ao menos 2 letras ou números.',
+      }),
   );
 
 export const grupoService = {

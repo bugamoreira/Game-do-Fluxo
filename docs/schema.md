@@ -56,7 +56,7 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 | Turma `encerrada` ou `arquivada` | recusa, inclusive reconexão |
 | Sala com `max_grupos` (12) grupos ativos | recusa: `TURMA_CHEIA` |
 
-Nome: espaços normalizados, 2 a 30 caracteres, comparação sem diferenciar maiúsculas ("Grupo A" = "grupo  a"). Cor: a primeira livre de 8 cores fixas (repete a partir do 9º grupo). O token (32 bytes aleatórios, 43 caracteres base64url) volta **uma vez**, só quando é gerado; o banco guarda só o sha256. Reconexão pelo próprio token não troca o token.
+Nome: espaços normalizados, 2 a 30 caracteres, ao menos 2 letras ou dígitos, sem caracteres invisíveis ou de direção de texto (U+200B–U+200F, U+202A–U+202E, U+2060–U+206F, U+FEFF; migração `20261102100200`), comparação sem diferenciar maiúsculas ("Grupo A" = "grupo  a"). Cor: a primeira livre de 8 cores fixas (repete a partir do 9º grupo). O token (32 bytes aleatórios, 43 caracteres base64url) volta **uma vez**, só quando é gerado; o banco guarda só o sha256. Reconexão pelo próprio token não troca o token.
 
 ## RPCs
 
