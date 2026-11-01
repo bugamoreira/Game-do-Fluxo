@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Card, DarkCallout, Icone, TeamAvatar, type Conexao } from '../../shared/components/ui';
 import type { ResumoRodada } from '../jogo/sincronia';
 import { GradeMetricas, METRICAS_CLINICAS, METRICAS_GESTOR, mensagemDaRodada } from './resumo';
-import { Moldura } from './Moldura';
+import { Moldura, type Voltar } from './Moldura';
 
 interface TelaFimRodadaProps {
   sala: string | null;
@@ -16,11 +16,12 @@ interface TelaFimRodadaProps {
   proximoPasso: string;
   /** Modo solo: botão para seguir para o Plantão Lean. */
   acao?: ReactNode;
+  voltar?: Voltar;
 }
 
-export function TelaFimRodada({ sala, nomeGrupo, corGrupo, resumo, conexao, proximoPasso, acao }: TelaFimRodadaProps) {
+export function TelaFimRodada({ sala, nomeGrupo, corGrupo, resumo, conexao, proximoPasso, acao, voltar }: TelaFimRodadaProps) {
   return (
-    <Moldura rotulo={sala ? `Sala ${sala}` : 'Treino'} conexao={conexao} largura="g">
+    <Moldura rotulo={sala ? `Sala ${sala}` : 'Treino'} conexao={conexao} largura="g" voltar={voltar}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <TeamAvatar nome={nomeGrupo} cor={corGrupo} tamanho="g" />

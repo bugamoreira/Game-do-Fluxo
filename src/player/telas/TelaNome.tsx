@@ -50,7 +50,7 @@ export function TelaNome({ sala, nomeInicial = '', nomeComSessao = null, entrand
   }
 
   return (
-    <Moldura rotulo={`Sala ${sala}`} largura="p" centralizar>
+    <Moldura rotulo={`Sala ${sala}`} largura="p" centralizar voltar={{ rotulo: 'Voltar às orientações', href: '/' }}>
       <Card grande espaco="g" rotulo="Entrar no jogo" titulo="Qual é o nome do seu grupo?">
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">

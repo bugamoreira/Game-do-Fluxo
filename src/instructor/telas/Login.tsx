@@ -77,7 +77,14 @@ export function Login({ servicos, onEntrar }: LoginProps) {
         </div>
       </section>
 
-      <main className="flex items-center justify-center p-6">
+      <main className="flex flex-col items-center justify-center gap-4 p-6">
+        <a
+          href="/"
+          className="inline-flex w-full max-w-md items-center gap-2 text-sm font-bold text-marinho underline-offset-4 hover:underline"
+        >
+          <Icone nome="setaEsquerda" tamanho={16} />
+          Voltar às orientações
+        </a>
         <Card grande espaco="g" className="w-full max-w-md">
           <p className="font-space-mono text-rotulo font-bold uppercase tracking-[0.18em] text-texto-suave">
             Painel do facilitador

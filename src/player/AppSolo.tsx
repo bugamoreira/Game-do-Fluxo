@@ -35,6 +35,7 @@ export function AppSolo() {
   const estado = useJogo(s => s.estado);
   const resumos = useJogo(s => s.resumos);
   const [faseEscolhida, setFase] = useState<Fase>({ tipo: 'escolha' });
+  const voltarEscolha = { rotulo: 'Voltar à escolha da rodada', aoClicar: () => setFase({ tipo: 'escolha' }) };
   // Às 19h a rodada termina sozinha: a fase "fim" é derivada do relógio do motor.
   const fase: Fase =
     faseEscolhida.tipo === 'jogando' && estado && estado.minuto >= MINUTO_FIM ? { tipo: 'fim', rodada: faseEscolhida.rodada } : faseEscolhida;
@@ -105,6 +106,7 @@ export function AppSolo() {
         corGrupo={COR_SOLO}
         resumo={resumos[1] ?? null}
         proximoPasso="Agora, o mesmo plantão com as ferramentas Lean."
+        voltar={voltarEscolha}
         acao={
           <Button variante="verde" onClick={() => comecar(2)}>
             Jogar o Plantão Lean
@@ -123,6 +125,7 @@ export function AppSolo() {
         r1={resumos[1] ?? null}
         r2={resumos[2] ?? null}
         rankingR2={[]}
+        voltar={voltarEscolha}
         acao={
           <Button variante="amarelo" onClick={() => setFase({ tipo: 'escolha' })}>
             Treinar de novo
@@ -133,7 +136,7 @@ export function AppSolo() {
   }
 
   return (
-    <Moldura rotulo="Treinar sozinho" largura="m">
+    <Moldura rotulo="Treinar sozinho" largura="m" voltar={{ rotulo: 'Voltar à entrada da sala', href: 'jogar.html' }}>
       <Card grande espaco="g" rotulo="Modo treino" titulo="Escolha a rodada">
         <p className="mb-6 text-[15px] leading-relaxed">
           Tudo roda neste computador, sem servidor e sem ranking. Cada rodada vai das 7h às 19h em 12 minutos reais, e você pode pausar.
@@ -143,11 +146,6 @@ export function AppSolo() {
           <OpcaoRodada titulo="Plantão Lean" texto="A mesma demanda, com Fluxista, Discharge Lounge, Fast Track, NIR rápido e PCP." onEscolher={() => comecar(2)} />
         </div>
       </Card>
-      <p className="text-center text-sm">
-        <a href="jogar.html" className="font-bold text-marinho underline underline-offset-4">
-          Voltar para a sala do curso
-        </a>
-      </p>
     </Moldura>
   );
 }

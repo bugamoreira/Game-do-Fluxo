@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Card, DarkCallout, Icone, RankingTable, StatTile, TeamAvatar, type Conexao, type ItemRanking } from '../../shared/components/ui';
 import type { ResumoRodada } from '../jogo/sincronia';
 import { GradeMetricas, METRICAS_CLINICAS, METRICAS_GESTOR, mensagemDaRodada } from './resumo';
-import { Moldura } from './Moldura';
+import { Moldura, type Voltar } from './Moldura';
 
 interface TelaResultadoProps {
   sala: string | null;
@@ -17,15 +17,16 @@ interface TelaResultadoProps {
   grupoId?: string;
   conexao?: Conexao | null;
   acao?: ReactNode;
+  voltar?: Voltar;
 }
 
-export function TelaResultado({ sala, nomeGrupo, corGrupo, r1, r2, rankingR2, grupoId, conexao, acao }: TelaResultadoProps) {
+export function TelaResultado({ sala, nomeGrupo, corGrupo, r1, r2, rankingR2, grupoId, conexao, acao, voltar }: TelaResultadoProps) {
   const ordenado = [...rankingR2].sort((a, b) => b.pontuacao - a.pontuacao);
   const posicao = grupoId ? ordenado.findIndex(i => i.grupoId === grupoId) + 1 : 0;
   const variacao = r1 && r2 ? r2.pontuacao - r1.pontuacao : undefined;
 
   return (
-    <Moldura rotulo={sala ? `Sala ${sala}` : 'Treino'} conexao={conexao} largura="g">
+    <Moldura rotulo={sala ? `Sala ${sala}` : 'Treino'} conexao={conexao} largura="g" voltar={voltar}>
       <div className="flex items-center gap-4">
         <TeamAvatar nome={nomeGrupo} cor={corGrupo} tamanho="g" />
         <div>

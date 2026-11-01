@@ -10,6 +10,7 @@ const CAMINHOS = {
   setaCima: 'M12 19V5M6 11l6-6 6 6',
   setaBaixo: 'M12 5v14M6 13l6 6 6-6',
   setaDireita: 'M5 12h14M13 6l6 6-6 6',
+  setaEsquerda: 'M19 12H5M11 6l-6 6 6 6',
   relogio: 'M12 7v5l3 2M12 21a9 9 0 110-18 9 9 0 010 18z',
   semSinal: 'M3 3l18 18M8.5 16.5a5 5 0 017 0M5 13a10 10 0 015-2.7M19 13a10 10 0 00-2.4-1.7M2 9.5a15 15 0 014.5-2.8M22 9.5A15 15 0 0011 5.5M12 20h.01',
   recarregar: 'M20 12a8 8 0 11-2.3-5.7M20 4v4.5h-4.5',
