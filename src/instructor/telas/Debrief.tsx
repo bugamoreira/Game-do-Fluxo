@@ -1,9 +1,11 @@
 // F3 — Debrief: números da rodada 1 por grupo para a discussão, incluindo a
-// carga do gestor (decisões reativas × produtivas e alertas), e o início do Lean.
+// carga do gestor (decisões reativas × produtivas e alertas), a evolução hora a
+// hora e os eventos marcantes (quando há séries e eventos), e o início do Lean.
 
 import { Card, Icone, StatTile } from '../../shared/components/ui';
 import { BarrasDecisoes } from '../componentes/BarrasDecisoes';
 import { ChamadaAula } from '../componentes/ChamadaAula';
+import { EvolucaoTurma } from '../componentes/EvolucaoTurma';
 import { TabelaMetricas } from '../componentes/TabelaMetricas';
 import { contarProntos, rotuloProntos } from '../logica/fases';
 import { horas, inteiro, porcento, umaCasa } from '../logica/formato';
@@ -17,7 +19,7 @@ const PERGUNTAS = [
   'Que informação faltou para decidir antes (altas previstas, cirurgias, leitos)?',
 ];
 
-export function Debrief({ turma, grupos, ranking, proxima, ocupado, acionar }: PropsTela) {
+export function Debrief({ turma, grupos, ranking, proxima, ocupado, acionar, series, eventos }: PropsTela) {
   const r1 = itensDaRodada(ranking, 1);
   const resumo = resumoRodada(r1);
   const { conectados, total } = contarProntos(grupos);
@@ -57,6 +59,8 @@ export function Debrief({ turma, grupos, ranking, proxima, ocupado, acionar }: P
           </p>
         </Card>
       </div>
+
+      <EvolucaoTurma series={series} eventos={eventos} rodadas={[1]} />
 
       <Card grande rotulo="Plantão Travado" titulo="Rodada 1 por grupo">
         <TabelaMetricas itens={r1} legenda="Resultado do Plantão Travado por grupo" />

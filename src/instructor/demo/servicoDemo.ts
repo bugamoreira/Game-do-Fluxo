@@ -7,7 +7,15 @@
 // pública e do facilitador. Só para navegação e capturas de tela.
 // ============================================================
 
-import type { AbrirTurmaEntrada, EstadoTurma, GrupoDaTurma, ItemRanking, StatusTurma } from '../../shared/schemas';
+import type {
+  AbrirTurmaEntrada,
+  EstadoTurma,
+  EventoTurma,
+  GrupoDaTurma,
+  ItemRanking,
+  PontoSerieTurma,
+  StatusTurma,
+} from '../../shared/schemas';
 import {
   CodigoEmUso,
   DadosInvalidos,
@@ -16,7 +24,7 @@ import {
   TurmaNaoEncontrada,
 } from '../../shared/services/erros';
 import type { ServicosFacilitador } from '../servicos';
-import { metricasDemo, pontuacaoDemo } from './dadosDemo';
+import { eventosDemo, metricasDemo, pontuacaoDemo } from './dadosDemo';
 
 const MIN_INICIO = 420;
 const MIN_FIM = 1140;
@@ -244,6 +252,48 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
     return itens.map((item, k) => ({ ...item, posicao: k + 1 }));
   }
 
+  /** Até que minuto cada rodada já foi jogada (null: ainda não começou). */
+  function minutoJogado(t: TurmaInterna, rodada: 1 | 2): number | null {
+    if (itensRodada(t, rodada).length === 0) return null;
+    return t.rodada === rodada && t.minutoFinal[rodada] === undefined
+      ? (minutoDe(t) ?? MIN_INICIO)
+      : (t.minutoFinal[rodada] ?? MIN_FIM);
+  }
+
+  function seriesDe(t: TurmaInterna): PontoSerieTurma[] {
+    const pontos: PontoSerieTurma[] = [];
+    t.grupos.forEach((g, i) => {
+      if (g.removido) return;
+      for (const rodada of [1, 2] as const) {
+        const ate = minutoJogado(t, rodada);
+        if (ate === null) continue;
+        for (let m = MIN_INICIO; m <= ate; m += 30) {
+          pontos.push({ grupoId: g.id, nome: g.nome, cor: g.cor, rodada, minuto: m, metricas: metricasDemo(i, rodada, m) });
+        }
+      }
+    });
+    return pontos;
+  }
+
+  function eventosDe(t: TurmaInterna): EventoTurma[] {
+    const eventos: EventoTurma[] = [];
+    let seq = 0;
+    for (const rodada of [1, 2] as const) {
+      const ate = minutoJogado(t, rodada);
+      if (ate === null) continue;
+      t.grupos.forEach((g, i) => {
+        if (g.removido) return;
+        // Janelas de 30 min, para os eventos se espalharem pelo plantão.
+        for (let de = MIN_INICIO; de < ate; de += 30) {
+          for (const e of eventosDemo(i, rodada, de, Math.min(ate, de + 30))) {
+            eventos.push({ id: ++seq, grupoId: g.id, nome: g.nome, cor: g.cor, rodada, criadoEm: null, ...e });
+          }
+        }
+      });
+    }
+    return eventos.sort((a, b) => b.rodada - a.rodada || b.minuto - a.minuto);
+  }
+
   // Estado inicial conforme a fase pedida.
   const faseInicial: FaseDemo = opcoes.fase ?? 'login';
   if (faseInicial !== 'login' && faseInicial !== 'nova') {
@@ -273,7 +323,28 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
       return { userId: 'facilitador-demo', email: email.trim() };
     },
 
+    async sessaoAtual() {
+      return null;
+    },
+
     async sair() {},
+
+    async painelTurma(id) {
+      const t = exigirTurma(id);
+      batimentos(t);
+      return json(t, true);
+    },
+
+    async seriesTurma(id) {
+      return seriesDe(exigirTurma(id));
+    },
+
+    async eventosTurma(id, filtro = {}) {
+      return eventosDe(exigirTurma(id))
+        .filter((e) => filtro.rodada === undefined || e.rodada === filtro.rodada)
+        .filter((e) => filtro.desdeMinuto === undefined || e.minuto >= filtro.desdeMinuto)
+        .slice(0, filtro.limite ?? 100);
+    },
 
     async estado(codigo) {
       const t = porCodigo(codigo);
@@ -371,12 +442,12 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
     async gerarRelatorio(id) {
       await espera();
       const t = exigirTurma(id);
-      if (t.slug) return { slug: t.slug };
+      if (t.slug) return { slug: t.slug, turma: json(t, true) };
       if (t.status !== 'encerrada' && t.status !== 'arquivada')
         throw new TransicaoInvalida('O relatório só pode ser gerado depois de encerrar a turma.');
       t.slug = 'demoRelatorioCbmede2026x';
       t.status = 'arquivada';
-      return { slug: t.slug };
+      return { slug: t.slug, turma: json(t, true) };
     },
   };
 }

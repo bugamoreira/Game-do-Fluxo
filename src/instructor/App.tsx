@@ -5,7 +5,7 @@
 // (jogo e telão) acompanham sozinhas.
 // ============================================================
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Button,
   ClockBar,
@@ -42,7 +42,7 @@ import { Login } from './telas/Login';
 import { Resultado } from './telas/Resultado';
 import { Sala } from './telas/Sala';
 import { chaveAcao, type AcaoPainel, type PropsTela } from './tipos';
-import { useTurmaFacilitador } from './useTurmaFacilitador';
+import { useLeiturasFacilitador, useTurmaFacilitador } from './useTurmaFacilitador';
 
 const CHAVE_CODIGO = 'cbmede.facilitador.codigo';
 
@@ -72,7 +72,36 @@ interface AppProps {
 
 export function App({ servicos, sessaoInicial = null, codigoInicial }: AppProps) {
   const [sessao, setSessao] = useState<SessaoFacilitador | null>(sessaoInicial);
+  // Ao recarregar a página, a sessão do Supabase Auth salva no navegador é restaurada.
+  const [verificando, setVerificando] = useState(sessaoInicial === null);
 
+  useEffect(() => {
+    if (!verificando) return;
+    let vivo = true;
+    servicos.sessaoAtual().then(
+      (s) => {
+        if (!vivo) return;
+        if (s) setSessao(s);
+        setVerificando(false);
+      },
+      () => {
+        if (vivo) setVerificando(false);
+      },
+    );
+    return () => {
+      vivo = false;
+    };
+  }, [servicos, verificando]);
+
+  if (!sessao && verificando) {
+    return (
+      <main className="grid h-screen place-items-center bg-fundo-app font-sora text-texto-corpo">
+        <p role="status" className="text-lg">
+          Verificando a sessão do facilitador…
+        </p>
+      </main>
+    );
+  }
   if (!sessao) return <Login servicos={servicos} onEntrar={setSessao} />;
   return (
     <Painel
@@ -119,6 +148,7 @@ function Painel({
   const sala = useTurmaFacilitador(servicos, codigo);
   const { turma, grupos, minutoServidor: minuto, registrarAcao } = sala;
   const naoEncontrada = sala.erro instanceof TurmaNaoEncontrada;
+  const leituras = useLeiturasFacilitador(servicos, turma?.id ?? null, turma?.status ?? null);
 
   const [vista, setVista] = useState<Fase | null>(null);
   const [statusAnterior, setStatusAnterior] = useState(turma?.status ?? null);
@@ -263,9 +293,10 @@ function Painel({
       }
       case 'gerarRelatorio':
         void executar(chave, async () => {
-          const { slug } = await servicos.gerarRelatorio(id);
+          const { slug, turma: arquivada } = await servicos.gerarRelatorio(id);
           setRelatorio({ turmaId: id, slug });
-          sala.atualizarAgora();
+          if (arquivada) registrarAcao(arquivada);
+          else sala.atualizarAgora();
           avisar('sucesso', 'Relatório pronto', 'Copie o link para compartilhar com a turma.');
         });
         return;
@@ -355,6 +386,8 @@ function Painel({
           acionar,
           linkRelatorio: linkRel,
           origem,
+          series: leituras?.series ?? null,
+          eventos: leituras?.eventos ?? null,
         }
       : null;
 

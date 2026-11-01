@@ -2,15 +2,30 @@
 // interface: em produção ela é atendida pelos services de `src/shared/services/`
 // (servicosReais.ts); em `?demo=1`, por um serviço falso em memória (demo/).
 
-import type { AbrirTurmaEntrada, EstadoTurma, ItemRanking, SessaoFacilitador, StatusTurma } from '../shared/schemas';
+import type {
+  AbrirTurmaEntrada,
+  EstadoTurma,
+  EventoTurma,
+  FiltroEventos,
+  ItemRanking,
+  PontoSerieTurma,
+  SessaoFacilitador,
+  StatusTurma,
+} from '../shared/schemas';
 
 export interface ServicosFacilitador {
   readonly modo: 'real' | 'demo';
   login(email: string, senha: string): Promise<SessaoFacilitador>;
+  /** Sessão salva neste navegador (recarregar a página não pede login de novo). */
+  sessaoAtual(): Promise<SessaoFacilitador | null>;
   sair(): Promise<void>;
-  /** Leitura pública (consulta periódica). */
+  /** Leitura pública pelo código (para achar a turma). */
   estado(codigo: string): Promise<EstadoTurma>;
   ranking(codigo: string): Promise<ItemRanking[]>;
+  /** Leituras do facilitador: turma com presença e removidos, séries e eventos. */
+  painelTurma(turmaId: string): Promise<EstadoTurma>;
+  seriesTurma(turmaId: string): Promise<PontoSerieTurma[]>;
+  eventosTurma(turmaId: string, filtro?: FiltroEventos): Promise<EventoTurma[]>;
   /** Ações do facilitador: devolvem a turma na visão do facilitador. */
   abrirTurma(entrada: AbrirTurmaEntrada): Promise<EstadoTurma>;
   mudarStatus(turmaId: string, status: StatusTurma): Promise<EstadoTurma>;
@@ -21,5 +36,5 @@ export interface ServicosFacilitador {
   liberarFullCapacity(turmaId: string, liberado: boolean): Promise<EstadoTurma>;
   alternarMusica(turmaId: string, mudo: boolean): Promise<EstadoTurma>;
   removerGrupo(grupoId: string): Promise<EstadoTurma>;
-  gerarRelatorio(turmaId: string): Promise<{ slug: string }>;
+  gerarRelatorio(turmaId: string): Promise<{ slug: string; turma?: EstadoTurma }>;
 }

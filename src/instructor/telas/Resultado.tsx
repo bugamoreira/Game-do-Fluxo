@@ -4,6 +4,7 @@
 import { Button, Card, Icone, StatTile, TeamAvatar, cx } from '../../shared/components/ui';
 import type { ItemRanking } from '../../shared/schemas';
 import { ChamadaAula } from '../componentes/ChamadaAula';
+import { EvolucaoTurma } from '../componentes/EvolucaoTurma';
 import { comSinal, horas, inteiro, porcento, umaCasa } from '../logica/formato';
 import { cargaDoGestor, comparativo, itensDaRodada, mensagensLean, metrica, resumoRodada } from '../logica/metricas';
 import type { PropsTela } from '../tipos';
@@ -77,7 +78,7 @@ const COLUNAS: ColunaComparativa[] = [
   },
 ];
 
-export function Resultado({ ranking, proxima, ocupado, acionar, linkRelatorio, turma }: PropsTela) {
+export function Resultado({ ranking, proxima, ocupado, acionar, linkRelatorio, turma, series, eventos }: PropsTela) {
   const r1 = resumoRodada(itensDaRodada(ranking, 1));
   const r2 = resumoRodada(itensDaRodada(ranking, 2));
   const linhas = comparativo(ranking);
@@ -210,6 +211,8 @@ export function Resultado({ ranking, proxima, ocupado, acionar, linkRelatorio, t
           )}
         </div>
       </div>
+
+      <EvolucaoTurma series={series} eventos={eventos} rodadas={[1, 2]} />
 
       <Card grande rotulo="Travado × Lean" titulo="Comparativo por grupo">
         {linhas.length === 0 ? (

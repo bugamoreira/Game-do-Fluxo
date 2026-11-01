@@ -2,15 +2,19 @@
 // (únicos módulos que falam com o Supabase). Carregado sob demanda pelo main.tsx,
 // para que o modo demonstração não precise das variáveis de ambiente.
 
-import { facilitadorService, relatorioService, turmaService } from '../shared/services';
+import { facilitadorService, turmaService } from '../shared/services';
 import type { ServicosFacilitador } from './servicos';
 
 export const servicosReais: ServicosFacilitador = {
   modo: 'real',
   login: (email, senha) => facilitadorService.login(email, senha),
+  sessaoAtual: () => facilitadorService.sessaoAtual(),
   sair: () => facilitadorService.sair(),
   estado: (codigo) => turmaService.estado(codigo),
   ranking: (codigo) => turmaService.ranking(codigo),
+  painelTurma: (id) => facilitadorService.painelTurma(id),
+  seriesTurma: (id) => facilitadorService.seriesTurma(id),
+  eventosTurma: (id, filtro) => facilitadorService.eventosTurma(id, filtro),
   abrirTurma: (entrada) => facilitadorService.abrirTurma(entrada),
   mudarStatus: (id, status) => facilitadorService.mudarStatus(id, status),
   pausar: (id) => facilitadorService.pausar(id),
@@ -20,5 +24,5 @@ export const servicosReais: ServicosFacilitador = {
   liberarFullCapacity: (id, liberado) => facilitadorService.liberarFullCapacity(id, liberado),
   alternarMusica: (id, mudo) => facilitadorService.alternarMusica(id, mudo),
   removerGrupo: (grupoId) => facilitadorService.removerGrupo(grupoId),
-  gerarRelatorio: (id) => relatorioService.gerar(id),
+  gerarRelatorio: (id) => facilitadorService.gerarRelatorio(id),
 };

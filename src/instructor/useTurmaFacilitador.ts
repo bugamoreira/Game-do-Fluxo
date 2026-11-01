@@ -1,8 +1,11 @@
 // Estado da turma e ranking do painel, por consulta periódica (sem Realtime).
 // Usa os mesmos controladores dos hooks compartilhados, com a busca injetada
 // pela porta de serviços (assim o modo demonstração usa o serviço falso).
+// A consulta acha a turma pelo código (leitura pública) e, a partir daí, usa
+// `painel_turma` (visão do facilitador: "visto há X s", removidos e reconexão
+// liberada sempre corretos, mesmo sem nenhuma ação recente).
 
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { LojaObservavel } from '../shared/hooks/cicloPeriodico';
 import {
   ControladorEstadoTurma,
@@ -11,7 +14,9 @@ import {
   type InstantaneoTurma,
 } from '../shared/hooks/controladores';
 import { useTentarAoVoltarRede } from '../shared/hooks/useTentarAoVoltarRede';
+import type { EventoTurma, PontoSerieTurma, StatusTurma } from '../shared/schemas';
 import { instanteEmMs, type EstadoTurma } from '../shared/schemas';
+import { NaoAutorizado, TurmaNaoEncontrada } from '../shared/services/erros';
 import { montarGrupos, type GrupoPainel } from './logica/fases';
 import type { ServicosFacilitador } from './servicos';
 
@@ -38,10 +43,11 @@ export class PresencaGrupos extends LojaObservavel<{ grupos: GrupoPainel[] }> {
     super({ grupos: GRUPOS_VAZIO });
   }
 
-  /** Nova leitura pública da turma. */
+  /** Nova leitura da turma (pública ou, pelo `painel_turma`, já na visão do facilitador). */
   receberTurma(turma: EstadoTurma | null): void {
     if (turma === this.turma) return;
     this.turma = turma;
+    if (turma && turma.grupos.some((g) => g.removido !== undefined)) this.visao = turma;
     if (turma) {
       const local = this.agora();
       const servidor = instanteEmMs(turma.horaServidor);
@@ -82,11 +88,49 @@ export interface TurmaFacilitador extends InstantaneoTurma {
   atualizarAgora: () => void;
 }
 
+/** Turma acompanhada pelo painel: o id é descoberto pela leitura pública e confirmado pelas ações. */
+export class AlvoPainel {
+  id: string | null = null;
+  /** `painel_turma` recusou (sessão expirada): segue só com a leitura pública. */
+  semPainel = false;
+
+  fixar(id: string): void {
+    this.id = id;
+  }
+}
+
+/**
+ * Busca da consulta periódica: `painel_turma` quando já se sabe o id da turma;
+ * a leitura pública pelo código para achar a turma, quando ela é arquivada (pode
+ * haver outra com o mesmo código) ou se a sessão deixar de valer.
+ */
+export function criarBuscaPainel(servicos: ServicosFacilitador, alvo: AlvoPainel): (codigo: string) => Promise<EstadoTurma> {
+  return async (codigo) => {
+    if (alvo.id && !alvo.semPainel) {
+      try {
+        const t = await servicos.painelTurma(alvo.id);
+        if (t.status === 'arquivada') alvo.id = null;
+        return t;
+      } catch (e) {
+        if (e instanceof NaoAutorizado) alvo.semPainel = true;
+        else if (!(e instanceof TurmaNaoEncontrada)) throw e;
+        alvo.id = null;
+      }
+    }
+    const t = await servicos.estado(codigo);
+    alvo.id = t.id;
+    return t;
+  };
+}
+
 export function useTurmaFacilitador(servicos: ServicosFacilitador, codigo: string | null): TurmaFacilitador {
+  const alvo = useMemo(() => (codigo ? new AlvoPainel() : null), [codigo]);
   const ctrlTurma = useMemo(
     () =>
-      codigo ? new ControladorEstadoTurma(codigo, INTERVALO_TURMA_MS, { buscar: (c) => servicos.estado(c) }) : null,
-    [codigo, servicos],
+      codigo && alvo
+        ? new ControladorEstadoTurma(codigo, INTERVALO_TURMA_MS, { buscar: criarBuscaPainel(servicos, alvo) })
+        : null,
+    [codigo, servicos, alvo],
   );
   const ctrlRanking = useMemo(
     () => (codigo ? new ControladorRanking(codigo, INTERVALO_RANKING_MS, (c) => servicos.ranking(c)) : null),
@@ -123,11 +167,12 @@ export function useTurmaFacilitador(servicos: ServicosFacilitador, codigo: strin
 
   const registrarAcao = useMemo(
     () => (t: EstadoTurma) => {
+      if (t.codigo === codigo) alvo?.fixar(t.id);
       presenca.receberVisao(t);
       ctrlTurma?.tentarAgora();
       ctrlRanking?.tentarAgora();
     },
-    [presenca, ctrlTurma, ctrlRanking],
+    [presenca, ctrlTurma, ctrlRanking, alvo, codigo],
   );
 
   const atualizarAgora = useMemo(
@@ -139,4 +184,54 @@ export function useTurmaFacilitador(servicos: ServicosFacilitador, codigo: strin
   );
 
   return { ...turmaInst, ranking: rankingInst, grupos, registrarAcao, atualizarAgora };
+}
+
+// ── Séries e eventos (debrief e resultado) ───────────────────
+
+export interface LeiturasFacilitador {
+  series: PontoSerieTurma[];
+  eventos: EventoTurma[];
+}
+
+/** Intervalo das leituras de séries e eventos: durante a rodada e fora dela. */
+export const INTERVALO_LEITURAS_RODADA_MS = 10_000;
+export const INTERVALO_LEITURAS_PARADA_MS = 30_000;
+
+/**
+ * Séries e eventos da turma, lidos de tempos em tempos (não precisam do ritmo
+ * de 1 s do estado). Falha de leitura mantém o último resultado; sem nenhum
+ * resultado, devolve `null` e as telas usam só o ranking.
+ */
+export function useLeiturasFacilitador(
+  servicos: ServicosFacilitador,
+  turmaId: string | null,
+  status: StatusTurma | null,
+): LeiturasFacilitador | null {
+  const [dados, setDados] = useState<(LeiturasFacilitador & { turmaId: string }) | null>(null);
+  const comDados = status !== null && status !== 'aberta';
+  const emRodada = status === 'rodada1' || status === 'rodada2';
+
+  useEffect(() => {
+    if (!turmaId || !comDados) return;
+    let vivo = true;
+    const ler = async () => {
+      try {
+        const [series, eventos] = await Promise.all([
+          servicos.seriesTurma(turmaId),
+          servicos.eventosTurma(turmaId, { limite: 300 }),
+        ]);
+        if (vivo) setDados({ turmaId, series, eventos });
+      } catch {
+        /* mantém o último resultado; as telas seguem com o ranking */
+      }
+    };
+    void ler();
+    const id = setInterval(() => void ler(), emRodada ? INTERVALO_LEITURAS_RODADA_MS : INTERVALO_LEITURAS_PARADA_MS);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, [servicos, turmaId, comDados, emRodada, status]);
+
+  return dados && dados.turmaId === turmaId ? { series: dados.series, eventos: dados.eventos } : null;
 }
