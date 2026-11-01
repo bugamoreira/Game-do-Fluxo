@@ -8,6 +8,7 @@
 #   PG_BIN              pasta dos binários do Postgres (initdb, pg_ctl, psql)
 #   PG_PORTA            porta do Postgres (padrão 54329; só socket local)
 #   PORTA               porta do servidor (padrão 54321)
+#   HOST                endereço em que o servidor escuta (padrão 127.0.0.1)
 #   FACILITADOR_EMAIL   padrão facilitador@teste.local
 #   FACILITADOR_SENHA   padrão teste1234
 #   BACKEND_LOCAL_DIR   pasta para guardar o banco entre execuções (padrão: temporária, apagada ao sair)
@@ -42,6 +43,8 @@ fi
 
 PG_PORTA="${PG_PORTA:-54329}"
 export PORTA="${PORTA:-54321}"
+# Só este computador por padrão (CORS aberto e senha de teste conhecida).
+export HOST="${HOST:-127.0.0.1}"
 export FACILITADOR_EMAIL="${FACILITADOR_EMAIL:-facilitador@teste.local}"
 export FACILITADOR_SENHA="${FACILITADOR_SENHA:-teste1234}"
 
@@ -114,7 +117,7 @@ export JWT_SEGREDO="${JWT_SEGREDO:-$(node -e "process.stdout.write(require('cryp
 
 cat <<TXT
 
-  Backend local:  http://localhost:$PORTA
+  Backend local:  http://127.0.0.1:$PORTA (escutando em $HOST)
   Facilitador:    $FACILITADOR_EMAIL / $FACILITADOR_SENHA
   Agora, em outro terminal:  npm run dev:local
   Ctrl+C aqui para parar.

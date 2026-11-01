@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const URL_BASE = process.env.BACKEND_URL || 'http://localhost:54321';
+const URL_BASE = process.env.BACKEND_URL || 'http://127.0.0.1:54321';
 const CHAVE = process.env.CHAVE || 'chave-local-ensaio';
 const EMAIL = process.env.FACILITADOR_EMAIL || 'facilitador@teste.local';
 const SENHA = process.env.FACILITADOR_SENHA || 'teste1234';

@@ -14,7 +14,9 @@
 // (GRANT, RLS, security definer), não este servidor.
 //
 // Variáveis: PGHOST (pasta do socket ou host), PGPORT, PGUSER, PGDATABASE,
-// PORTA (padrão 54321), JWT_SEGREDO, FACILITADOR_EMAIL, FACILITADOR_SENHA.
+// PORTA (padrão 54321), HOST (padrão 127.0.0.1: só este computador; use 0.0.0.0 para
+// abrir na rede, trocando antes FACILITADOR_SENHA), JWT_SEGREDO, FACILITADOR_EMAIL,
+// FACILITADOR_SENHA.
 // NUNCA use isto em produção: é só para ensaio local.
 // ============================================================
 
@@ -23,6 +25,8 @@ import crypto from 'node:crypto';
 import pg from 'pg';
 
 const PORTA = Number(process.env.PORTA || 54321);
+// Só este computador por padrão: o CORS é aberto (*) e a senha de teste é conhecida.
+const HOST = process.env.HOST || '127.0.0.1';
 const SEGREDO = process.env.JWT_SEGREDO || 'segredo-local-de-ensaio-nao-use-em-producao';
 const EMAIL = (process.env.FACILITADOR_EMAIL || 'facilitador@teste.local').toLowerCase();
 const SENHA = process.env.FACILITADOR_SENHA || 'teste1234';
@@ -609,8 +613,11 @@ const servidor = http.createServer(async (req, res) => {
   }
 });
 
-servidor.listen(PORTA, () => {
-  console.log(`Backend local no ar em http://localhost:${PORTA}`);
+servidor.listen(PORTA, HOST, () => {
+  console.log(`Backend local no ar em http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORTA}${HOST === '127.0.0.1' ? ' (só este computador)' : ` (aberto em ${HOST})`}`);
+  if (HOST !== '127.0.0.1' && HOST !== 'localhost' && SENHA === 'teste1234') {
+    console.warn('ATENÇÃO: backend aberto na rede com a senha de teste do facilitador. Defina FACILITADOR_SENHA.');
+  }
 });
 
 function encerrar() {

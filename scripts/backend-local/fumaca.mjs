@@ -5,14 +5,14 @@
 //
 //   node scripts/backend-local/fumaca.mjs
 //
-// Variáveis: BACKEND_URL (padrão http://localhost:54321), CHAVE (padrão
+// Variáveis: BACKEND_URL (padrão http://127.0.0.1:54321), CHAVE (padrão
 // chave-local-ensaio), FACILITADOR_EMAIL, FACILITADOR_SENHA, CODIGO (padrão CBMEDE).
 // Abre a turma com p_substituir = true: se já houver uma turma CBMEDE no banco
 // local, ela é arquivada (nada é apagado). Não aponte para o Supabase real.
 
 import { createClient } from '@supabase/supabase-js';
 
-const URL_BASE = process.env.BACKEND_URL || 'http://localhost:54321';
+const URL_BASE = process.env.BACKEND_URL || 'http://127.0.0.1:54321';
 const CHAVE = process.env.CHAVE || 'chave-local-ensaio';
 const EMAIL = process.env.FACILITADOR_EMAIL || 'facilitador@teste.local';
 const SENHA = process.env.FACILITADOR_SENHA || 'teste1234';

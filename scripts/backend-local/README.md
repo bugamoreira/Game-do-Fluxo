@@ -23,7 +23,7 @@ São dois terminais, ambos na raiz do repositório.
 npm run backend:local
 ```
 
-Aguarde a mensagem `Backend local no ar em http://localhost:54321`. Esse terminal fica ocupado e mostra cada pedido recebido.
+Aguarde a mensagem `Backend local no ar em http://127.0.0.1:54321 (só este computador)`. Esse terminal fica ocupado e mostra cada pedido recebido.
 
 **Terminal 2 — o app:**
 
@@ -41,7 +41,7 @@ O Vite abre em `http://localhost:3000` e repassa `/rest` e `/auth` ao backend lo
 | Projetor | http://localhost:3000/projetor.html |
 | Grupos (jogadores) | http://localhost:3000/jogar.html |
 
-Para simular vários grupos no mesmo computador, abra cada grupo numa janela anônima ou num navegador diferente (cada grupo guarda o próprio token no navegador). Para que outros computadores da mesma rede entrem como grupos, rode `npm run dev:local -- --host` e use o endereço de rede que o Vite mostrar.
+Para simular vários grupos no mesmo computador, abra cada grupo numa janela anônima ou num navegador diferente (cada grupo guarda o próprio token no navegador). Para que outros computadores da mesma rede entrem como grupos, rode `npm run dev:local -- --host` e use o endereço de rede que o Vite mostrar. O backend continua escutando só em `127.0.0.1` (o Vite repassa os pedidos a ele). **Ao usar `--host`, o painel do facilitador fica acessível na rede: troque antes a senha de teste** (`FACILITADOR_SENHA=... npm run backend:local`, com um banco novo). Só abra o próprio backend na rede (`HOST=0.0.0.0 npm run backend:local`) se for indispensável, e também com outra senha: ele responde a qualquer origem (CORS `*`).
 
 ## Credenciais de teste
 
