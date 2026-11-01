@@ -49,7 +49,7 @@ Ocupação hospitalar = (ENF + UTI) / 100 leitos, começando em 84%.
 
 ## Pontuação atual (`calcScore`)
 
-Começa em 1500 e o mínimo é 50.
+Começa em 1500 e o mínimo é 0.
 
 | Item | Pontos |
 |---|---|
