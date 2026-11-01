@@ -84,6 +84,12 @@ describe('sessaoLocal', () => {
     expect(sessaoLocal.ler('OUTRA', arm)).toBeNull();
   });
 
+  it('guarda a turma em que o grupo entrou (validada pelo Zod)', () => {
+    const { arm } = armazenamentoFalso();
+    sessaoLocal.salvar({ ...sessao, turmaId: 't-2026' }, arm);
+    expect(sessaoLocal.ler('CBMEDE', arm)?.turmaId).toBe('t-2026');
+  });
+
   it('sessão corrompida é descartada', () => {
     const { arm, dados } = armazenamentoFalso({ [CHAVE_SESSAO]: '{"formato":1,"codigo":"CBMEDE"}' });
     expect(sessaoLocal.ler(undefined, arm)).toBeNull();

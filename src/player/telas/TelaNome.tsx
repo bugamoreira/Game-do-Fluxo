@@ -1,4 +1,5 @@
-// J1: nome do grupo. O código da sala vem da URL (?sala=), padrão CBMEDE.
+// J1: nome do grupo e código de acesso (4 dígitos, mostrado no telão).
+// O código da sala vem da URL (?sala=), padrão CBMEDE.
 
 import { useId, useState, type FormEvent } from 'react';
 import { Button, Card, Icone } from '../../shared/components/ui';
@@ -7,29 +8,45 @@ import { Moldura } from './Moldura';
 interface TelaNomeProps {
   sala: string;
   nomeInicial?: string;
+  /**
+   * Nome do grupo da sessão deste computador nesta turma: com ele, o código de
+   * acesso é dispensável (o grupo volta pelo token salvo).
+   */
+  nomeComSessao?: string | null;
   entrando: boolean;
   erro: string | null;
-  onEntrar: (nome: string) => void;
+  onEntrar: (nome: string, codigoAcesso: string | null) => void;
 }
 
 const MIN = 2;
 const MAX = 30;
 
-export function TelaNome({ sala, nomeInicial = '', entrando, erro, onEntrar }: TelaNomeProps) {
+export function TelaNome({ sala, nomeInicial = '', nomeComSessao = null, entrando, erro, onEntrar }: TelaNomeProps) {
   const idCampo = useId();
   const idAjuda = useId();
+  const idCodigo = useId();
+  const idAjudaCodigo = useId();
   const idErro = useId();
   const [nome, setNome] = useState(nomeInicial);
+  const [codigo, setCodigo] = useState('');
   const [tocado, setTocado] = useState(false);
   const limpo = nome.trim().replace(/\s+/g, ' ');
   const invalido = limpo.length < MIN || limpo.length > MAX;
-  const erroCampo = tocado && invalido ? `O nome do grupo precisa ter de ${MIN} a ${MAX} caracteres.` : null;
+  const voltaPelaSessao = nomeComSessao !== null && limpo.toLowerCase() === nomeComSessao.trim().replace(/\s+/g, ' ').toLowerCase();
+  const codigoInvalido = !/^[0-9]{4}$/.test(codigo) && !(voltaPelaSessao && codigo === '');
+  const erroCampo = !tocado
+    ? null
+    : invalido
+      ? `O nome do grupo precisa ter de ${MIN} a ${MAX} caracteres.`
+      : codigoInvalido
+        ? 'Digite o código de acesso de 4 dígitos que aparece no telão.'
+        : null;
   const mensagem = erroCampo ?? erro;
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setTocado(true);
-    if (!invalido) onEntrar(limpo);
+    if (!invalido && !codigoInvalido) onEntrar(limpo, codigo === '' ? null : codigo);
   }
 
   return (
@@ -55,6 +72,27 @@ export function TelaNome({ sala, nomeInicial = '', entrando, erro, onEntrar }: T
             />
             <p id={idAjuda} className="text-sm text-texto-suave">
               Use o mesmo nome se precisar voltar: o grupo continua de onde parou.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor={idCodigo} className="text-sm font-bold text-texto">
+              Código de acesso
+            </label>
+            <input
+              id={idCodigo}
+              value={codigo}
+              onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              inputMode="numeric"
+              pattern="[0-9]{4}"
+              maxLength={4}
+              autoComplete="off"
+              placeholder="0000"
+              aria-invalid={tocado && codigoInvalido ? true : undefined}
+              aria-describedby={mensagem ? `${idAjudaCodigo} ${idErro}` : idAjudaCodigo}
+              className="min-h-12 w-40 rounded-2xl border-2 border-borda bg-cartao px-4 text-center font-mono text-2xl tracking-[0.4em] text-texto placeholder:text-texto-suave/50 focus:border-marinho"
+            />
+            <p id={idAjudaCodigo} className="text-sm text-texto-suave">
+              O código aparece no telão da sala. {voltaPelaSessao ? 'Este computador já é deste grupo: o código é opcional.' : ''}
             </p>
             {mensagem && (
               <p id={idErro} role="alert" className="flex items-start gap-2 rounded-2xl bg-amarelo-suave px-4 py-3 text-sm font-semibold text-texto">

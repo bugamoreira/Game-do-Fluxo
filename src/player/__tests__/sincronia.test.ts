@@ -103,19 +103,14 @@ describe('decidirRetomada (reconexão só com o estado completo)', () => {
   const r1Adiante = avancarAte(r1, 600).estado;
 
   it('restaura o estado mais recente da rodada entre a cópia local e a do servidor', () => {
-    const r = decidirRetomada({ rodada: 1, semente, local: r1, servidor: r1Adiante, podeComecar: false });
+    const r = decidirRetomada({ rodada: 1, semente, local: r1, servidor: { rodada: 1, estado: r1Adiante }, podeComecar: false });
     expect(r.tipo).toBe('restaurar');
     if (r.tipo === 'restaurar') expect(r.estado.minuto).toBe(600);
-    const r2 = decidirRetomada({ rodada: 1, semente, local: r1Adiante, servidor: r1, podeComecar: false });
+    const r2 = decidirRetomada({ rodada: 1, semente, local: r1Adiante, servidor: { rodada: 1, estado: r1 }, podeComecar: false });
     if (r2.tipo === 'restaurar') expect(r2.estado.minuto).toBe(600);
   });
 
-  it('ignora estado de outra rodada e cópia corrompida', () => {
-    const r = decidirRetomada({ rodada: 2, semente, local: r1Adiante, servidor: { versao: 99, rodada: 2, minuto: 700 }, podeComecar: false });
-    expect(r).toEqual({ tipo: 'sem_estado', mensagem: MENSAGEM_SEM_ESTADO });
-  });
-
-  it('sem estado, começa do zero só quando pode (grupo novo ou início visto ao vivo)', () => {
+  it('sem estado, começa do zero quando pode (grupo novo ou início visto ao vivo)', () => {
     const r = decidirRetomada({ rodada: 2, semente, local: r1, servidor: null, podeComecar: true });
     expect(r.tipo).toBe('novo');
     if (r.tipo === 'novo') {
@@ -124,9 +119,25 @@ describe('decidirRetomada (reconexão só com o estado completo)', () => {
     }
   });
 
-  it('sem estado e sem permissão, não inventa: mostra a mensagem do servidor', () => {
-    const r = decidirRetomada({ rodada: 1, semente, local: null, servidor: null, podeComecar: false, mensagemServidor: 'Fale com o facilitador.' });
-    expect(r).toEqual({ tipo: 'sem_estado', mensagem: 'Fale com o facilitador.' });
+  it('navegador fechado quando a rodada começou: o servidor não tem jogo desta rodada, então começa do zero', () => {
+    // Cópia local da rodada 1, rodada 2 em andamento, servidor sem estado da rodada 2.
+    const r = decidirRetomada({ rodada: 2, semente, local: r1Adiante, servidor: { rodada: 2, estado: null }, podeComecar: false });
+    expect(r.tipo).toBe('novo');
+    const r1Fechado = decidirRetomada({ rodada: 1, semente, local: null, servidor: { rodada: 1, estado: null }, podeComecar: false });
+    expect(r1Fechado.tipo).toBe('novo');
+  });
+
+  it('sem resposta do servidor sobre esta rodada, pede a consulta em vez de começar ou travar', () => {
+    expect(decidirRetomada({ rodada: 2, semente, local: r1Adiante, servidor: null, podeComecar: false })).toEqual({ tipo: 'consultar' });
+    // Resposta de outra rodada (entrou no debrief) não vale para a rodada 2.
+    expect(decidirRetomada({ rodada: 2, semente, local: null, servidor: { rodada: 1, estado: r1Adiante }, podeComecar: false })).toEqual({
+      tipo: 'consultar',
+    });
+  });
+
+  it('servidor tem um jogo salvo desta rodada que não dá para usar: não inventa estado', () => {
+    const r = decidirRetomada({ rodada: 2, semente, local: null, servidor: { rodada: 2, estado: { versao: 99, rodada: 2, minuto: 700 } }, podeComecar: false });
+    expect(r).toEqual({ tipo: 'sem_estado', mensagem: MENSAGEM_SEM_ESTADO });
   });
 
   it('a mesma turma gera a mesma demanda nas duas rodadas', () => {

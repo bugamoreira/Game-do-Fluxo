@@ -109,6 +109,8 @@ export type CopiaLocal = z.infer<typeof CopiaLocalSchema>;
 export const SessaoLocalSchema = z.object({
   formato: z.literal(VERSAO_FORMATO_COPIA),
   codigo: z.string().min(1),
+  /** Turma em que o grupo entrou: sessão de outra turma com o mesmo código não reentra sozinha. */
+  turmaId: IdSchema.optional(),
   grupoId: IdSchema,
   nome: z.string().min(1),
   cor: CorSchema,

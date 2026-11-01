@@ -83,7 +83,8 @@ Regras de transição:
 - Perdeu a conexão: a simulação continua no computador do grupo e aparece "Reconectando…". Ao voltar, o placar sincroniza.
 - **Reconexão só com o estado completo.** A simulação roda no computador do grupo; o banco hoje recebe só o placar resumido. Reassumir um time sem o estado completo (pacientes, eventos, relógio) dessincroniza o jogo. Regras:
   1. O computador do grupo salva o estado completo localmente e envia uma cópia ao banco a cada poucos segundos.
-  2. Ao reconectar, o jogo restaura a cópia mais recente (local; se não houver, a do banco). Sem cópia válida, não reconecta: o facilitador decide se o grupo entra de novo do zero.
+  2. Ao reconectar, o jogo restaura a cópia mais recente da rodada (local ou do banco, a de maior versão). Se o banco responde que **não há jogo salvo desta rodada** (o navegador do grupo estava fechado quando ela começou), o jogo começa do zero e avança até o horário da sala. Só quando o banco tem um jogo salvo que não foi possível obter (sem rede) ou abrir, o jogo não inventa estado: mostra "Tentar de novo", que pergunta ao banco outra vez.
+  - A sessão local guarda a turma: sessão antiga de outra turma com o mesmo código não entra sozinha (vai para a J1). Na J1, digitar o mesmo nome da sessão deste computador reaproveita o token (dispensa o código de acesso e a liberação). Token que deixa de valer mostra uma mensagem neutra e volta à J1, exceto na tela final, que continua com o resultado.
   3. O relógio da rodada é o da sala (horário de início gravado pelo facilitador). Se o grupo ficou fora 2 minutos, o jogo avança esses 2 minutos com o motor, sem decisões do grupo, e todos seguem no mesmo horário de plantão. Isso depende do motor determinístico da etapa B1.
 - O modo **Treinar sozinho** continua existindo (100% local, sem servidor) e fica nas orientações como plano B e para treino.
 - "Nova turma" (F5) é a única ação que limpa grupos, e pede confirmação.

@@ -13,10 +13,13 @@ import { puxaFluxo, seguraNoPs, simularPartida, type EstadoSimulacao } from '../
 import type { TelaDemo } from '../lib/url';
 import type { PortaJogo } from '../servicos/porta';
 import { sementeDaTurma } from '../jogo/sincronia';
+import { CodigoAcessoInvalido } from '../../shared/services/erros';
 
 const TURMA_ID = 'demo-cbmede-2026';
 const TOKEN_DEMO = 'demo_token_somente_para_revisao_visual_00000'.slice(0, 43);
 const COR_DO_GRUPO = '#2563EB';
+/** Código de acesso fictício da demonstração (o real aparece no telão). */
+export const CODIGO_ACESSO_DEMO = '2026';
 
 const GRUPOS = [
   { id: 'g1', nome: 'Os Fluxistas', cor: '#2563EB' },
@@ -107,7 +110,16 @@ export function criarPortaDemo(tela: TelaDemo): PortaJogo {
 
   return {
     modo: 'demo',
-    async entrar(_codigo, nome): Promise<Entrada> {
+    async consultarTurma() {
+      return { id: TURMA_ID };
+    },
+
+    async obterEstado() {
+      return null;
+    },
+
+    async entrar(_codigo, nome, _token, codigoAcesso): Promise<Entrada> {
+      if (codigoAcesso && codigoAcesso.trim() !== CODIGO_ACESSO_DEMO) throw new CodigoAcessoInvalido();
       nomeAtual = nome.trim().replace(/\s+/g, ' ');
       const status = statusDa(tela);
       return {

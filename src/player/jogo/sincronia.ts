@@ -136,39 +136,60 @@ export function comoEstadoSimulacao(v: unknown): EstadoSimulacao | null {
 export type Retomada =
   | { tipo: 'restaurar'; estado: EstadoSimulacao }
   | { tipo: 'novo'; estado: EstadoSimulacao }
+  /** Falta perguntar ao servidor se há jogo salvo desta rodada (`obter_estado`). */
+  | { tipo: 'consultar' }
   | { tipo: 'sem_estado'; mensagem: string };
+
+/** Resposta do servidor sobre o jogo salvo de uma rodada: `estado` nulo = nada salvo. */
+export interface RespostaServidor {
+  rodada: Rodada;
+  estado: unknown;
+}
 
 export interface EntradaRetomada {
   rodada: Rodada;
   semente: number;
   /** Cópia local deste computador (qualquer rodada; é filtrada aqui). */
   local: unknown;
-  /** Estado salvo devolvido pelo servidor (`entrar` ou `obter_estado`). */
-  servidor: unknown;
   /**
-   * Pode começar do zero: o grupo é novo (entrou agora, inclusive atrasado com
-   * entrada liberada) ou este computador acompanhou ao vivo o início da rodada.
+   * O que o servidor respondeu (`entrar_grupo` ou `obter_estado`) e para qual
+   * rodada; `null` quando ainda não perguntou (ou estava sem rede).
+   */
+  servidor: RespostaServidor | null;
+  /**
+   * Pode começar do zero sem perguntar: o grupo é novo (entrou agora,
+   * inclusive atrasado com entrada liberada) ou este computador acompanhou ao
+   * vivo o início da rodada.
    */
   podeComecar: boolean;
-  /** Frase do servidor, se houver, para a tela de bloqueio. */
-  mensagemServidor?: string | null;
 }
 
 export const MENSAGEM_SEM_ESTADO =
-  'Não encontramos o jogo salvo deste grupo nesta rodada. Peça ao facilitador para liberar a reconexão do grupo.';
+  'O jogo salvo deste grupo no servidor não pôde ser aberto neste computador. Peça ao facilitador para liberar a reconexão do grupo ou tente de novo.';
+
+export const MENSAGEM_SEM_CONSULTA =
+  'Não conseguimos buscar no servidor o jogo salvo deste grupo. Confira a conexão e tente de novo.';
 
 /**
- * Decide como o grupo volta ao jogo: o estado mais recente (maior versão) da
- * rodada, entre a cópia local e a do servidor; sem estado, só começa do zero
- * quando pode, senão não inventa.
+ * Decide como o grupo volta ao jogo (docs/design.md §5):
+ * 1. o estado mais recente (maior versão) da rodada, entre a cópia local e a do servidor;
+ * 2. sem estado e podendo começar, começa do zero (e avança até o minuto da sala);
+ * 3. se o servidor respondeu que não há jogo salvo desta rodada (o grupo estava
+ *    com o navegador fechado quando ela começou), também começa do zero;
+ * 4. se o servidor tem um jogo salvo que não dá para usar, não inventa estado;
+ * 5. se o servidor ainda não respondeu sobre esta rodada, é preciso consultar.
  */
 export function decidirRetomada(e: EntradaRetomada): Retomada {
-  const candidatos = [comoEstadoSimulacao(e.local), comoEstadoSimulacao(e.servidor)].filter(
+  const doServidor = e.servidor && e.servidor.rodada === e.rodada ? e.servidor : null;
+  const candidatos = [comoEstadoSimulacao(e.local), doServidor ? comoEstadoSimulacao(doServidor.estado) : null].filter(
     (x): x is EstadoSimulacao => x !== null && x.rodada === e.rodada,
   );
   if (candidatos.length > 0) {
     return { tipo: 'restaurar', estado: candidatos.reduce((a, b) => (b.versao > a.versao ? b : a)) };
   }
-  if (e.podeComecar) return { tipo: 'novo', estado: criarEstadoInicial(e.rodada, e.semente) };
-  return { tipo: 'sem_estado', mensagem: e.mensagemServidor?.trim() || MENSAGEM_SEM_ESTADO };
+  if (e.podeComecar || (doServidor && doServidor.estado == null)) {
+    return { tipo: 'novo', estado: criarEstadoInicial(e.rodada, e.semente) };
+  }
+  if (doServidor) return { tipo: 'sem_estado', mensagem: MENSAGEM_SEM_ESTADO };
+  return { tipo: 'consultar' };
 }

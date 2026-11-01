@@ -14,8 +14,12 @@ import type { ResumoRodada } from '../jogo/sincronia';
 
 export interface PortaJogo {
   modo: 'online' | 'demo';
-  /** grupoService.entrar */
-  entrar: (codigo: string, nome: string, tokenLocal?: string | null) => Promise<Entrada>;
+  /** grupoService.entrar (com o código de acesso de 4 dígitos, quando houver) */
+  entrar: (codigo: string, nome: string, tokenLocal?: string | null, codigoAcesso?: string | null) => Promise<Entrada>;
+  /** Id da turma ativa com o código (turmaService.estado); lança `SemConexao` sem rede. */
+  consultarTurma: (codigo: string) => Promise<{ id: string }>;
+  /** Jogo salvo do grupo nesta rodada (`obter_estado`); `null` = nada salvo. */
+  obterEstado: (token: string, rodada: 1 | 2) => Promise<unknown>;
   useEstadoTurma: (codigo: string, intervaloMs: number, token: string | null) => InstantaneoTurma;
   useSincronizarJogo: (
     token: string | null,

@@ -9,7 +9,19 @@ import { Button } from '../shared/components/ui';
 import { metricas, type EstadoSimulacao, type Metricas, type Rodada } from '../shared/lib/simulation';
 import type { EstadoTurma } from '../shared/schemas';
 import { SemConexao } from '../shared/services/erros';
-import { comoEstadoSimulacao, decidirRetomada, eventosRelevantes, marcoDaSerie, minutoAlvo, sementeDaTurma, tensaoDoPlantao, type ResumoRodada } from './jogo/sincronia';
+import {
+  MENSAGEM_SEM_CONSULTA,
+  comoEstadoSimulacao,
+  decidirRetomada,
+  eventosRelevantes,
+  marcoDaSerie,
+  minutoAlvo,
+  sementeDaTurma,
+  tensaoDoPlantao,
+  type RespostaServidor,
+  type ResumoRodada,
+} from './jogo/sincronia';
+import { MENSAGEM_ACESSO_PERDIDO, MENSAGEM_TURMA_NOVA, ehStatusFinal, podeReentrarSozinho, tokenParaNome } from './jogo/sessao';
 import { resumoDe } from './jogo/storeJogo';
 import { storeJogo, useJogo, useRelogioDoJogo } from './jogo/useJogo';
 import { musica } from './lib/musicaAdapter';
@@ -24,12 +36,14 @@ import { TelaResultado } from './telas/TelaResultado';
 
 interface GrupoAtivo {
   grupoId: string;
+  /** Turma em que o grupo entrou (`undefined`: entrou sem rede, com a sessão antiga). */
+  turmaId: string | undefined;
   nome: string;
   cor: string;
   token: string;
   reconectado: boolean;
-  /** Estado salvo devolvido pelo servidor na entrada (qualquer rodada). */
-  estadoSalvo: unknown;
+  /** O que o servidor disse na entrada sobre o jogo salvo da rodada atual (`null`: sem resposta). */
+  servidor: RespostaServidor | null;
 }
 
 interface AppSalaProps {
@@ -46,20 +60,31 @@ export function AppSala({ sala, grupoInicial = null }: AppSalaProps) {
   const [entrando, setEntrando] = useState(Boolean(sessaoInicial || grupoInicial));
   const [erro, setErro] = useState<string | null>(null);
   const [nomeSugerido, setNomeSugerido] = useState(sessaoInicial?.nome ?? '');
+  /** Turma aberta agora com este código (para não reaproveitar sessão de outra turma). */
+  const [turmaAtual, setTurmaAtual] = useState<string | null>(null);
 
   const entrar = useCallback(
-    async (nome: string, token: string | null) => {
+    async (nome: string, token: string | null, codigoAcesso: string | null = null) => {
       setEntrando(true);
       setErro(null);
       try {
-        const e = await porta.entrar(sala, nome, token);
-        porta.sessao.salvar({ codigo: sala, grupoId: e.grupo.id, nome: e.grupo.nome, cor: e.grupo.cor, token: e.token });
-        setGrupo({ grupoId: e.grupo.id, nome: e.grupo.nome, cor: e.grupo.cor, token: e.token, reconectado: e.reconectado, estadoSalvo: e.estadoSalvo });
+        const e = await porta.entrar(sala, nome, token, codigoAcesso);
+        porta.sessao.salvar({ codigo: sala, turmaId: e.turmaId, grupoId: e.grupo.id, nome: e.grupo.nome, cor: e.grupo.cor, token: e.token });
+        setTurmaAtual(e.turmaId);
+        setGrupo({
+          grupoId: e.grupo.id,
+          turmaId: e.turmaId,
+          nome: e.grupo.nome,
+          cor: e.grupo.cor,
+          token: e.token,
+          reconectado: e.reconectado,
+          servidor: e.rodada !== null ? { rodada: e.rodada, estado: e.estadoSalvo } : null,
+        });
       } catch (err) {
         const sessao = porta.sessao.ler(sala);
         if (err instanceof SemConexao && token && sessao?.token === token) {
           // Sem rede, mas este computador já é do grupo: o jogo segue com a cópia local.
-          setGrupo({ grupoId: sessao.grupoId, nome: sessao.nome, cor: sessao.cor, token, reconectado: true, estadoSalvo: null });
+          setGrupo({ grupoId: sessao.grupoId, turmaId: sessao.turmaId, nome: sessao.nome, cor: sessao.cor, token, reconectado: true, servidor: null });
         } else {
           setNomeSugerido(nome);
           setErro(err instanceof Error ? err.message : 'Não foi possível entrar. Tente de novo.');
@@ -71,13 +96,28 @@ export function AppSala({ sala, grupoInicial = null }: AppSalaProps) {
     [porta, sala],
   );
 
+  // Reentrada automática: só com a sessão da mesma turma (outra turma com o mesmo código vai para a J1).
   const tentouAuto = useRef(false);
   useEffect(() => {
     if (tentouAuto.current) return;
     tentouAuto.current = true;
-    if (sessaoInicial) void entrar(sessaoInicial.nome, sessaoInicial.token);
-    else if (grupoInicial) void entrar(grupoInicial, null);
-  }, [entrar, sessaoInicial, grupoInicial]);
+    if (grupoInicial) {
+      void entrar(grupoInicial, null);
+      return;
+    }
+    if (!sessaoInicial) return;
+    void porta
+      .consultarTurma(sala)
+      .then(
+        t => t.id as string | null,
+        (e: unknown) => (e instanceof SemConexao ? null : undefined),
+      )
+      .then(atual => {
+        if (atual) setTurmaAtual(atual);
+        if (atual !== undefined && podeReentrarSozinho(sessaoInicial, atual)) return entrar(sessaoInicial.nome, sessaoInicial.token);
+        setEntrando(false);
+      });
+  }, [entrar, porta, sala, sessaoInicial, grupoInicial]);
 
   const sair = useCallback(
     (mensagem: string) => {
@@ -93,17 +133,26 @@ export function AppSala({ sala, grupoInicial = null }: AppSalaProps) {
     if (entrando && !erro && (sessaoInicial || grupoInicial)) {
       return <TelaAviso sala={sala} titulo="Reconectando o grupo…">Buscando o jogo salvo deste grupo.</TelaAviso>;
     }
-    return <TelaNome sala={sala} nomeInicial={nomeSugerido} entrando={entrando} erro={erro} onEntrar={nome => void entrar(nome, null)} />;
+    const sessao = porta.sessao.ler(sala);
+    return (
+      <TelaNome
+        sala={sala}
+        nomeInicial={nomeSugerido}
+        nomeComSessao={sessao && tokenParaNome(sessao, turmaAtual, sessao.nome) ? sessao.nome : null}
+        entrando={entrando}
+        erro={erro}
+        onEntrar={(nome, codigo) => void entrar(nome, tokenParaNome(porta.sessao.ler(sala), turmaAtual, nome), codigo)}
+      />
+    );
   }
 
-  return <SalaDoGrupo porta={porta} sala={sala} grupo={grupo} onReentrar={() => entrar(grupo.nome, grupo.token)} onSair={sair} />;
+  return <SalaDoGrupo porta={porta} sala={sala} grupo={grupo} onSair={sair} />;
 }
 
 interface SalaDoGrupoProps {
   porta: PortaJogo;
   sala: string;
   grupo: GrupoAtivo;
-  onReentrar: () => Promise<void>;
   onSair: (mensagem: string) => void;
 }
 
@@ -111,14 +160,28 @@ function rodadaDoStatus(status: EstadoTurma['status'] | undefined): Rodada | nul
   return status === 'rodada1' ? 1 : status === 'rodada2' ? 2 : null;
 }
 
-function SalaDoGrupo({ porta, sala, grupo, onReentrar, onSair }: SalaDoGrupoProps) {
-  const { turma, conexao, minutoServidor } = porta.useEstadoTurma(sala, 1000, grupo.token);
+function SalaDoGrupo({ porta, sala, grupo, onSair }: SalaDoGrupoProps) {
+  const consulta = porta.useEstadoTurma(sala, 1000, grupo.token);
+  const { conexao, minutoServidor } = consulta;
   const estado = useJogo(s => s.estado);
   const resumos = useJogo(s => s.resumos);
-  const [semEstado, setSemEstado] = useState<string | null>(null);
+  /** Respostas do servidor sobre o jogo salvo de cada rodada (entrada ou `obter_estado`). */
+  const [respostas, setRespostas] = useState<Partial<Record<Rodada, RespostaServidor>>>(() =>
+    grupo.servidor ? { [grupo.servidor.rodada]: grupo.servidor } : {},
+  );
+  const [bloqueio, setBloqueio] = useState<string | null>(null);
+  const [tentativa, setTentativa] = useState(0);
+  const consultando = useRef<Rodada | null>(null);
   const statusAnterior = useRef<EstadoTurma['status'] | null>(null);
   const viuInicio = useRef<Record<Rodada, boolean>>({ 1: false, 2: false });
   const minutoRef = useRef(minutoServidor);
+  const [ultimaDaTurma, setUltimaDaTurma] = useState<EstadoTurma | null>(null);
+
+  // A sala pode abrir outra turma com o mesmo código: a tela final da turma do grupo fica parada.
+  const daTurma = consulta.turma && (grupo.turmaId === undefined || consulta.turma.id === grupo.turmaId) ? consulta.turma : null;
+  const turmaNova = consulta.turma !== null && daTurma === null;
+  const finalCongelado = turmaNova && ehStatusFinal(ultimaDaTurma?.status);
+  const turma = daTurma ?? (finalCongelado ? ultimaDaTurma : null);
 
   const status = turma?.status;
   const rodada = rodadaDoStatus(status);
@@ -129,10 +192,19 @@ function SalaDoGrupo({ porta, sala, grupo, onReentrar, onSair }: SalaDoGrupoProp
     minutoRef.current = minutoServidor;
   }, [minutoServidor]);
 
-  // Grupo removido pelo facilitador: o token deixou de valer.
   useEffect(() => {
-    if (turma?.tokenValido === false) onSair('Este grupo foi removido da sala pelo facilitador. Entre de novo com um nome.');
-  }, [turma?.tokenValido, onSair]);
+    if (daTurma) setUltimaDaTurma(daTurma);
+  }, [daTurma]);
+
+  // O token deixou de valer (grupo removido, ou reassumido em outro computador) ou a sala trocou de turma.
+  // Na tela final o grupo não é expulso: o resultado continua na tela.
+  useEffect(() => {
+    if (turmaNova) {
+      if (!finalCongelado) onSair(MENSAGEM_TURMA_NOVA);
+      return;
+    }
+    if (daTurma?.tokenValido === false && !ehStatusFinal(daTurma.status)) onSair(MENSAGEM_ACESSO_PERDIDO);
+  }, [turmaNova, finalCongelado, daTurma, onSair]);
 
   // Início ou retomada da rodada (docs/design.md §5, reconexão só com o estado completo).
   useEffect(() => {
@@ -148,21 +220,48 @@ function SalaDoGrupo({ porta, sala, grupo, onReentrar, onSair }: SalaDoGrupoProp
         rodada: r,
         semente: sementeDaTurma(turma.id),
         local: porta.lerCopia(grupo.token),
-        servidor: grupo.estadoSalvo,
+        servidor: respostas[r] ?? null,
         podeComecar: !grupo.reconectado || viuInicio.current[r],
       });
-      if (retomada.tipo === 'sem_estado') {
-        setSemEstado(retomada.mensagem);
+      if (retomada.tipo === 'consultar') {
+        // O servidor ainda não disse se há jogo salvo desta rodada (o navegador estava fechado no início).
+        if (consultando.current === r) return;
+        consultando.current = r;
+        porta
+          .obterEstado(grupo.token, r)
+          .then(
+            salvo => setRespostas(atual => ({ ...atual, [r]: { rodada: r, estado: salvo } })),
+            (e: unknown) => setBloqueio(e instanceof SemConexao || !(e instanceof Error) ? MENSAGEM_SEM_CONSULTA : e.message),
+          )
+          .finally(() => {
+            consultando.current = null;
+          });
         return;
       }
-      setSemEstado(null);
+      if (retomada.tipo === 'sem_estado') {
+        setBloqueio(retomada.mensagem);
+        return;
+      }
+      setBloqueio(null);
+      // Começar do zero ou restaurar: o motor avança até o minuto da sala.
       loja.carregar(retomada.estado, minutoRef.current);
     } else if (turma.status !== 'aberta' && !loja.estado) {
       // Depois de recarregar a página no debrief ou no fim: o resumo vem da cópia local.
-      const copia = comoEstadoSimulacao(porta.lerCopia(grupo.token)) ?? comoEstadoSimulacao(grupo.estadoSalvo);
+      const copia = comoEstadoSimulacao(porta.lerCopia(grupo.token)) ?? comoEstadoSimulacao(grupo.servidor?.estado);
       if (copia) loja.carregar(copia);
     }
-  }, [turma, porta, grupo]);
+  }, [turma, porta, grupo, respostas, tentativa]);
+
+  /** "Tentar de novo": pergunta de novo ao servidor pelo jogo salvo desta rodada. */
+  const tentarDeNovo = useCallback(() => {
+    setBloqueio(null);
+    setRespostas(atual => {
+      const proximo = { ...atual };
+      if (rodada !== null) delete proximo[rodada];
+      return proximo;
+    });
+    setTentativa(t => t + 1);
+  }, [rodada]);
 
   // Relógio: segue o minuto do servidor; pausa do facilitador congela.
   const obterAlvo = useCallback((local: number) => minutoAlvo(local, minutoRef.current, pausada), [pausada]);
@@ -217,19 +316,19 @@ function SalaDoGrupo({ porta, sala, grupo, onReentrar, onSair }: SalaDoGrupoProp
   if (status === 'aberta') return <TelaEspera turma={turma} grupoId={grupo.grupoId} conexao={conexaoTela} />;
 
   if (rodada !== null) {
-    if (semEstado && !jogando) {
+    if (bloqueio && !jogando) {
       return (
         <TelaAviso
           sala={sala}
           titulo="Não foi possível retomar o jogo"
           conexao={conexaoTela}
           acoes={
-            <Button variante="amarelo" tamanho="p" onClick={() => void onReentrar()}>
+            <Button variante="amarelo" tamanho="p" onClick={tentarDeNovo}>
               Tentar de novo
             </Button>
           }
         >
-          {semEstado}
+          {bloqueio}
         </TelaAviso>
       );
     }
