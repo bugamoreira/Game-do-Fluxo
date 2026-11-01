@@ -77,3 +77,18 @@ Merge no `main`, site `plantaocbmede` ligado ao GitHub, variáveis de ambiente n
 2. ~~Turmas~~ uma turma por evento (curso pré-congresso), comparação só dentro da turma. Regra geral para outros eventos: cada turma fica guardada com seus resultados e relatório.
 3. ~~Música~~ trilha própria para cada rodada: Travado tenso e irregular, Lean fluido e eficiente (ver `docs/design.md` §7).
 4. Validar `docs/fluxo.md` e os 6 pontos de lógica (podem ficar para o Portão 2).
+
+## Decisões do Gustavo (registro)
+
+- Chegadas Poisson 7h–19h (≈43/plantão), mesma demanda nas duas rodadas.
+- Calibração por gargalo perceptível, não por porcentagem.
+- Tempos-alvo de Manchester e métrica de % no alvo.
+- Deterioração por gravidade; óbito só após deteriorar; "leito inadequado" com risco ~1 em 4.
+- "Fora do perfil" = paciente que o hospital não atende e precisa de transferência externa pelo NIR.
+- Altas: mesmos pacientes, horários diferentes; clique para efetivar (em teste).
+- Cirurgia cancelada antes de iniciar; alta bloqueada libera em 2 h.
+- Lean: mesma demanda, ferramentas automáticas, sem ferramentas novas; NIR (transferência externa) e PCP (Full Capacity) como ações extras; sala 4 reservada automática no Lean (cortar se o número de emergências cirúrgicas for desprezível).
+- Lean deve mostrar menos sobrecarga do gestor.
+- Todo grupo joga as duas rodadas; margem de 30 s no encerramento; remover grupo sem apagar dados.
+- Botão verde com texto azul-marinho; norma culta em todo texto.
+- Pesos da pontuação: decididos com os números do motor recalibrado.
