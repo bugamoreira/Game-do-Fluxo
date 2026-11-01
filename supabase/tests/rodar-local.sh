@@ -32,8 +32,10 @@ for f in "$RAIZ"/migrations/*.sql; do
   "${PSQL[@]}" -1 -f "$f"
 done
 
-echo "== teste ponta a ponta"
-"${PSQL[@]}" -f "$AQUI/local/10_ponta_a_ponta.sql"
+for f in "$AQUI"/local/[1-9]*.sql; do
+  echo "== teste $(basename "$f")"
+  "${PSQL[@]}" -f "$f"
+done
 
 echo "== rollback"
 "${PSQL[@]}" -1 -f "$RAIZ/rollback/cbmede_rollback.sql"

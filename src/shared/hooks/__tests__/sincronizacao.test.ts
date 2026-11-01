@@ -199,6 +199,51 @@ describe('ControladorSincronizacao', () => {
     c.parar();
   });
 
+  it('rodada recusada em definitivo: descarta a fila dessa rodada de uma vez e não insiste mais', async () => {
+    // Grupo atrasado: a R1 acabou há mais que a janela do servidor; a R2 segue normal.
+    const recusar = (rodada: number) => (rodada === 1 ? Promise.reject(new RodadaInvalida()) : Promise.resolve());
+    const registrarSerie = vi.fn((_t: string, rodada: number) => recusar(rodada));
+    const registrarEventos = vi.fn((_t: string, rodada: number) => recusar(rodada));
+    const enviarEstado = vi.fn((_t: string, e: EstadoBaseSync) => recusar(e.rodada));
+    const { c } = montar({ registrarSerie, registrarEventos, enviarEstado });
+    c.iniciar();
+    c.definirEstado(est(700));
+    for (let m = 450; m <= 1140; m += 30) c.registrarSerie(1, m, {});
+    c.registrarEventos(1, [{ minuto: 451, tipo: 'surto' }]);
+    c.registrarSerie(2, 450, {});
+    await vi.advanceTimersByTimeAsync(2000);
+    // Uma recusa basta (a do estado): a fila da R1 sai sem nova chamada; a R2 é enviada.
+    expect(enviarEstado).toHaveBeenCalledTimes(1);
+    expect(registrarSerie.mock.calls.filter((a) => a[1] === 1)).toHaveLength(0);
+    expect(registrarEventos).not.toHaveBeenCalled();
+    expect(registrarSerie.mock.calls.filter((a) => a[1] === 2)).toHaveLength(1);
+    expect(c.instantaneo().pendentes).toBe(0);
+
+    // Novas versões e registros da R1 não voltam a ser enviados.
+    c.definirEstado(est(701));
+    c.registrarSerie(1, 1140, {});
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(enviarEstado).toHaveBeenCalledTimes(1);
+    expect(registrarSerie.mock.calls.filter((a) => a[1] === 1)).toHaveLength(0);
+    expect(c.instantaneo().conexao).toBe('online');
+    c.parar();
+  });
+
+  it('recusa definitiva vinda da fila (sem estado pendente) também descarta a rodada inteira', async () => {
+    const registrarSerie = vi.fn((_t: string, rodada: number) =>
+      rodada === 1 ? Promise.reject(new RodadaInvalida()) : Promise.resolve(),
+    );
+    const { c } = montar({ registrarSerie });
+    c.iniciar();
+    for (let m = 450; m <= 1140; m += 30) c.registrarSerie(1, m, {});
+    c.registrarSerie(2, 450, {});
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(registrarSerie.mock.calls.filter((a) => a[1] === 1)).toHaveLength(1);
+    expect(registrarSerie.mock.calls.filter((a) => a[1] === 2)).toHaveLength(1);
+    expect(c.instantaneo().pendentes).toBe(0);
+    c.parar();
+  });
+
   it('para ao parar()', async () => {
     const { c, deps } = montar();
     c.iniciar();

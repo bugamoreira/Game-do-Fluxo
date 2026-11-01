@@ -210,7 +210,12 @@ export class ControladorSincronizacao extends LojaObservavel<InstantaneoSync> {
   private resumir: ((estado: EstadoBaseSync) => ResumoPlacarSync) | null = null;
   private versaoEnviada = -1;
   private rodadaEnviada: Rodada | null = null;
-  private readonly fila: Array<() => Promise<void>> = [];
+  private readonly fila: Array<{ rodada: Rodada; op: () => Promise<void> }> = [];
+  /**
+   * Rodadas recusadas em definitivo pelo servidor (RODADA_INVALIDA: a janela de
+   * dados atrasados acabou). Nada mais dessas rodadas é enviado nem enfileirado.
+   */
+  private readonly rodadasRecusadas = new Set<Rodada>();
 
   constructor(
     private readonly token: string,
@@ -252,22 +257,31 @@ export class ControladorSincronizacao extends LojaObservavel<InstantaneoSync> {
   }
 
   registrarSerie(rodada: Rodada, minuto: number, metricas: object): void {
-    this.enfileirar(() => this.deps.registrarSerie(this.token, rodada, minuto, metricas));
+    this.enfileirar(rodada, () => this.deps.registrarSerie(this.token, rodada, minuto, metricas));
   }
 
   registrarEventos(rodada: Rodada, eventos: EventoJogo[]): void {
     if (eventos.length === 0) return;
-    this.enfileirar(() => this.deps.registrarEventos(this.token, rodada, eventos));
+    this.enfileirar(rodada, () => this.deps.registrarEventos(this.token, rodada, eventos));
   }
 
-  private enfileirar(op: () => Promise<void>): void {
-    this.fila.push(op);
+  private enfileirar(rodada: Rodada, op: () => Promise<void>): void {
+    if (this.rodadasRecusadas.has(rodada)) return;
+    this.fila.push({ rodada, op });
     if (this.fila.length > LIMITE_FILA) this.fila.shift();
     this.atualizar({ pendentes: this.fila.length });
   }
 
   private precisaEnviar(e: EstadoBaseSync): boolean {
+    if (this.rodadasRecusadas.has(e.rodada)) return false;
     return e.rodada !== this.rodadaEnviada || e.versao > this.versaoEnviada;
+  }
+
+  /** Recusa definitiva da rodada: descarta de uma vez tudo o que ela tinha na fila. */
+  private recusarRodada(rodada: Rodada): void {
+    this.rodadasRecusadas.add(rodada);
+    for (let i = this.fila.length - 1; i >= 0; i--) if (this.fila[i]!.rodada === rodada) this.fila.splice(i, 1);
+    this.atualizar({ pendentes: this.fila.length });
   }
 
   private async sincronizar(): Promise<boolean> {
@@ -284,19 +298,31 @@ export class ControladorSincronizacao extends LojaObservavel<InstantaneoSync> {
       } catch (e) {
         // Sem rede: a fila também falharia; tenta tudo de novo no próximo ciclo.
         if (e instanceof SemConexao) throw e;
-        // O servidor já tem versão igual ou mais nova, ou a rodada acabou (passados os 30 s
-        // de tolerância): reenviar esta mesma versão não adianta; segue com as próximas.
-        if (e instanceof VersaoAntiga || e instanceof RodadaInvalida) this.marcarEnviado(alvo);
-        erroEnvio = e;
-        this.atualizar({ erro: comoErro(e) });
+        // O servidor já tem versão igual ou mais nova: reenviar esta mesma versão não adianta.
+        if (e instanceof VersaoAntiga) this.marcarEnviado(alvo);
+        if (e instanceof RodadaInvalida) {
+          // A janela de dados atrasados da rodada acabou: recusa definitiva, sem repetir.
+          this.marcarEnviado(alvo);
+          this.recusarRodada(alvo.rodada);
+          this.atualizar({ erro: comoErro(e) });
+        } else {
+          erroEnvio = e;
+          this.atualizar({ erro: comoErro(e) });
+        }
       }
     }
     while (this.fila.length > 0) {
-      const op = this.fila[0]!;
+      const { rodada, op } = this.fila[0]!;
       try {
         await op();
       } catch (e) {
-        // Sem rede: fica na fila para a próxima tentativa. Recusa do servidor: descarta para não travar a fila.
+        if (e instanceof RodadaInvalida) {
+          // Recusa definitiva: a fila dessa rodada sai inteira, sem nova chamada nem novo erro.
+          this.recusarRodada(rodada);
+          this.atualizar({ erro: comoErro(e) });
+          continue;
+        }
+        // Sem rede: fica na fila para a próxima tentativa. Outra recusa do servidor: descarta para não travar a fila.
         if (!(e instanceof SemConexao)) {
           this.fila.shift();
           this.atualizar({ pendentes: this.fila.length });

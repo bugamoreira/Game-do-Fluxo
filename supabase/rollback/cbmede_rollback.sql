@@ -1,7 +1,8 @@
 -- =============================================================================
 -- ROLLBACK do schema CBMEDE 2026.
--- Apaga SÓ os objetos criados pelas migrações 20261101190000, 20261101190100
--- e 20261101200000.
+-- Apaga SÓ os objetos criados pelas migrações do CBMEDE (20261101190000 em
+-- diante, inclusive as colunas rodada1_* e interno.minuto_da_rodada de
+-- 20261103100000, que saem com a tabela turmas e o schema interno).
 -- NÃO toca nas tabelas do FLAME (rooms, teams, game_state, game_logs),
 -- nem no pgcrypto, nem no schema auth.
 --

@@ -15,7 +15,7 @@
 | Tabela | Conteúdo | Quem lê | Quem escreve |
 |---|---|---|---|
 | `facilitadores` | `user_id` (auth), nome | o próprio facilitador | só pelo painel do Supabase |
-| `turmas` | código da sala (ex.: `CBMEDE`), nome, evento, data, facilitador, `status`, `rodada`, `rodada_inicio`, `pausada_em`, `pausa_acumulada_ms`, `entrada_liberada`, `full_capacity_liberado`, `musica_mudo` | por RPC (`estado_turma`: só os campos de estado) | RPC do facilitador |
+| `turmas` | código da sala (ex.: `CBMEDE`), nome, evento, data, facilitador, `status`, `rodada`, `rodada_inicio`, `rodada_fim`, `rodada1_fim` e `rodada1_minuto_fim` (fim da rodada 1, preservado na rodada 2), `pausada_em`, `pausa_acumulada_ms`, `entrada_liberada`, `full_capacity_liberado`, `musica_mudo` | por RPC (`estado_turma`: só os campos de estado) | RPC do facilitador |
 | `grupos` | turma, nome, cor, `token_hash`, `reconexao_liberada`, `visto_em` | por RPC (nome, cor, se está conectado) | RPC `entrar_grupo` e RPCs do facilitador |
 | `placar` | grupo, rodada, minuto, pontuação, métricas resumidas | por RPC (`ranking`: alimenta ranking e telão) | RPC `enviar_estado` |
 | `estado_jogo` | grupo, rodada, minuto, **estado completo da simulação** (JSON), versão | só o próprio grupo (pelo token) e o facilitador | RPC `enviar_estado` |
@@ -38,6 +38,7 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 - `rodada_inicio` é gravado ao iniciar cada rodada; pausar e retomar acumulam `pausa_acumulada_ms`.
 - **Minuto do plantão** = 420 + ⌊(agora − rodada_inicio − pausa_acumulada) / 1000 ms⌋, limitado a 1140 (7h → 19h): 1 segundo real = 1 minuto simulado, rodada de 12 minutos. Durante a pausa, "agora" é o início da pausa; depois de encerrar, é `rodada_fim`. `estado_turma` já devolve o `minuto` calculado e a `hora_servidor`.
 - **Encerrar** grava `rodada_fim` e fecha a pausa em curso. Por 30 s depois disso o servidor ainda aceita envios da rodada que acabou, para o último placar (minuto 1140) não se perder na corrida com o clique do facilitador. Por isso `debrief → rodada2` antes de `rodada_fim + 30 s` é recusado com `TRANSICAO_INVALIDA` e a espera na frase (migração `20261102100400`); o painel mostra a contagem e sempre pede confirmação para iniciar o Lean.
+- **Dados atrasados** (migração `20261103100000`, ensaio E2): grupos com o computador lento terminam de mandar a rodada depois que ela acabou. O servidor aceita `enviar_estado`, `registrar_serie` e `registrar_eventos` da rodada 1 durante `debrief`, `rodada2` e `encerrada` até `rodada1_fim + 5 min`, e da rodada 2 em `encerrada` até `rodada_fim + 5 min`. As checagens de plausibilidade continuam; para a rodada 1 já encerrada, o relógio é `rodada1_minuto_fim` (o minuto em que ela parou), não o da rodada 2. Passada a janela, `RODADA_INVALIDA`; o cliente trata a recusa como definitiva e descarta de uma vez a fila daquela rodada, sem repetir nem encher o console.
 - **Nova turma com o mesmo código:** `abrir_turma` arquiva sozinho a anterior se ela estiver `encerrada` ou `aberta` sem grupos; em qualquer outro caso recusa com `CODIGO_EM_USO` e só arquiva com `p_substituir = true`. Nada é apagado (lição 2 do pós-mortem).
 - Qualquer facilitador cadastrado comanda qualquer turma (equipe pequena, um evento por vez).
 
@@ -83,7 +84,7 @@ Todas são `security definer` com `search_path = ''` e nomes qualificados. Parâ
 | RPC | Regra |
 |---|---|
 | `entrar_grupo(p_codigo, p_nome, p_token?, p_acesso?)` | Tabela acima. Devolve `{turma_id, status, rodada, grupo{id, nome, cor}, token, reconectado, estado_salvo, hora_servidor}`; `token` é `null` quando não foi gerado token novo; `estado_salvo` é o jogo salvo da rodada atual (`null` = nada salvo nessa rodada). Código de acesso errado devolve `{erro: 'CODIGO_ACESSO_INVALIDO', detalhe}` (ver “Código de acesso”). |
-| `enviar_estado(p_token, p_rodada, p_minuto, p_versao, p_estado, p_pontuacao, p_metricas)` | Recusa `p_versao` ≤ guardada (`VERSAO_ANTIGA`) e rodada que não é a atual (`RODADA_INVALIDA`). Plausibilidade (migração `20261102100100`): minuto mais de 3 min à frente do relógio da sala ou menor que o guardado, pontuação fora de 0–3000 e estado acima de 256 KB dão `DADOS_INVALIDOS`; nova versão menos de 1 s depois da anterior do mesmo grupo dá `LIMITE_EXCEDIDO` (o app envia a cada 2 s e tenta de novo). Grava estado e placar e atualiza `grupos.visto_em`. Métricas ≤ 16 KB, minuto 420–1140. |
+| `enviar_estado(p_token, p_rodada, p_minuto, p_versao, p_estado, p_pontuacao, p_metricas)` | Recusa `p_versao` ≤ guardada (`VERSAO_ANTIGA`) e rodada que não é a atual nem está na janela de dados atrasados (`RODADA_INVALIDA`). Plausibilidade (migração `20261102100100`): minuto mais de 3 min à frente do relógio da sala ou menor que o guardado, pontuação fora de 0–3000 e estado acima de 256 KB dão `DADOS_INVALIDOS`; nova versão menos de 1 s depois da anterior do mesmo grupo dá `LIMITE_EXCEDIDO` (o app envia a cada 2 s e tenta de novo). Grava estado e placar e atualiza `grupos.visto_em`. Métricas ≤ 16 KB, minuto 420–1140. |
 | `obter_estado(p_token, p_rodada?)` | Último estado do próprio grupo (`{rodada, minuto, versao, estado, atualizado_em}`) ou `null`. Sem rodada, usa a atual. |
 | `registrar_serie(p_token, p_rodada, p_minuto, p_metricas)` | Um ponto por (grupo, rodada, minuto); reenvio não altera (`{registrado: false}`). |
 | `registrar_eventos(p_token, p_rodada, p_eventos)` | Lista de `{minuto, tipo, mensagem?, chave?}`; até 50 por chamada e 3000 por grupo e rodada. `chave` torna o reenvio idempotente. |
@@ -115,7 +116,7 @@ Turma inexistente: `TURMA_NAO_ENCONTRADA`; rodada fora de 1–2 ou limite fora d
 | `NAO_AUTORIZADO` | CB006 | RPC de facilitador sem login ou sem cadastro em `facilitadores` |
 | `TRANSICAO_INVALIDA` | CB007 | transição fora do diagrama; pausar fora de rodada; relatório antes de encerrar |
 | `DADOS_INVALIDOS` | CB008 | nome, minuto, tamanho ou formato fora dos limites; grupo inexistente |
-| `RODADA_INVALIDA` | CB009 | envio para rodada que não é a atual (ou depois dos 30 s de tolerância) |
+| `RODADA_INVALIDA` | CB009 | envio para rodada que não é a atual (ou depois da janela de 5 min para dados atrasados); o cliente descarta a fila da rodada |
 | `TURMA_CHEIA` | CB010 | `max_grupos` atingido |
 | `CODIGO_EM_USO` | CB011 | `abrir_turma` com turma ativa de mesmo código e grupos, sem `p_substituir` |
 | `RELATORIO_NAO_ENCONTRADO` | CB012 | slug malformado ou inexistente |

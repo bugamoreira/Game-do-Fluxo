@@ -315,10 +315,11 @@ set role anon;
 set request.jwt.claims = '{"role":"anon"}';
 select tst.ok((public.enviar_estado(:'tok_b', 1, 1140, 9, '{"fim":true}'::jsonb, 99, '{}'::jsonb) ->> 'versao') = '9', 'último envio aceito até 30 s depois de encerrar');
 reset role;
-update public.turmas set rodada_fim = now() - interval '1 minute' where id = :'turma_id';
+-- passada a janela de 5 min para dados atrasados da R1 (migração 20261103100000)
+update public.turmas set rodada_fim = now() - interval '6 minutes', rodada1_fim = now() - interval '6 minutes' where id = :'turma_id';
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';
-select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 1140, 10, '{}'::jsonb, 1, '{}'::jsonb)$q$, :'tok_b')) like 'CB009:%', 'depois da tolerância -> RODADA_INVALIDA');
+select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 1140, 10, '{}'::jsonb, 1, '{}'::jsonb)$q$, :'tok_b')) like 'CB009:%', 'depois da janela de 5 min -> RODADA_INVALIDA');
 select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo D', null, tst.acesso('CBMEDE'))$q$) like 'CB002:%', 'grupo novo não entra no debrief sem liberação (todos jogam as duas rodadas)');
 reset role;
 set role authenticated;
