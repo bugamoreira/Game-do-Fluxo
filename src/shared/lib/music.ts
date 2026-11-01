@@ -13,6 +13,15 @@
 // Tudo passa por rampas (camadas, troca de trilha, andamento, mudo): nada é
 // cortado de uma vez. Volume moderado, com limitador na saída.
 //
+// A música nunca pode derrubar o jogo (ensaio D1/E2: com a CPU apertada, o
+// Transport do Tone acumulava tiques e congelava a página dentro de
+// Clock._loop). Por isso o sequenciador é próprio e leve: um temporizador
+// agenda no máximo alguns passos à frente pelo relógio de áudio, descarta os
+// atrasados em vez de recuperá-los, nunca agenda no passado e limita as notas
+// por passo. Um disjuntor desliga a música quando a aba fica oculta ou quando
+// há engasgos e erros repetidos, e a religa limpa depois. Toda exceção do
+// áudio é engolida e registrada uma única vez no console.
+//
 // O navegador só libera áudio depois de um gesto do usuário: `iniciar()` deve
 // ser chamado no primeiro clique. `atualizar()` e `definirMudo()` podem ser
 // chamados antes; o último estado é aplicado quando o áudio liga.
@@ -155,6 +164,28 @@ const RAMPA_TROCA_TRILHA = 3.5; // s
 const RAMPA_ANDAMENTO = 6; // s
 const RAMPA_MUDO = 0.6; // s
 const PAUSA_APOS_SILENCIO_MS = 4000;
+
+// Sequenciador e disjuntor
+/** Intervalo do temporizador que agenda os passos. */
+const INTERVALO_SEQUENCIADOR_MS = 50;
+/** Até onde o sequenciador agenda à frente do relógio de áudio. */
+const ANTECEDENCIA_S = 0.15;
+/** Passo com mais atraso que isto é descartado (não toca). */
+export const TOLERANCIA_ATRASO_S = 0.2;
+/** Atraso que conta como engasgo (a página ficou parada). */
+export const ATRASO_ENGASGO_S = 1;
+/** Máximo de passos agendados por rodada do temporizador. */
+const MAX_PASSOS_POR_RODADA = 4;
+/** Máximo de vozes disparadas num único passo. */
+export const MAX_NOTAS_PASSO = 8;
+/** Engasgos ou erros dentro da janela que abrem o disjuntor. */
+export const LIMITE_ENGASGOS = 3;
+export const LIMITE_ERROS = 5;
+const JANELA_DISJUNTOR_MS = 30_000;
+/** Depois de aberto por engasgo ou erro, o disjuntor tenta religar após este tempo. */
+export const ESPERA_DISJUNTOR_MS = 10_000;
+
+export type MotivoDisjuntor = 'oculta' | 'engasgo' | 'erro';
 /** Intervalo mínimo entre dois efeitos iguais (evita avalanche com vários grupos). */
 const INTERVALO_EFEITO_S = 0.35;
 
@@ -167,7 +198,6 @@ interface Grafo {
   camadasLean: Record<CamadaLean, Tone.Gain>;
   sfx: Tone.Gain;
   inst: Instrumentos;
-  laco: Tone.Loop;
   descartaveis: { dispose(): unknown }[];
 }
 
@@ -207,7 +237,128 @@ const estado = {
   camadas: planoDeCamadas({ rodada: 1, tensao: 0, rodando: false }),
   ultimoEfeito: {} as Partial<Record<SomEfeito, number>>,
   temporizadorPausa: null as ReturnType<typeof setTimeout> | null,
+  /** Andamento corrente do sequenciador (aproxima-se de `bpm` aos poucos). */
+  bpmAtual: ANDAMENTO_TRAVADO_MIN,
+  sequenciador: null as ReturnType<typeof setInterval> | null,
+  /** Tempo de áudio (s) do próximo passo a agendar. */
+  proximoPasso: 0,
+  /** Vozes já disparadas no passo corrente. */
+  notasNoPasso: 0,
+  /** Último valor enviado a cada parâmetro (evita rampas repetidas a cada consulta). */
+  aplicado: new Map<string, number>(),
+  disjuntor: {
+    aberto: false,
+    motivo: null as MotivoDisjuntor | null,
+    engasgos: [] as number[],
+    erros: [] as number[],
+    temporizador: null as ReturnType<typeof setTimeout> | null,
+  },
+  erroRegistrado: false,
+  visibilidadeArmada: false,
 };
+
+// ------------------------------------------------------------
+// Proteções: registro único, disjuntor e visibilidade
+// ------------------------------------------------------------
+
+/** Registra só o primeiro problema do áudio (o console não pode encher). */
+function registrarUmaVez(mensagem: string, erro?: unknown): void {
+  if (estado.erroRegistrado) return;
+  estado.erroRegistrado = true;
+  try {
+    console.warn(`[música] ${mensagem}`, erro ?? '');
+  } catch {
+    /* noop */
+  }
+}
+
+/** Executa um trecho de áudio sem deixar exceção escapar. */
+function seguro(fn: () => void): void {
+  try {
+    fn();
+  } catch (erro) {
+    registrarErro(erro);
+  }
+}
+
+function contarNaJanela(lista: number[]): number {
+  const agora = Date.now();
+  while (lista.length && agora - lista[0]! > JANELA_DISJUNTOR_MS) lista.shift();
+  lista.push(agora);
+  return lista.length;
+}
+
+function registrarErro(erro: unknown): void {
+  registrarUmaVez('erro no áudio; a música pode pausar, o jogo segue.', erro);
+  if (contarNaJanela(estado.disjuntor.erros) >= LIMITE_ERROS) abrirDisjuntor('erro');
+}
+
+function registrarEngasgo(atraso: number): void {
+  registrarUmaVez(`áudio atrasado ${atraso.toFixed(1)} s; passos descartados.`);
+  if (contarNaJanela(estado.disjuntor.engasgos) >= LIMITE_ENGASGOS) abrirDisjuntor('engasgo');
+}
+
+function abaOculta(): boolean {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+}
+
+/** Desliga o sequenciador e silencia a saída na hora; nada fica acumulado. */
+function abrirDisjuntor(motivo: MotivoDisjuntor): void {
+  const d = estado.disjuntor;
+  if (d.temporizador) {
+    clearTimeout(d.temporizador);
+    d.temporizador = null;
+  }
+  if (!d.aberto) {
+    d.aberto = true;
+    pararSequenciador();
+    try {
+      const g = estado.grafo;
+      if (g) {
+        g.mestre.gain.cancelScheduledValues(Tone.now());
+        g.mestre.gain.rampTo(0, 0.05);
+      }
+      estado.aplicado.delete('mestre');
+      const transporte = Tone.getTransport();
+      if (transporte.state === 'started') transporte.pause();
+    } catch (erro) {
+      registrarUmaVez('erro ao pausar o áudio.', erro);
+    }
+    if (motivo !== 'oculta') registrarUmaVez(`música pausada (${motivo}); volta sozinha em instantes.`);
+  }
+  d.motivo = motivo;
+  if (motivo !== 'oculta') d.temporizador = setTimeout(fecharDisjuntor, ESPERA_DISJUNTOR_MS);
+}
+
+/** Religa do zero: contadores limpos, próximo passo a partir de agora. */
+function fecharDisjuntor(): void {
+  const d = estado.disjuntor;
+  if (d.temporizador) {
+    clearTimeout(d.temporizador);
+    d.temporizador = null;
+  }
+  if (abaOculta()) {
+    d.motivo = 'oculta';
+    return;
+  }
+  d.aberto = false;
+  d.motivo = null;
+  d.engasgos = [];
+  d.erros = [];
+  estado.aplicado.clear();
+  if (estado.iniciado) seguro(aplicar);
+}
+
+function aoMudarVisibilidade(): void {
+  if (abaOculta()) abrirDisjuntor('oculta');
+  else if (estado.disjuntor.aberto && estado.disjuntor.motivo === 'oculta') fecharDisjuntor();
+}
+
+function armarVisibilidade(): void {
+  if (estado.visibilidadeArmada || typeof document === 'undefined') return;
+  estado.visibilidadeArmada = true;
+  document.addEventListener('visibilitychange', aoMudarVisibilidade);
+}
 
 // ------------------------------------------------------------
 // Harmonia e padrões
@@ -371,19 +522,76 @@ function montarGrafo(): Grafo {
     eSuave, eGrave, eSeco,
   };
 
-  const laco = new Tone.Loop((tempo) => tocarPasso(tempo), '16n');
-
   const descartaveis = [
-    laco, ...Object.values(inst), ...Object.values(camadasTravado), ...Object.values(camadasLean),
+    ...Object.values(inst), ...Object.values(camadasTravado), ...Object.values(camadasLean),
     trilhaTravado, trilhaLean, sfx, reverb, mestre, saida,
   ];
 
-  return { mestre, saida, trilhaTravado, trilhaLean, camadasTravado, camadasLean, sfx, inst, laco, descartaveis };
+  return { mestre, saida, trilhaTravado, trilhaLean, camadasTravado, camadasLean, sfx, inst, descartaveis };
 }
 
 // ------------------------------------------------------------
 // Sequenciador (um passo = uma semicolcheia)
 // ------------------------------------------------------------
+
+/** Duração de uma semicolcheia (s) no andamento corrente. */
+function semicolcheia(): number {
+  return 60 / Math.max(40, estado.bpmAtual) / 4;
+}
+
+function ligarSequenciador(): void {
+  if (estado.sequenciador || estado.disjuntor.aberto) return;
+  estado.proximoPasso = Tone.now() + 0.05;
+  estado.sequenciador = setInterval(rodarSequenciador, INTERVALO_SEQUENCIADOR_MS);
+}
+
+function pararSequenciador(): void {
+  if (estado.sequenciador) clearInterval(estado.sequenciador);
+  estado.sequenciador = null;
+}
+
+function avancarContadores(passos: number): void {
+  estado.passoTravado = (estado.passoTravado + passos) % (PASSOS_TRAVADO * 8);
+  estado.passoLean = (estado.passoLean + passos) % (PASSOS_LEAN * 4);
+}
+
+/** Andamento em rampa: aproxima-se do alvo ao longo de RAMPA_ANDAMENTO. */
+function ajustarAndamento(duracao: number): void {
+  const fracao = Math.min(1, duracao / RAMPA_ANDAMENTO);
+  estado.bpmAtual += (estado.bpm - estado.bpmAtual) * fracao;
+  if (Math.abs(estado.bpm - estado.bpmAtual) < 0.05) estado.bpmAtual = estado.bpm;
+}
+
+/**
+ * Uma rodada do temporizador: descarta o que atrasou (sem recuperar) e agenda
+ * no máximo alguns passos dentro da antecedência. Nunca entra em laço longo.
+ */
+function rodarSequenciador(): void {
+  try {
+    if (!estado.grafo || estado.disjuntor.aberto) return;
+    const agora = Tone.now();
+    if (!Number.isFinite(agora)) return;
+    const atraso = agora - estado.proximoPasso;
+    if (atraso > TOLERANCIA_ATRASO_S) {
+      const dur = semicolcheia();
+      const pulados = Math.ceil(atraso / dur);
+      avancarContadores(pulados);
+      estado.proximoPasso += pulados * dur;
+      if (atraso > ATRASO_ENGASGO_S) {
+        registrarEngasgo(atraso);
+        if (estado.disjuntor.aberto) return;
+      }
+    }
+    for (let n = 0; n < MAX_PASSOS_POR_RODADA && estado.proximoPasso < agora + ANTECEDENCIA_S; n++) {
+      const dur = semicolcheia();
+      tocarPasso(Math.max(estado.proximoPasso, agora));
+      estado.proximoPasso += dur;
+      ajustarAndamento(dur);
+    }
+  } catch (erro) {
+    registrarErro(erro);
+  }
+}
 
 function trilhaTocando(rodada: Rodada): boolean {
   if (estado.modo !== 'silencio' && estado.config.rodada === rodada) return true;
@@ -391,17 +599,29 @@ function trilhaTocando(rodada: Rodada): boolean {
   return !!saindo && saindo.rodada === rodada && Tone.now() < saindo.ate;
 }
 
+/** Dispara uma nota respeitando o teto de vozes do passo. */
+function nota(vozes: number, disparar: () => void): void {
+  if (estado.notasNoPasso + vozes > MAX_NOTAS_PASSO) return;
+  estado.notasNoPasso += vozes;
+  seguro(disparar);
+}
+
 function tocarPasso(tempo: number): void {
   const g = estado.grafo;
   if (!g) return;
   try {
-    if (trilhaTocando(1)) passoTravado(g.inst, tempo);
-    if (trilhaTocando(2)) passoLean(g.inst, tempo);
-  } catch {
-    /* um nó ainda não pronto não pode derrubar o laço */
+    const agora = Tone.now();
+    // Atrasado demais: descarta (tocar no passado só gera erro e engasgo).
+    if (Number.isFinite(tempo) && tempo >= agora - TOLERANCIA_ATRASO_S) {
+      const t = Math.max(tempo, agora);
+      estado.notasNoPasso = 0;
+      if (trilhaTocando(1)) passoTravado(g.inst, t);
+      if (trilhaTocando(2)) passoLean(g.inst, t);
+    }
+  } catch (erro) {
+    registrarErro(erro);
   }
-  estado.passoTravado = (estado.passoTravado + 1) % (PASSOS_TRAVADO * 8);
-  estado.passoLean = (estado.passoLean + 1) % (PASSOS_LEAN * 4);
+  avancarContadores(1);
 }
 
 function passoTravado(i: Instrumentos, tempo: number): void {
@@ -410,30 +630,31 @@ function passoTravado(i: Instrumentos, tempo: number): void {
   const compasso = Math.floor(p / PASSOS_TRAVADO);
   const c = estado.camadas.travado;
   const tenso = estado.modo === 'tenso' || estado.modo === 'crise';
+  const s16 = semicolcheia();
 
   // Base: troca de acorde a cada 2 compassos de 7/8.
   if (passo === 0 && compasso % 2 === 0) {
     const banco = tenso ? ACORDES_TRAVADO_TENSOS : ACORDES_TRAVADO;
     const acorde = banco[(compasso / 2) % banco.length]!;
     // Dura quase os dois compassos (28 semicolcheias); o release faz a ligação.
-    i.tPad.triggerAttackRelease(acorde, Tone.Time('16n').toSeconds() * (PASSOS_TRAVADO * 2 - 2), tempo);
+    nota(acorde.length, () => i.tPad.triggerAttackRelease(acorde, s16 * (PASSOS_TRAVADO * 2 - 2), tempo));
   }
   if (c.pulso > 0.01 && BATIDAS_BAIXO_TRAVADO.has(passo)) {
-    const nota = BAIXO_TRAVADO[Math.floor(compasso / 2) % BAIXO_TRAVADO.length]!;
-    i.tBaixo.triggerAttackRelease(nota, '16n', tempo, passo === 0 ? 0.9 : 0.6);
+    const n = BAIXO_TRAVADO[Math.floor(compasso / 2) % BAIXO_TRAVADO.length]!;
+    nota(1, () => i.tBaixo.triggerAttackRelease(n, s16, tempo, passo === 0 ? 0.9 : 0.6));
   }
   if (c.tique > 0.01 && BATIDAS_TIQUE_TRAVADO.has(passo)) {
-    i.tTique.triggerAttackRelease('32n', tempo, passo % 3 === 0 ? 0.7 : 0.4);
+    nota(1, () => i.tTique.triggerAttackRelease(s16 / 2, tempo, passo % 3 === 0 ? 0.7 : 0.4));
   }
   if (c.inquieto > 0.01) {
-    const nota = MOTIVO_INQUIETO[passo];
-    if (nota) i.tInquieto.triggerAttackRelease(nota, '16n', tempo, 0.5);
+    const n = MOTIVO_INQUIETO[passo];
+    if (n) nota(1, () => i.tInquieto.triggerAttackRelease(n, s16, tempo, 0.5));
   }
   if (c.crise > 0.01) {
-    if (p % (PASSOS_TRAVADO * 4) === 0) i.tDrone.triggerAttackRelease('A1', '4m', tempo);
+    if (p % (PASSOS_TRAVADO * 4) === 0) nota(1, () => i.tDrone.triggerAttackRelease('A1', s16 * PASSOS_TRAVADO * 4, tempo));
     // Batimento cardíaco: "tum-tum" no início de cada compasso.
-    if (passo === 0) i.tCoracao.triggerAttackRelease('A1', '16n', tempo, 0.9);
-    if (passo === 2) i.tCoracao.triggerAttackRelease('A1', '16n', tempo, 0.55);
+    if (passo === 0) nota(1, () => i.tCoracao.triggerAttackRelease('A1', s16, tempo, 0.9));
+    if (passo === 2) nota(1, () => i.tCoracao.triggerAttackRelease('A1', s16, tempo, 0.55));
   }
 }
 
@@ -443,23 +664,27 @@ function passoLean(i: Instrumentos, tempo: number): void {
   const compasso = Math.floor(p / PASSOS_LEAN);
   const grau = compasso % ACORDES_LEAN.length;
   const c = estado.camadas.lean;
+  const s16 = semicolcheia();
 
-  if (passo === 0) i.lPad.triggerAttackRelease(ACORDES_LEAN[grau]!, '1m', tempo);
+  if (passo === 0) {
+    const acorde = ACORDES_LEAN[grau]!;
+    nota(acorde.length, () => i.lPad.triggerAttackRelease(acorde, s16 * PASSOS_LEAN, tempo));
+  }
   // Pulso constante em colcheias: a "esteira" regulada.
   if (passo % 2 === 0) {
-    const nota = BAIXO_LEAN[grau]!;
-    i.lBaixo.triggerAttackRelease(passo % 8 === 6 ? QUINTA_LEAN[grau]! : nota, '16n', tempo, passo % 4 === 0 ? 0.8 : 0.5);
+    const n = passo % 8 === 6 ? QUINTA_LEAN[grau]! : BAIXO_LEAN[grau]!;
+    nota(1, () => i.lBaixo.triggerAttackRelease(n, s16, tempo, passo % 4 === 0 ? 0.8 : 0.5));
   }
   if (c.arpejo > 0.01 && passo % 2 === 0) {
     const notas = ARPEJO_LEAN[grau]!;
-    i.lArpejo.triggerAttackRelease(notas[(passo / 2) % notas.length]!, '16n', tempo, 0.6);
+    nota(1, () => i.lArpejo.triggerAttackRelease(notas[(passo / 2) % notas.length]!, s16, tempo, 0.6));
   }
   if (c.sinos > 0.01) {
-    const nota = SINOS_LEAN[passo];
-    if (nota && compasso % 2 === 1) i.lSinos.triggerAttackRelease(nota, '4n', tempo, 0.5);
+    const n = SINOS_LEAN[passo];
+    if (n && compasso % 2 === 1) nota(1, () => i.lSinos.triggerAttackRelease(n, s16 * 4, tempo, 0.5));
   }
   if (c.brilho > 0.01) {
-    i.lBrilho.triggerAttackRelease('64n', tempo, passo % 4 === 2 ? 0.7 : 0.3);
+    nota(1, () => i.lBrilho.triggerAttackRelease(s16 / 4, tempo, passo % 4 === 2 ? 0.7 : 0.3));
   }
 }
 
@@ -467,48 +692,53 @@ function passoLean(i: Instrumentos, tempo: number): void {
 // Aplicação do estado ao áudio (sempre com rampas)
 // ------------------------------------------------------------
 
+/** Rampa só quando o alvo muda: `atualizar()` chega a cada consulta (1 s). */
+function rampa(chave: string, param: { rampTo(valor: number, tempo: number): unknown }, valor: number, tempo: number): void {
+  if (estado.aplicado.get(chave) === valor) return;
+  estado.aplicado.set(chave, valor);
+  param.rampTo(valor, tempo);
+}
+
 function aplicar(): void {
   const g = estado.grafo;
   if (!g) return;
   const { config, modo } = estado;
 
   for (const [nome, valor] of Object.entries(estado.camadas.travado)) {
-    g.camadasTravado[nome as CamadaTravado].gain.rampTo(valor, RAMPA_CAMADA);
+    rampa(`t:${nome}`, g.camadasTravado[nome as CamadaTravado].gain, valor, RAMPA_CAMADA);
   }
   for (const [nome, valor] of Object.entries(estado.camadas.lean)) {
-    g.camadasLean[nome as CamadaLean].gain.rampTo(valor, RAMPA_CAMADA);
+    rampa(`l:${nome}`, g.camadasLean[nome as CamadaLean].gain, valor, RAMPA_CAMADA);
   }
 
   const tocando = modo !== 'silencio';
-  g.trilhaTravado.gain.rampTo(tocando && config.rodada === 1 ? 1 : 0, RAMPA_TROCA_TRILHA);
-  g.trilhaLean.gain.rampTo(tocando && config.rodada === 2 ? 1 : 0, RAMPA_TROCA_TRILHA);
+  rampa('trilhaTravado', g.trilhaTravado.gain, tocando && config.rodada === 1 ? 1 : 0, RAMPA_TROCA_TRILHA);
+  rampa('trilhaLean', g.trilhaLean.gain, tocando && config.rodada === 2 ? 1 : 0, RAMPA_TROCA_TRILHA);
 
   // Na crise o pad abre um pouco (mais áspero); no resto fica abafado.
-  g.inst.tFiltroPad.frequency.rampTo(modo === 'crise' ? 1400 : modo === 'tenso' ? 1000 : 700, RAMPA_CAMADA);
+  rampa('filtroPad', g.inst.tFiltroPad.frequency, modo === 'crise' ? 1400 : modo === 'tenso' ? 1000 : 700, RAMPA_CAMADA);
 
-  Tone.getTransport().bpm.rampTo(estado.bpm, RAMPA_ANDAMENTO);
   aplicarMestre();
 
-  const transporte = Tone.getTransport();
   if (tocando) {
     if (estado.temporizadorPausa) {
       clearTimeout(estado.temporizadorPausa);
       estado.temporizadorPausa = null;
     }
-    if (transporte.state !== 'started') transporte.start();
-  } else if (!estado.temporizadorPausa && transporte.state === 'started') {
-    // Pausa o relógio só depois que as rampas terminarem (sem corte audível).
+    ligarSequenciador();
+  } else if (!estado.temporizadorPausa && estado.sequenciador) {
+    // Para o sequenciador só depois que as rampas terminarem (sem corte audível).
     estado.temporizadorPausa = setTimeout(() => {
       estado.temporizadorPausa = null;
-      if (estado.modo === 'silencio') Tone.getTransport().pause();
+      if (estado.modo === 'silencio') pararSequenciador();
     }, PAUSA_APOS_SILENCIO_MS);
   }
 }
 
 function aplicarMestre(): void {
   const g = estado.grafo;
-  if (!g) return;
-  g.mestre.gain.rampTo(estado.mudo ? 0 : VOLUME_MESTRE, RAMPA_MUDO);
+  if (!g || estado.disjuntor.aberto) return;
+  rampa('mestre', g.mestre.gain, estado.mudo ? 0 : VOLUME_MESTRE, RAMPA_MUDO);
 }
 
 // ------------------------------------------------------------
@@ -521,11 +751,13 @@ async function iniciar(): Promise<void> {
     await Tone.start();
     if (!estado.grafo) {
       estado.grafo = montarGrafo();
-      estado.grafo.laco.start(0);
+      estado.aplicado.clear();
     }
     estado.iniciado = true;
+    armarVisibilidade();
+    if (abaOculta()) abrirDisjuntor('oculta');
     // Aplica o que chegou antes do clique (inclusive o mudo).
-    aplicar();
+    seguro(aplicar);
   })();
   try {
     await estado.inicio;
@@ -537,6 +769,10 @@ async function iniciar(): Promise<void> {
 }
 
 function atualizar(c: ConfigMusica): void {
+  seguro(() => atualizarSemProtecao(c));
+}
+
+function atualizarSemProtecao(c: ConfigMusica): void {
   const config: ConfigMusica = { rodada: c.rodada === 2 ? 2 : 1, tensao: limitar(c.tensao), rodando: !!c.rodando };
   const anterior = estado.config;
   const modo = escolherModo(config, estado.modo);
@@ -555,7 +791,7 @@ function atualizar(c: ConfigMusica): void {
 /** Problemas no Lean soam sem pânico: mais graves e curtos, sem dissonância seca. */
 function efeito(som: SomEfeito): void {
   const g = estado.grafo;
-  if (!estado.iniciado || estado.mudo || !g) return;
+  if (!estado.iniciado || estado.mudo || !g || estado.disjuntor.aberto) return;
   const agora = Tone.now();
   const ultimo = estado.ultimoEfeito[som];
   if (ultimo !== undefined && agora - ultimo < INTERVALO_EFEITO_S) return;
@@ -615,14 +851,14 @@ function efeito(som: SomEfeito): void {
         eSuave.triggerAttackRelease(['C5', 'G5'], '4n', t + 0.14, 0.45);
         break;
     }
-  } catch {
-    /* áudio ainda não pronto */
+  } catch (erro) {
+    registrarErro(erro);
   }
 }
 
 function definirMudo(mudo: boolean): void {
   estado.mudo = !!mudo;
-  aplicarMestre();
+  seguro(aplicarMestre);
 }
 
 function estaMudo(): boolean {
@@ -640,12 +876,20 @@ export function __estadoMusica() {
     bpm: estado.bpm,
     config: { ...estado.config },
     camadas: estado.camadas,
+    sequenciador: estado.sequenciador !== null,
+    disjuntor: { aberto: estado.disjuntor.aberto, motivo: estado.disjuntor.motivo },
+    passoTravado: estado.passoTravado,
   };
 }
 
 /** Só para testes: volta ao estado inicial (descarta o grafo). */
 export function __reiniciarMusica(): void {
   if (estado.temporizadorPausa) clearTimeout(estado.temporizadorPausa);
+  if (estado.disjuntor.temporizador) clearTimeout(estado.disjuntor.temporizador);
+  pararSequenciador();
+  if (estado.visibilidadeArmada && typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+  }
   estado.grafo?.descartaveis.forEach((n) => {
     try { n.dispose(); } catch { /* noop */ }
   });
@@ -663,6 +907,14 @@ export function __reiniciarMusica(): void {
     camadas: planoDeCamadas({ rodada: 1, tensao: 0, rodando: false }),
     ultimoEfeito: {},
     temporizadorPausa: null,
+    bpmAtual: ANDAMENTO_TRAVADO_MIN,
+    sequenciador: null,
+    proximoPasso: 0,
+    notasNoPasso: 0,
+    aplicado: new Map<string, number>(),
+    disjuntor: { aberto: false, motivo: null, engasgos: [], erros: [], temporizador: null },
+    erroRegistrado: false,
+    visibilidadeArmada: false,
   });
   gestoArmado = false;
 }

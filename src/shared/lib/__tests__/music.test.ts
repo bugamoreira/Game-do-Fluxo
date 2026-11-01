@@ -147,9 +147,9 @@ describe('musica', () => {
   it('o estado enviado antes do clique é aplicado quando o áudio liga', async () => {
     musica.atualizar({ rodada: 1, tensao: 0.95, rodando: true });
     expect(__estadoMusica().modo).toBe('crise');
-    expect(tone.transporte.start).not.toHaveBeenCalled();
+    expect(__estadoMusica().sequenciador).toBe(false);
     await musica.iniciar();
-    expect(tone.transporte.start).toHaveBeenCalled();
+    expect(__estadoMusica().sequenciador).toBe(true);
     expect(__estadoMusica().modo).toBe('crise');
   });
 
@@ -165,15 +165,17 @@ describe('musica', () => {
     expect(__estadoMusica().modo).toBe('silencio');
   });
 
-  it('pausa o transporte só depois do fade', async () => {
+  it('para o sequenciador só depois do fade', async () => {
     vi.useFakeTimers();
     await musica.iniciar();
     musica.atualizar({ rodada: 1, tensao: 0.3, rodando: true });
-    expect(tone.transporte.estado).toBe('started');
+    expect(__estadoMusica().sequenciador).toBe(true);
     musica.atualizar({ rodada: 1, tensao: 0.3, rodando: false });
-    expect(tone.transporte.estado).toBe('started');
+    expect(__estadoMusica().sequenciador).toBe(true);
     vi.advanceTimersByTime(5000);
-    expect(tone.transporte.estado).toBe('paused');
+    expect(__estadoMusica().sequenciador).toBe(false);
+    // O Transport do Tone não é mais usado (laço próprio, sem recuperação de tiques).
+    expect(tone.transporte.start).not.toHaveBeenCalled();
   });
 
   it('tensão fora da faixa é limitada a 0..1', () => {
