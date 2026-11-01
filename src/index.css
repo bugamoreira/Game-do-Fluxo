@@ -1,4 +1,95 @@
+/* Fontes do padrão CBMEDE (as mesmas do site oficial). Precisa vir antes de qualquer outra regra. */
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap");
 @import "tailwindcss";
+
+/* ============================================================
+   CBMEDE 2026 — tokens do design system (docs/design.md §3)
+   Única fonte de cor, raio, sombra e fonte para as telas novas.
+   Os tokens do FLAME logo abaixo continuam até a Fase C.
+   ============================================================ */
+
+@theme {
+  /* Marca */
+  --color-marinho: #1B2A6B;
+  --color-marinho-profundo: #0e1840;
+  --color-marinho-claro: #1f3380;
+  --color-amarelo: #F5C518;
+  --color-amarelo-suave: #FDF3C8;
+  --color-verde: #3DB54A;
+  --color-verde-texto: #1e7d2c;   /* verde legível sobre branco (AA) */
+  --color-negativo-texto: #B3261E; /* variação ruim em números; não é Manchester */
+
+  /* Superfícies e texto */
+  --color-fundo-app: #F4F5FA;
+  --color-cartao: #FFFFFF;
+  --color-borda: #E3E5F0;
+  --color-borda-forte: #C9CDE0;
+  --color-texto: #1B2A6B;         /* títulos */
+  --color-texto-corpo: #4B5170;   /* texto corrido */
+  --color-texto-suave: #5D6384;   /* legendas; AA sobre branco, fundo e pastéis */
+
+  /* Tons pastel de setor (identificam o setor; lotação vai na barra) */
+  --color-setor-de: #ECEBFB;
+  --color-setor-enf: #E3F5EA;
+  --color-setor-uti: #FDEBE3;
+  --color-setor-rpa: #FBF3D9;
+  --color-setor-cc: #FBF3D9;
+  --color-setor-triagem: #EEF0F4;
+  --color-setor-corredor: #EEF0F4;
+
+  /* Gravidade (Manchester): SÓ em paciente e risco */
+  --color-grav-vermelho: #E53935;
+  --color-grav-laranja: #F57C00;
+  --color-grav-amarelo: #FBC02D;
+  --color-grav-verde: #43A047;
+
+  /* Times (8 cores fixas, nenhuma de Manchester) */
+  --color-time-1: #2563EB;
+  --color-time-2: #7C3AED;
+  --color-time-3: #DB2777;
+  --color-time-4: #0E7490;
+  --color-time-5: #0F766E;
+  --color-time-6: #8B5E3C;
+  --color-time-7: #475569;
+  --color-time-8: #A21CAF;
+
+  /* Tipografia */
+  --font-sora: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-space-mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --text-rotulo: 0.75rem;
+  --text-rotulo--letter-spacing: 0.18em;
+  --text-titulo-s: 1.75rem;
+  --text-titulo-s--line-height: 1.15;
+  --text-titulo-m: 2.5rem;
+  --text-titulo-m--line-height: 1.1;
+  --text-titulo-g: 4rem;
+  --text-titulo-g--line-height: 1;
+  --text-telao: 7.5rem;
+  --text-telao--line-height: 1;
+
+  /* Raios */
+  --radius-chip: 10px;
+  --radius-cartao: 20px;
+  --radius-cartao-g: 28px;
+  --radius-pilula: 999px;
+
+  /* Sombras */
+  --shadow-cartao: 0 4px 18px rgba(31, 42, 107, 0.06);
+  --shadow-elevada: 0 18px 48px rgba(14, 24, 64, 0.22);
+}
+
+/* Degradê oficial do site (hero, telão, cartão escuro) */
+@utility bg-degrade-cbmede {
+  background-image: linear-gradient(135deg, #0e1840 0%, #1B2A6B 55%, #1f3380 100%);
+}
+
+/* Foco visível em amarelo (como na landing). O botão amarelo troca para marinho (ver Button). */
+@layer base {
+  :focus-visible {
+    outline: 3px solid var(--color-amarelo);
+    outline-offset: 2px;
+  }
+}
 
 /* ============================================================
    FLAME 2026 — Custom Theme
@@ -94,12 +185,15 @@
    Base Styles
    ============================================================ */
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; overflow: hidden; }
-body {
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-family: 'Segoe UI', system-ui, sans-serif;
+/* Em @layer base para não anular os utilitários do Tailwind (estilo fora de camada vence qualquer camada). */
+@layer base {
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
 }
 
 /* ============================================================
@@ -188,6 +282,7 @@ body {
 .btn:hover { filter: brightness(1.15); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+@layer base {
 input {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border-subtle);
@@ -200,3 +295,4 @@ input {
   transition: border-color 0.2s;
 }
 input:focus { border-color: var(--color-accent-cyan); }
+}
