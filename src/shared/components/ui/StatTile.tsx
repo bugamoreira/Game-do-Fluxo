@@ -31,6 +31,8 @@ const TONS: Record<NonNullable<StatTileProps['tom']>, string> = {
   cc: 'bg-setor-cc',
   triagem: 'bg-setor-triagem',
   corredor: 'bg-setor-corredor',
+  fast_track: 'bg-setor-de',
+  enf_extra: 'bg-setor-enf',
 };
 
 function MiniTendencia({ valores, cor }: { valores: number[]; cor: string }) {

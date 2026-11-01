@@ -11,6 +11,8 @@ export const SETORES: Record<SetorUi, { sigla: string; nome: string; fundo: stri
   cc: { sigla: 'CC', nome: 'Centro Cirúrgico', fundo: 'bg-setor-cc' },
   triagem: { sigla: 'TRIAGEM', nome: 'Triagem', fundo: 'bg-setor-triagem' },
   corredor: { sigla: 'CORREDOR', nome: 'Corredor', fundo: 'bg-setor-corredor' },
+  fast_track: { sigla: 'FAST TRACK', nome: 'Fast Track', fundo: 'bg-setor-de' },
+  enf_extra: { sigla: 'PCP', nome: 'Corredor da enfermaria', fundo: 'bg-setor-enf' },
 };
 
 /** A partir de quanto a lotação vira risco (texto + barra). */
@@ -26,6 +28,8 @@ export interface SectorTileProps {
   destacado?: boolean;
   /** Mover o paciente selecionado para cá (só aparece quando destacado). */
   onMover?: () => void;
+  /** Texto do botão de mover (padrão: "Mover para <sigla>"). */
+  rotuloMover?: string;
   /** Conteúdo à direita do cabeçalho (ex.: contador de cirurgias). */
   extra?: ReactNode;
   className?: string;
@@ -46,6 +50,7 @@ export function SectorTile({
   titulo,
   destacado = false,
   onMover,
+  rotuloMover,
   extra,
   className,
   children,
@@ -119,7 +124,7 @@ export function SectorTile({
           onClick={onMover}
           className="mt-auto inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-pilula bg-amarelo px-4 text-sm font-bold text-marinho-profundo focus-visible:outline-marinho-profundo"
         >
-          Mover para {info.sigla}
+          {rotuloMover ?? `Mover para ${info.sigla}`}
           <Icone nome="setaDireita" tamanho={16} />
         </button>
       )}

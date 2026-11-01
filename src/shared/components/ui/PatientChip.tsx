@@ -19,13 +19,38 @@ interface EstadoPaciente {
   texto: string;
 }
 
+/**
+ * O que o chip precisa do paciente. Aceita o `Patient` antigo e o `PacienteSim` do motor
+ * (setores e destinos novos, `leitoInadequado`, `foraDoPerfil`, `transferenciaAte`, `risco`).
+ */
+export type PacienteVisivel = Pick<
+  Patient,
+  'id' | 'name' | 'sev' | 'ready' | 'dischReady' | 'prep' | 'bMin' | 'det' | 'dead' | 'blocked' | 'social' | 'obsProlong' | 'arrMin' | 'labDelay'
+> & {
+  offSvc?: boolean;
+  leitoInadequado?: boolean;
+  foraDoPerfil?: boolean;
+  /** Minuto previsto de saída da transferência pelo NIR (0 = nenhuma). */
+  transferenciaAte?: number;
+  /** Halo de risco calculado pelo motor. */
+  risco?: 'baixo' | 'atencao' | 'alto';
+};
+
+/** Halo de risco: anel em volta do chip (gravidade clínica: pode usar a cor de Manchester). */
+const HALO: Record<'atencao' | 'alto', { classe: string; texto: string }> = {
+  atencao: { classe: 'ring-[3px] ring-grav-laranja/55', texto: 'risco em alta' },
+  alto: { classe: 'ring-[3px] ring-grav-vermelho', texto: 'risco alto' },
+};
+
 /** Estado mais importante primeiro; o chip mostra só um ícone, o rótulo acessível lista todos. */
-function estadosDoPaciente(p: Patient): EstadoPaciente[] {
+function estadosDoPaciente(p: PacienteVisivel): EstadoPaciente[] {
   const lista: EstadoPaciente[] = [];
   if (p.dead) lista.push({ icone: 'fechar', texto: 'óbito' });
   if (p.det && !p.dead) lista.push({ icone: 'alerta', texto: 'deteriorou' });
+  if (p.transferenciaAte && p.transferenciaAte > 0 && !p.dead) lista.push({ icone: 'desvio', texto: 'transferência em andamento' });
   if (p.social || p.blocked) lista.push({ icone: 'cadeado', texto: 'alta bloqueada' });
-  if (p.offSvc) lista.push({ icone: 'desvio', texto: 'fora do perfil' });
+  if (p.offSvc || (p.foraDoPerfil && !p.transferenciaAte)) lista.push({ icone: 'desvio', texto: 'fora do perfil' });
+  if (p.leitoInadequado) lista.push({ icone: 'alerta', texto: 'leito inadequado' });
   if (p.labDelay) lista.push({ icone: 'tubo', texto: 'aguardando exame' });
   if (p.obsProlong) lista.push({ icone: 'obs', texto: 'observação prolongada' });
   const pronto = p.ready || (p.dischReady && p.prep <= 0 && !p.social);
@@ -33,20 +58,20 @@ function estadosDoPaciente(p: Patient): EstadoPaciente[] {
   return lista;
 }
 
-export interface PatientChipProps {
-  paciente: Patient;
+export interface PatientChipProps<P extends PacienteVisivel = Patient> {
+  paciente: P;
   selecionado?: boolean;
   /** Destino ou paciente que merece atenção agora (contorno amarelo). */
   destacado?: boolean;
   /** Minuto atual do plantão: mostra há quanto tempo o paciente chegou quando não está em boarding. */
   minuto?: number;
-  onClick?: (paciente: Patient) => void;
+  onClick?: (paciente: P) => void;
   /** Versão menor, sem nome, para setores com muitos leitos (ENF). */
   compacto?: boolean;
   className?: string;
 }
 
-export function PatientChip({
+export function PatientChip<P extends PacienteVisivel = Patient>({
   paciente: p,
   selecionado = false,
   destacado = false,
@@ -54,7 +79,7 @@ export function PatientChip({
   onClick,
   compacto = false,
   className,
-}: PatientChipProps) {
+}: PatientChipProps<P>) {
   const g = GRAVIDADE[p.sev];
   const estados = estadosDoPaciente(p);
   const principal = estados[0];
@@ -62,12 +87,14 @@ export function PatientChip({
   const tempo = emBoarding ? p.bMin : minuto !== undefined ? Math.max(0, minuto - p.arrMin) : null;
   const riscoBoarding = p.bMin >= BOARDING_OBITO ? 'bg-grav-vermelho' : p.bMin >= BOARDING_DETERIORA ? 'bg-grav-laranja' : 'bg-grav-amarelo';
   const progressoBoarding = Math.min(100, Math.round((p.bMin / BOARDING_OBITO) * 100));
+  const halo = p.risco && p.risco !== 'baixo' && !p.dead ? HALO[p.risco] : null;
 
   const rotulo = [
     p.name,
     `${g.nome}, prioridade ${g.prioridade}, ${g.categoria}`,
     emBoarding ? `em boarding há ${duracaoCurta(p.bMin)}` : tempo !== null ? `chegou há ${duracaoCurta(tempo)}` : null,
     ...estados.map(e => e.texto),
+    halo?.texto,
     selecionado ? 'selecionado' : null,
   ]
     .filter(Boolean)
@@ -88,6 +115,7 @@ export function PatientChip({
           ? 'border-marinho bg-marinho text-white shadow-[0_0_0_3px_var(--color-amarelo)] motion-safe:scale-[1.03]'
           : 'border-borda bg-cartao text-texto shadow-[0_1px_3px_rgba(14,24,64,0.08)] hover:border-borda-forte motion-safe:hover:-translate-y-px',
         destacado && !selecionado && 'outline-2 outline-dashed outline-offset-1 outline-amarelo',
+        halo && !selecionado && halo.classe,
         p.dead && 'opacity-60 grayscale-[0.4]',
         className,
       )}

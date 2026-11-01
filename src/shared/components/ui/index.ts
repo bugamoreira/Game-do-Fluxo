@@ -2,7 +2,7 @@
 export { Button, type ButtonProps, type VarianteBotao, type TamanhoBotao } from './Button';
 export { Card, Rotulo, type CardProps } from './Card';
 export { SectorTile, SETORES, LIMIAR_QUASE_CHEIO, type SectorTileProps } from './SectorTile';
-export { PatientChip, GRAVIDADE, type PatientChipProps } from './PatientChip';
+export { PatientChip, GRAVIDADE, type PatientChipProps, type PacienteVisivel } from './PatientChip';
 export { StatTile, type StatTileProps } from './StatTile';
 export { DarkCallout, type DarkCalloutProps } from './DarkCallout';
 export { Timeline, type TimelineProps } from './Timeline';

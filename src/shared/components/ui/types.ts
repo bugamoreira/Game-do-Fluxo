@@ -21,6 +21,6 @@ export interface ItemRanking {
 export type Conexao = 'online' | 'reconectando' | 'offline';
 
 /** Setores que têm cartão próprio. 'corredor' é extensão do contrato (design.md: tom cinza). */
-export type SetorUi = 'de' | 'enf' | 'uti' | 'rpa' | 'cc' | 'triagem' | 'corredor';
+export type SetorUi = 'de' | 'enf' | 'uti' | 'rpa' | 'cc' | 'triagem' | 'corredor' | 'fast_track' | 'enf_extra';
 
 export type Tema = 'claro' | 'escuro';
