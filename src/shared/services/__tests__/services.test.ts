@@ -35,6 +35,7 @@ import {
   RespostaInvalida,
   SemConexao,
   TokenInvalido,
+  TurmaCheia,
   TurmaNaoEncontrada,
   VersaoAntiga,
   facilitadorService,
@@ -190,7 +191,8 @@ describe('grupoService.entrar', () => {
   });
 
   it.each([
-    ['ENTRADA_FECHADA', 'CB002', 'A rodada já começou. Fale com o facilitador.', EntradaFechada],
+    ['ENTRADA_FECHADA', 'CB002', 'O jogo já começou e grupos novos não entram mais. Fale com o facilitador.', EntradaFechada],
+    ['TURMA_CHEIA', 'CB010', 'A sala está cheia (10 grupos). Fale com o facilitador.', TurmaCheia],
     [
       'GRUPO_JA_ATIVO',
       'CB003',
@@ -202,6 +204,13 @@ describe('grupoService.entrar', () => {
     const erro = await grupoService.entrar('CBMEDE', 'Azul').catch((e: unknown) => e);
     expect(erro).toBeInstanceOf(Classe);
     expect((erro as Error).message).toBe(frase);
+  });
+
+  it('TURMA_CHEIA sem frase do servidor usa a mensagem da J1', async () => {
+    responder({ error: { code: 'CB010', message: 'TURMA_CHEIA', hint: 'TURMA_CHEIA' }, status: 400 });
+    const erro = await grupoService.entrar('CBMEDE', 'Azul').catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(TurmaCheia);
+    expect((erro as Error).message).toBe('A sala está cheia (10 grupos). Fale com o facilitador.');
   });
 
   it('envia o código de acesso de 4 dígitos', async () => {

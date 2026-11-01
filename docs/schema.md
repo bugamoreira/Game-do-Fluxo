@@ -53,7 +53,7 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 | Turma `aberta`, nome novo | cria o grupo |
 | Turma em `rodada1`, `debrief` ou `rodada2`, nome novo | recusa sempre com `ENTRADA_FECHADA`: "O jogo já começou e grupos novos não entram mais…" (todo grupo joga as duas rodadas; sem exceção desde a migração `20261103100100`, que removeu `liberar_entrada`; a coluna `entrada_liberada` fica sem uso, sempre falsa) |
 | Turma `encerrada` ou `arquivada` | recusa, inclusive reconexão |
-| Sala com `max_grupos` (12) grupos ativos | recusa: `TURMA_CHEIA` |
+| Sala com 10 grupos ativos (não removidos), nome novo | recusa: `TURMA_CHEIA`, "A sala está cheia (10 grupos). Fale com o facilitador." (migração `20261103100200`: `max_grupos` vale 10, padrão e teto; grupo removido libera a vaga) |
 
 Nome: espaços normalizados, 2 a 30 caracteres, ao menos 2 letras ou dígitos, sem caracteres invisíveis ou de direção de texto (U+200B–U+200F, U+202A–U+202E, U+2060–U+206F, U+FEFF; migração `20261102100200`), comparação sem diferenciar maiúsculas ("Grupo A" = "grupo  a"). Cor: a primeira livre de 8 cores fixas (repete a partir do 9º grupo). O token (32 bytes aleatórios, 43 caracteres base64url) volta **uma vez**, só quando é gerado; o banco guarda só o sha256. Reconexão pelo próprio token não troca o token.
 
@@ -115,7 +115,7 @@ Turma inexistente: `TURMA_NAO_ENCONTRADA`; rodada fora de 1–2 ou limite fora d
 | `TRANSICAO_INVALIDA` | CB007 | transição fora do diagrama; pausar fora de rodada; relatório antes de encerrar |
 | `DADOS_INVALIDOS` | CB008 | nome, minuto, tamanho ou formato fora dos limites; grupo inexistente |
 | `RODADA_INVALIDA` | CB009 | envio para rodada que não é a atual (ou depois da janela de 5 min para dados atrasados); o cliente descarta a fila da rodada |
-| `TURMA_CHEIA` | CB010 | `max_grupos` atingido |
+| `TURMA_CHEIA` | CB010 | 10 grupos ativos na turma (`max_grupos`) |
 | `CODIGO_EM_USO` | CB011 | `abrir_turma` com turma ativa de mesmo código e grupos, sem `p_substituir` |
 | `RELATORIO_NAO_ENCONTRADO` | CB012 | slug malformado ou inexistente |
 | `CODIGO_ACESSO_INVALIDO` | CB014 | grupo novo ou reconexão liberada sem o código de acesso certo (código errado vem como resposta, ver “Código de acesso”) |

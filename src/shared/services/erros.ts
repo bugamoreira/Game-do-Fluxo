@@ -107,7 +107,7 @@ export class RodadaInvalida extends ErroSimulador {
 
 export class TurmaCheia extends ErroSimulador {
   readonly codigo = 'TURMA_CHEIA' as const;
-  constructor(mensagem = 'A sala já está com o número máximo de grupos. Fale com o facilitador.', causa?: unknown) {
+  constructor(mensagem = 'A sala está cheia (10 grupos). Fale com o facilitador.', causa?: unknown) {
     super(mensagem, causa);
   }
 }

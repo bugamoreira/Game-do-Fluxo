@@ -40,7 +40,7 @@ export const grupoService = {
    * @throws {TurmaNaoEncontrada} código inexistente
    * @throws {EntradaFechada} grupo novo depois do início (só entra com a turma aberta), ou turma encerrada
    * @throws {GrupoJaAtivo} nome em uso por outro computador, sem reconexão liberada
-   * @throws {TurmaCheia} limite de grupos atingido
+   * @throws {TurmaCheia} sala com 10 grupos ativos (grupo removido libera a vaga)
    * @throws {CodigoAcessoInvalido} grupo novo ou reconexão liberada sem o código de acesso certo
    * @throws {ErroServico} `LIMITE_EXCEDIDO`: muitas tentativas com código errado (aguardar 1 minuto)
    * @throws {SemConexao} rede

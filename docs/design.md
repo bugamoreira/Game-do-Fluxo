@@ -78,6 +78,7 @@ Regras de acesso à sala:
 - **O facilitador vê quem já entrou** (nome, cor, conexão ativa) e o botão "Iniciar Plantão Travado" mostra quantos grupos estão prontos ("6 grupos prontos"). Ele inicia quando todos estiverem lá: a confirmação diz "N grupos conectados. Depois de iniciar, nenhum grupo novo poderá entrar.", lista os grupos e destaca quem está sem sinal.
 - **Depois do início, nenhum grupo novo entra, sem exceção** (decisão do Gustavo: todos jogam o plantão inteiro e a sala só começa com todos conectados). Não há botão "Liberar entrada"; só a reconexão de um grupo que já estava na sala ("Liberar reconexão").
 - **Reconexão nunca é bloqueada:** um grupo que já estava na sala volta para o mesmo time, em qualquer momento.
+- **No máximo 10 grupos por turma** (decisão do Gustavo): o 11º vê na J1 "A sala está cheia (10 grupos). Fale com o facilitador."; um grupo removido libera a vaga.
 - **Nome repetido** só é recusado se o outro time estiver ativo; senão, a pessoa reassume o time.
 
 Regras de transição:
