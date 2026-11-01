@@ -423,8 +423,10 @@ begin
         'Esse grupo já está no jogo. Se é o seu, peça ao facilitador para liberar a reconexão.');
     end if;
   else
-    if t.status in ('rodada1', 'rodada2') and not t.entrada_liberada then
-      perform interno.erro('ENTRADA_FECHADA', 'A rodada já começou. Fale com o facilitador.');
+    -- Regra do Gustavo: todo grupo joga as duas rodadas. Depois que o Travado
+    -- começa (inclusive no debrief), grupo novo só entra com liberação do facilitador.
+    if t.status in ('rodada1', 'debrief', 'rodada2') and not t.entrada_liberada then
+      perform interno.erro('ENTRADA_FECHADA', 'O jogo já começou. Fale com o facilitador.');
     end if;
 
     select count(*) into v_ativos

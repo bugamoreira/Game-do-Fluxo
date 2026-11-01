@@ -19,6 +19,7 @@
 | Cartão escuro = momento | O cartão azul-marinho profundo (como o "Earn free crypto" e o "Sell Order" das referências) é reservado para o que exige atenção agora: evento ativo no jogo, próxima ação do facilitador, chamada no telão. No máximo um por tela. |
 | Times | Cada grupo tem uma cor de identificação (8 cores fixas, nenhuma igual às de Manchester) usada em avatar, linha do ranking e gráficos. |
 | Assinaturas | "Simulador do Plantão" é a marca do jogo. CBMEDE 2026 e ABRAMEDE autorizados (o congresso é da casa), com logos oficiais em todas as superfícies; ED Leaders como realização. Arquivos oficiais (SVG ou PNG) a receber. |
+| Norma culta | Todo texto do jogo, do facilitador, do telão, do relatório e das mensagens segue a norma-padrão do português (acentuação, concordância, crase, pontuação). Revisão de texto faz parte do ensaio. |
 | Tom de voz | Português claro, linguagem de plantão ("boarding", "alta", "RPA lotada"), frases curtas, verbo no imperativo nos botões ("Iniciar rodada", "Autorizar"). |
 
 ## 3. Sistema visual (tokens)
@@ -118,3 +119,12 @@ Gerado ao fim da sessão, guardado no banco e compartilhável por link (só leit
 6. Mensagens-chave para o debrief (o que mudou do Travado para o Lean).
 
 Dados guardados: só nomes de grupo e métricas do jogo, sem dado pessoal dos participantes.
+
+## 9. Mensagem do Lean: menos sobrecarga no gestor
+
+O debrief e o relatório mostram, além do resultado clínico, a carga de quem coordena:
+- decisões por hora tomadas pelo grupo (R1 × R2) e quanto delas foram reativas (apagar incêndio) ou produtivas (puxar fluxo);
+- alertas e crises por hora (deterioração, cancelamento, DE lotado, corredor);
+- trabalho feito pelas ferramentas automáticas no Lean (altas do Fluxista, leitos liberados pelo Discharge Lounge, cirurgias protegidas).
+
+Mensagem: no Lean, o sistema faz o trabalho repetitivo, o gestor decide menos e melhor, e a operação funciona.

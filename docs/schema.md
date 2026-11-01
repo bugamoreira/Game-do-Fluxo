@@ -51,7 +51,8 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 | Nome já existe e o computador tem o token desse grupo | reconecta (devolve o estado para restaurar) |
 | Nome já existe, sem token, `reconexao_liberada = verdadeiro` | gera novo token, restaura o estado salvo no servidor e desliga a liberação |
 | Nome já existe, sem token, sem liberação | recusa: "Esse grupo já está no jogo. Se é o seu, peça ao facilitador para liberar a reconexão." |
-| Turma `aberta` ou `debrief`, nome novo | cria o grupo (no `debrief` ele joga a rodada 2) |
+| Turma `aberta`, nome novo | cria o grupo |
+| Turma em `rodada1`, `debrief` ou `rodada2`, nome novo, sem liberação | recusa: "O jogo já começou. Fale com o facilitador." (todo grupo joga as duas rodadas) |
 | Turma `encerrada` ou `arquivada` | recusa, inclusive reconexão |
 | Sala com `max_grupos` (12) grupos ativos | recusa: `TURMA_CHEIA` |
 

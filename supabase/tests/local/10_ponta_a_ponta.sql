@@ -229,8 +229,7 @@ update public.turmas set rodada_fim = now() - interval '1 minute' where id = :'t
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';
 select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 1140, 10, '{}'::jsonb, 1, '{}'::jsonb)$q$, :'tok_b')) like 'CB009:%', 'depois da tolerância -> RODADA_INVALIDA');
-select public.entrar_grupo('CBMEDE', 'Grupo D') ->> 'token' as tok_d \gset
-select tst.ok(length(:'tok_d') = 43, 'grupo novo pode entrar no debrief (vale para a rodada 2)');
+select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo D')$q$) like 'CB002:%', 'grupo novo não entra no debrief sem liberação (todos jogam as duas rodadas)');
 reset role;
 set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
