@@ -14,7 +14,8 @@ O jogador assume o papel de **coordenador de fluxo** de um hospital com 100 leit
 - **Rodada 2 (Plantao Lean):** Ferramentas ativas (NIR, Pull System, Surgical Smoothing, Porta-Decisao). Mesma demanda, resultado oposto.
 
 3 telas sincronizadas via Supabase Realtime:
-- **Jogador** (`index.html`) — simulacao interativa
+- **Orientações** (`index.html`) — landing com passo a passo e teste do computador
+- **Jogador** (`jogar.html`) — simulacao interativa
 - **Facilitador** (`instrutor.html`) — dashboard de controle
 - **Projetor** (`projetor.html`) — ranking ao vivo + musica adaptativa
 
@@ -35,7 +36,8 @@ O jogador assume o papel de **coordenador de fluxo** de um hospital com 100 leit
 
 ```
 public/
-  index.html              # Tela do jogador (entry point)
+  index.html              # Landing de orientações ao aluno
+  jogar.html              # Tela do jogador (entry point)
   instrutor.html          # Tela do facilitador
   projetor.html           # Tela de projecao
   img/
@@ -143,7 +145,7 @@ REPLICA IDENTITY FULL em todas as tabelas.
 ## Fluxo Multiplayer (Padrao Kahoot)
 
 1. Facilitador abre `instrutor.html` -> cria sala FLAME
-2. Jogadores abrem `index.html` -> entram com nome do time
+2. Jogadores abrem `index.html` (orientações + teste) -> `jogar.html` -> entram com nome do time
 3. Projetor abre `projetor.html` -> mostra ranking ao vivo
 4. Facilitador inicia R1 -> todos comecam simultaneamente
 5. Game state sincroniza a cada 1s (upsert) + polling 1.5s (safety net)

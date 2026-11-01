@@ -12,7 +12,7 @@
 - **O que e**: Jogo educacional multiplayer de gestao de fluxo hospitalar
 - **Evento**: FLAME 2026, 29 de abril — 2o Congresso Latino-americano de Medicina de Emergencia
 - **Branding**: ED Leaders (principal), FLAME 2026, ABRAMEDE
-- **URL producao**: plantaoflame.netlify.app
+- **URL producao**: plantaoflame.netlify.app (FLAME, congelado) → plantaocbmede.netlify.app (CBMEDE 2026, a publicar)
 - **GitHub**: bugamoreira/Game-do-Fluxo
 - **Supabase**: okmafynejwrwnmvyruwy.supabase.co
 
@@ -32,7 +32,8 @@
 ## Estrutura de Arquivos
 
 ```
-index.html                    # Player entry point
+index.html                    # Landing de orientações ao aluno (estática, src/landing/)
+jogar.html                    # Player entry point
 instrutor.html                # Instructor entry point
 projetor.html                 # Projector entry point
 vite.config.ts                # Multi-entry build (3 HTMLs)
@@ -60,6 +61,11 @@ src/
       PSvg.tsx                 # Icone SVG de paciente
     hooks/                    # (Fase 2: useSupabaseRoom, useSession)
     stores/                   # (Fase 2: Zustand game-store)
+
+  landing/                    # Landing de orientações (TS puro + CSS, sem React — ver docs/adr/0001)
+    main.ts                   # Teste do computador (navegador, tela, servidor, som)
+    connectivityService.ts    # Ping na API REST validado com Zod
+    landing.css               # Tokens visuais CBMEDE
 
   player/                     # App do jogador
     main.tsx                  # createRoot + ErrorBoundary

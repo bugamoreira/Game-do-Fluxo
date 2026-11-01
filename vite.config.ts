@@ -8,7 +8,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        player: resolve(__dirname, 'index.html'),
+        landing: resolve(__dirname, 'index.html'),
+        player: resolve(__dirname, 'jogar.html'),
         instructor: resolve(__dirname, 'instrutor.html'),
         projector: resolve(__dirname, 'projetor.html'),
       },
