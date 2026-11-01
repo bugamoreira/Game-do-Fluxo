@@ -71,7 +71,10 @@ reset role;
 set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 select public.abrir_turma(' cbmede ', 'CBMEDE 2026', 'Congresso', date '2026-11-20') ->> 'id' as turma_id \gset
+reset role;
 select tst.ok((select status from public.turmas where id = :'turma_id') = 'aberta', 'turma aberta com código normalizado');
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 reset role;
 
 -- ---------------------------------------------------------------- grupos entram (anon)
@@ -113,9 +116,12 @@ select tst.ok(tst.erro_de($q$select * from public.relatorios$q$) like '42501:%',
 select tst.ok(tst.erro_de($q$select * from public.facilitadores$q$) like '42501:%', 'anon não lê facilitadores');
 select tst.ok(tst.erro_de($q$select facilitador_id from public.turmas$q$) like '42501:%', 'anon não lê facilitador_id');
 select tst.ok(tst.erro_de($q$insert into public.estado_jogo (grupo_id, rodada, minuto, versao, estado) values (gen_random_uuid(),1,420,1,'{}')$q$) like '42501:%', 'anon não insere em estado_jogo');
-select tst.ok((select count(*) from public.grupos_publicos) = 2, 'view grupos_publicos legível');
-select tst.ok((select count(*) from public.turmas_publicas) = 1, 'view turmas_publicas legível');
-select tst.ok(tst.erro_de($q$select * from public.placar_publico$q$) = 'SEM_ERRO', 'view placar_publico legível');
+select tst.ok(tst.erro_de($q$select * from public.grupos_publicos$q$) like '42501:%', 'anon não lista grupos de todas as turmas (view)');
+select tst.ok(tst.erro_de($q$select * from public.turmas_publicas$q$) like '42501:%', 'anon não lista turmas (view)');
+select tst.ok(tst.erro_de($q$select * from public.placar_publico$q$) like '42501:%', 'anon não lista placares (view)');
+select tst.ok(tst.erro_de($q$select id, nome from public.grupos$q$) like '42501:%', 'anon não lista grupos (tabela)');
+select tst.ok(tst.erro_de($q$select id, codigo from public.turmas$q$) like '42501:%', 'anon não lista turmas (tabela)');
+select tst.ok(tst.erro_de($q$select pontuacao from public.placar$q$) like '42501:%', 'anon não lista placares (tabela)');
 select tst.ok(tst.erro_de($q$update public.grupos_publicos set nome = 'x'$q$) like '42501:%', 'anon não altera pela view');
 -- enviar antes da rodada
 select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 420, 1, '{}'::jsonb, 0, '{}'::jsonb)$q$, :'tok_a')) like 'CB009:RODADA_INVALIDA%',
@@ -185,12 +191,16 @@ select tst.ok((public.entrar_grupo('CBMEDE', 'grupo a', :'tok_a') -> 'estado_sal
               'mesmo computador (token) reconecta, recebe o estado e não recebe token novo');
 select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo A')$q$) like 'CB003:%', 'outro computador sem liberação -> GRUPO_JA_ATIVO');
 select tst.ok(tst.erro_de(format($q$select public.entrar_grupo('CBMEDE', 'Grupo A', %L)$q$, :'tok_b')) like 'CB003:%', 'token de outro grupo não reconecta -> GRUPO_JA_ATIVO');
-select tst.ok(tst.erro_de(format($q$select public.liberar_reconexao((select id from public.grupos_publicos where nome = 'Grupo A'))$q$)) like '42501:%', 'anon não libera reconexão');
+reset role;
+select id as grupo_a from public.grupos where nome = 'Grupo A' \gset
+select id as grupo_c from public.grupos where nome = 'Grupo C' \gset
+set role anon;
+set request.jwt.claims = '{"role":"anon"}';
+select tst.ok(tst.erro_de(format($q$select public.liberar_reconexao(%L)$q$, :'grupo_a')) like '42501:%', 'anon não libera reconexão');
 reset role;
 set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
-select id as grupo_a from public.grupos where nome = 'Grupo A' \gset
-select id as grupo_c from public.grupos where nome = 'Grupo C' \gset
+select tst.ok(tst.erro_de($q$select id from public.grupos$q$) like '42501:%', 'facilitador também lê grupos só por RPC');
 select tst.ok(public.liberar_reconexao(:'grupo_a') is not null, 'facilitador libera reconexão do Grupo A');
 reset role;
 set role anon;
@@ -324,7 +334,10 @@ set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"
 select public.gerar_relatorio(:'turma_id', 'regras-2026.1') ->> 'slug' as slug \gset
 select tst.ok(length(:'slug') >= 22, 'slug com 22+ caracteres');
 select tst.ok((public.gerar_relatorio(:'turma_id') ->> 'slug') = :'slug', 'gerar_relatorio de novo devolve o mesmo slug');
+reset role;
 select tst.ok((select status from public.turmas where id = :'turma_id') = 'arquivada', 'encerrada -> arquivada');
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 reset role;
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';
@@ -349,7 +362,10 @@ set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 select public.abrir_turma('CBMEDE', 'Ensaio 1') ->> 'id' as turma2 \gset
 select public.abrir_turma('CBMEDE', 'Ensaio 2') ->> 'id' as turma3 \gset
+reset role;
 select tst.ok((select status from public.turmas where id = :'turma2') = 'arquivada', 'turma aberta sem grupos é arquivada pela nova');
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 reset role;
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';
@@ -359,7 +375,10 @@ set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 select tst.ok(tst.erro_de($q$select public.abrir_turma('CBMEDE', 'Ensaio 3')$q$) like 'CB011:CODIGO_EM_USO%', 'turma com grupos não é substituída sem confirmação');
 select tst.ok((public.abrir_turma('CBMEDE', 'Ensaio 3', null, null, true) ->> 'status') = 'aberta', 'com p_substituir a anterior é arquivada');
+reset role;
 select tst.ok((select count(*) from public.grupos where turma_id = :'turma3') = 1, 'grupos da turma substituída continuam guardados');
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 reset role;
 
 -- ---------------------------------------------------------------- ranking: desempate estável

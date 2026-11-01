@@ -15,15 +15,15 @@
 | Tabela | Conteúdo | Quem lê | Quem escreve |
 |---|---|---|---|
 | `facilitadores` | `user_id` (auth), nome | o próprio facilitador | só pelo painel do Supabase |
-| `turmas` | código da sala (ex.: `CBMEDE`), nome, evento, data, facilitador, `status`, `rodada`, `rodada_inicio`, `pausada_em`, `pausa_acumulada_ms`, `entrada_liberada`, `full_capacity_liberado`, `musica_mudo` | público (só os campos de estado) | RPC do facilitador |
-| `grupos` | turma, nome, cor, `token_hash`, `reconexao_liberada`, `visto_em` | público (nome, cor, se está conectado) | RPC `entrar_grupo` e RPCs do facilitador |
-| `placar` | grupo, rodada, minuto, pontuação, métricas resumidas | público (alimenta ranking e telão) | RPC `enviar_estado` |
+| `turmas` | código da sala (ex.: `CBMEDE`), nome, evento, data, facilitador, `status`, `rodada`, `rodada_inicio`, `pausada_em`, `pausa_acumulada_ms`, `entrada_liberada`, `full_capacity_liberado`, `musica_mudo` | por RPC (`estado_turma`: só os campos de estado) | RPC do facilitador |
+| `grupos` | turma, nome, cor, `token_hash`, `reconexao_liberada`, `visto_em` | por RPC (nome, cor, se está conectado) | RPC `entrar_grupo` e RPCs do facilitador |
+| `placar` | grupo, rodada, minuto, pontuação, métricas resumidas | por RPC (`ranking`: alimenta ranking e telão) | RPC `enviar_estado` |
 | `estado_jogo` | grupo, rodada, minuto, **estado completo da simulação** (JSON), versão | só o próprio grupo (pelo token) e o facilitador | RPC `enviar_estado` |
 | `serie_metricas` | grupo, rodada, minuto, métricas (a cada 30 min simulados) | facilitador e relatório | RPC `registrar_serie` (só inclui, nunca altera) |
 | `eventos_jogo` | grupo, rodada, minuto, tipo, mensagem (óbitos, cancelamentos, surto…) | facilitador e relatório | RPC `registrar_eventos` (só inclui) |
 | `relatorios` | turma, `slug` público impossível de adivinhar, dados congelados no fim da sessão, versão das regras | qualquer pessoa com o link (RPC `obter_relatorio`) | RPC `gerar_relatorio` do facilitador |
 
-Todas as tabelas com RLS ligado. Política de escrita direta para `anon`: nenhuma. Leituras públicas por *views* que expõem só as colunas permitidas (nunca `token_hash` ou `estado_jogo`).
+Todas as tabelas com RLS ligado. Política de escrita direta para `anon`: nenhuma. Leitura só por RPC (nunca `token_hash` ou `estado_jogo`).
 
 ## Máquina de estados da turma
 
@@ -117,7 +117,7 @@ Sem permissão de EXECUTE (anon chamando RPC de facilitador) o PostgREST respond
 ## Acesso direto às tabelas
 
 - `anon` e `authenticated` não têm INSERT, UPDATE, DELETE nem TRUNCATE em nenhuma tabela nova (revogados; não depende só do RLS).
-- Leitura pública por GRANT de coluna + RLS: `turmas` (sem `facilitador_id`, `max_grupos`), `grupos` (sem `token_hash`; `reconexao_liberada` só para logados), `placar`. Views `turmas_publicas`, `grupos_publicos` (com `conectado` = visto nos últimos 15 s) e `placar_publico`, todas `security_invoker`.
+- **Nenhuma leitura direta de `turmas`, `grupos` e `placar`** (migração `20261102100300`): `anon` e `authenticated` não têm SELECT nessas tabelas nem nas views `turmas_publicas`, `grupos_publicos` e `placar_publico` (que continuam existindo, `security_invoker`, sem uso pelo app). Toda leitura passa pelas RPCs, que filtram pela turma pedida; antes, qualquer visitante listava turmas, grupos e placares de todos os eventos. O teste de conexão das orientações chama `rpc/estado_turma` com um código qualquer (`TURMA_NAO_ENCONTRADA` = conectado).
 - `estado_jogo`, `serie_metricas`, `eventos_jogo` e `relatorios`: só o facilitador lê direto (política para `authenticated` que exige cadastro em `facilitadores`); `anon` não tem GRANT.
 - Funções auxiliares ficam no schema `interno`, que não é exposto pelo PostgREST e não tem USAGE para ninguém além do dono.
 

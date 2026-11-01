@@ -85,10 +85,10 @@ const COLUNA_DATA = { turmas: 'criada_em', placar: 'atualizado_em', estado_jogo:
 
 async function main() {
   // 0. Sanidade: a chave funciona? Sem isso, "tudo recusado" não prova nada.
-  const sanidade = await chamar('GET', '/rest/v1/turmas_publicas?select=id&limit=1');
-  registrar('Sanidade: ler a view pública turmas_publicas (deve funcionar)', ok2xx(sanidade), `${sanidade.status}`);
-  const sanidadeGrupos = await chamar('GET', '/rest/v1/grupos_publicos?select=id,nome,cor,conectado&limit=1');
-  registrar('Sanidade: ler a view pública grupos_publicos (deve funcionar)', ok2xx(sanidadeGrupos), `${sanidadeGrupos.status}`);
+  // A RPC pública estado_turma responde (com a turma, ou TURMA_NAO_ENCONTRADA: o servidor entendeu o pedido).
+  const sanidade = await rpc('estado_turma', { p_codigo: CODIGO || 'SANIDADE' });
+  const sanidadeOk = ok2xx(sanidade) || codigoErro(sanidade) === 'TURMA_NAO_ENCONTRADA';
+  registrar('Sanidade: chamar a RPC pública estado_turma (deve responder)', sanidadeOk, `${sanidade.status} ${ok2xx(sanidade) ? '' : codigoErro(sanidade)}`);
 
   // 1. Escrita direta em cada tabela nova
   for (const [tabela, { filtro, corpo }] of Object.entries(TABELAS)) {
@@ -101,7 +101,13 @@ async function main() {
   await deveFalhar('UPDATE pela view grupos_publicos',
     chamar('PATCH', `/rest/v1/grupos_publicos?id=eq.${ZERO}`, { nome: 'x' }));
 
-  // 2. Leituras proibidas
+  // 2. Leituras proibidas (o app só lê por RPC; nada de listar turmas, grupos e placares de todos os eventos)
+  await deveFalhar('Listar turmas pela view turmas_publicas', chamar('GET', '/rest/v1/turmas_publicas?select=id&limit=1'));
+  await deveFalhar('Listar grupos pela view grupos_publicos', chamar('GET', '/rest/v1/grupos_publicos?select=id,nome&limit=1'));
+  await deveFalhar('Listar placares pela view placar_publico', chamar('GET', '/rest/v1/placar_publico?select=pontuacao&limit=1'));
+  await deveFalhar('Listar turmas direto', chamar('GET', '/rest/v1/turmas?select=id,codigo&limit=1'));
+  await deveFalhar('Listar grupos direto', chamar('GET', '/rest/v1/grupos?select=id,nome&limit=1'));
+  await deveFalhar('Listar placar direto', chamar('GET', '/rest/v1/placar?select=pontuacao&limit=1'));
   await deveFalhar('Ler estado_jogo', chamar('GET', '/rest/v1/estado_jogo?select=*&limit=1'));
   await deveFalhar('Ler grupos.token_hash', chamar('GET', '/rest/v1/grupos?select=token_hash&limit=1'));
   await deveFalhar('Ler grupos com select=*', chamar('GET', '/rest/v1/grupos?select=*&limit=1'));
