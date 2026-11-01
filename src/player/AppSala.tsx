@@ -23,6 +23,7 @@ import {
 import { MENSAGEM_ACESSO_PERDIDO, MENSAGEM_TURMA_NOVA, ehStatusFinal, podeReentrarSozinho, tokenParaNome } from './jogo/sessao';
 import { resumoDe } from './jogo/storeJogo';
 import { storeJogo, useJogo, useRelogioDoJogo } from './jogo/useJogo';
+import { useTravaAba } from './jogo/useTravaAba';
 import { musica } from './lib/musicaAdapter';
 import { useLigarSomNoPrimeiroGesto } from './lib/useLigarSom';
 import { TelaPlantao } from './plantao/TelaPlantao';
@@ -61,6 +62,11 @@ export function AppSala({ sala, grupoInicial = null }: AppSalaProps) {
   const [nomeSugerido, setNomeSugerido] = useState(sessaoInicial?.nome ?? '');
   /** Turma aberta agora com este código (para não reaproveitar sessão de outra turma). */
   const [turmaAtual, setTurmaAtual] = useState<string | null>(null);
+  // Um grupo, um motor: a segunda aba do mesmo grupo não roda o jogo.
+  const trava = useTravaAba(grupo?.grupoId ?? null);
+  useEffect(() => {
+    if (trava.situacao === 'outra') storeJogo.getState().descartar();
+  }, [trava.situacao]);
 
   const entrar = useCallback(
     async (nome: string, token: string | null, codigoAcesso: string | null = null) => {
@@ -144,6 +150,24 @@ export function AppSala({ sala, grupoInicial = null }: AppSalaProps) {
       />
     );
   }
+
+  if (trava.situacao === 'outra') {
+    return (
+      <TelaAviso
+        sala={sala}
+        titulo="Este grupo já está aberto em outra aba"
+        acoes={
+          <Button variante="amarelo" tamanho="p" onClick={trava.assumir}>
+            Assumir aqui
+          </Button>
+        }
+      >
+        O jogo do grupo “{grupo.nome}” continua na outra aba deste navegador. Se quiser jogar nesta, clique em “Assumir aqui”: a outra aba
+        para.
+      </TelaAviso>
+    );
+  }
+  if (trava.situacao === 'verificando') return <TelaAviso sala={sala} titulo="Abrindo o jogo do grupo…" />;
 
   return <SalaDoGrupo porta={porta} sala={sala} grupo={grupo} onSair={sair} />;
 }
