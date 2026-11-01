@@ -144,6 +144,8 @@ set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 select public.liberar_entrada(:'turma_id', false) is not null as x \gset
 reset role;
+-- a rodada começou há 30 s (minuto 450): os envios abaixo são plausíveis
+update public.turmas set rodada_inicio = now() - interval '30 seconds' where id = :'turma_id';
 
 -- ---------------------------------------------------------------- envio de estado
 set role anon;
@@ -154,7 +156,16 @@ select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 431, 0, '
 select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 2, 431, 5, '{}'::jsonb, 11, '{}'::jsonb)$q$, :'tok_a')) like 'CB009:RODADA_INVALIDA%', 'rodada diferente da atual -> RODADA_INVALIDA');
 select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 431, 5, '{}'::jsonb, 11, '{}'::jsonb)$q$, repeat('Z', 43))) like 'CB004:TOKEN_INVALIDO%', 'token inexistente -> TOKEN_INVALIDO');
 select tst.ok(tst.erro_de($q$select public.enviar_estado('curto', 1, 431, 5, '{}'::jsonb, 11, '{}'::jsonb)$q$) like 'CB004:%', 'token malformado -> TOKEN_INVALIDO');
-select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 431, 5, jsonb_build_object('x', repeat('a', 600000)), 11, '{}'::jsonb)$q$, :'tok_a')) like 'CB008:%', 'estado > 512 KB -> DADOS_INVALIDOS');
+select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 431, 5, jsonb_build_object('x', repeat('a', 300000)), 11, '{}'::jsonb)$q$, :'tok_a')) like 'CB008:%', 'estado > 256 KB -> DADOS_INVALIDOS');
+select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 1140, 5, '{}'::jsonb, 11, '{}'::jsonb)$q$, :'tok_a')) like 'CB008:%', 'minuto à frente do relógio da sala -> DADOS_INVALIDOS');
+select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 431, 5, '{}'::jsonb, 999999999, '{}'::jsonb)$q$, :'tok_a')) like 'CB008:%', 'pontuação fora da faixa possível -> DADOS_INVALIDOS');
+select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 431, 5, '{}'::jsonb, -1, '{}'::jsonb)$q$, :'tok_a')) like 'CB008:%', 'pontuação negativa -> DADOS_INVALIDOS');
+select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 431, 5, '{}'::jsonb, 11, '{}'::jsonb)$q$, :'tok_a')) like 'CB013:LIMITE_EXCEDIDO%', 'nova versão menos de 1 s depois -> LIMITE_EXCEDIDO');
+reset role;
+update public.estado_jogo set atualizado_em = now() - interval '5 seconds';
+set role anon;
+set request.jwt.claims = '{"role":"anon"}';
+select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 425, 5, '{}'::jsonb, 11, '{}'::jsonb)$q$, :'tok_a')) like 'CB008:%', 'minuto menor que o guardado -> DADOS_INVALIDOS');
 select tst.ok(tst.erro_de(format($q$select public.enviar_estado(%L, 1, 2000, 5, '{}'::jsonb, 11, '{}'::jsonb)$q$, :'tok_a')) like 'CB008:%', 'minuto fora de 420..1140 -> DADOS_INVALIDOS');
 select tst.ok((public.enviar_estado(:'tok_b', 1, 430, 1, '{"b":true}'::jsonb, 20, '{}'::jsonb) ->> 'versao') = '1', 'grupo B envia o próprio estado');
 select tst.ok((public.obter_estado(:'tok_a', 1) -> 'estado') = '{"pacientes":[]}'::jsonb, 'obter_estado devolve o estado do próprio grupo');
@@ -185,6 +196,10 @@ select tst.ok(length(:'entrada_nova'::jsonb ->> 'token') = 43
 select :'entrada_nova'::jsonb ->> 'token' as tok_a2 \gset
 select tst.ok(tst.erro_de(format($q$select public.obter_estado(%L)$q$, :'tok_a')) like 'CB004:%', 'token antigo deixa de valer');
 select tst.ok(tst.erro_de($q$select public.entrar_grupo('CBMEDE', 'Grupo A')$q$) like 'CB003:%', 'liberação desliga sozinha depois do uso');
+reset role;
+update public.estado_jogo set atualizado_em = now() - interval '5 seconds';
+set role anon;
+set request.jwt.claims = '{"role":"anon"}';
 select tst.ok((public.enviar_estado(:'tok_a2', 1, 440, 2, '{"pacientes":[1]}'::jsonb, 15, '{}'::jsonb) ->> 'versao') = '2', 'novo token continua o jogo');
 reset role;
 
@@ -203,7 +218,7 @@ update public.turmas set rodada_inicio = now() - interval '100 seconds', pausa_a
 select tst.ok((public.estado_turma('CBMEDE') ->> 'minuto')::int = 480, 'minuto = 420 + (100 s - 40 s)');
 update public.turmas set rodada_inicio = now() - interval '2 hours' where id = :'turma_id';
 select tst.ok((public.estado_turma('CBMEDE') ->> 'minuto')::int = 1140, 'minuto limitado a 1140');
-update public.turmas set rodada_inicio = now(), pausa_acumulada_ms = 0 where id = :'turma_id';
+update public.turmas set rodada_inicio = now() - interval '30 seconds', pausa_acumulada_ms = 0 where id = :'turma_id';
 
 -- ---------------------------------------------------------------- série e eventos
 set role anon;
@@ -255,6 +270,12 @@ reset role;
 -- ---------------------------------------------------------------- encerrar R1, tolerância, R2
 set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+reset role;
+-- plantão completo (12 min) antes de encerrar, e o último envio de B foi há mais de 1 s
+update public.turmas set rodada_inicio = now() - interval '13 minutes' where id = :'turma_id';
+update public.estado_jogo set atualizado_em = now() - interval '5 seconds';
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 select tst.ok((public.mudar_status(:'turma_id', 'debrief') ->> 'status') = 'debrief', 'rodada1 -> debrief');
 reset role;
 set role anon;
@@ -273,6 +294,7 @@ select tst.ok(tst.erro_de(format($q$select public.mudar_status(%L, 'encerrada')$
 select tst.ok(tst.erro_de(format($q$select public.gerar_relatorio(%L)$q$, :'turma_id')) like 'CB007:%', 'relatório antes de encerrar recusado');
 select tst.ok((public.mudar_status(:'turma_id', 'rodada2') ->> 'rodada') = '2', 'debrief -> rodada2');
 reset role;
+update public.turmas set rodada_inicio = now() - interval '90 seconds' where id = :'turma_id';
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';
 select tst.ok((public.enviar_estado(:'tok_a2', 2, 500, 1, '{"r2":true}'::jsonb, 50, '{}'::jsonb) ->> 'versao') = '1', 'rodada 2 começa com versão própria');

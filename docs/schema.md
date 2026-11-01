@@ -5,7 +5,7 @@
 ## Princípios
 
 1. **Turma é a unidade.** Um evento tem uma turma; a comparação é sempre dentro da turma. Cada turma fica guardada com seus resultados e seu relatório.
-2. **Ninguém escreve direto nas tabelas.** O navegador só lê o que é público e escreve por funções no banco (RPC), que validam quem chama e se a ação faz sentido no momento. Assim a regra mora no servidor (playbook, `19-seguranca`: "campo que o servidor decide, o servidor grava").
+2. **Ninguém escreve direto nas tabelas.** O navegador escreve por funções no banco (RPC), que validam quem chama e se a ação faz sentido no momento (playbook, `19-seguranca`: "campo que o servidor decide, o servidor grava"). **O motor do jogo roda no navegador do grupo**: o servidor não refaz a simulação, mas faz checagem de plausibilidade do que recebe (minuto dentro do relógio da sala, pontuação na faixa possível, tamanho e frequência dos envios).
 3. **Grupo se identifica por um token**, gerado ao entrar e guardado no computador do grupo. Sem conta, sem dado pessoal.
 4. **Facilitador tem login real** (Supabase Auth, e-mail e senha). Nenhuma credencial no código.
 5. **O relógio é do servidor.** O minuto do plantão é calculado a partir do início da rodada gravado no banco, e todos os computadores corrigem o próprio relógio pela hora do servidor.
@@ -75,7 +75,7 @@ Todas são `security definer` com `search_path = ''` e nomes qualificados. Parâ
 | RPC | Regra |
 |---|---|
 | `entrar_grupo(p_codigo, p_nome, p_token?)` | Tabela acima. Devolve `{turma_id, status, rodada, grupo{id, nome, cor}, token, reconectado, estado_salvo, hora_servidor}`; `token` é `null` quando não foi gerado token novo. |
-| `enviar_estado(p_token, p_rodada, p_minuto, p_versao, p_estado, p_pontuacao, p_metricas)` | Recusa `p_versao` ≤ guardada (`VERSAO_ANTIGA`) e rodada que não é a atual (`RODADA_INVALIDA`). Grava estado e placar e atualiza `grupos.visto_em`. Estado ≤ 512 KB, métricas ≤ 16 KB, minuto 420–1140. |
+| `enviar_estado(p_token, p_rodada, p_minuto, p_versao, p_estado, p_pontuacao, p_metricas)` | Recusa `p_versao` ≤ guardada (`VERSAO_ANTIGA`) e rodada que não é a atual (`RODADA_INVALIDA`). Plausibilidade (migração `20261102100100`): minuto mais de 3 min à frente do relógio da sala ou menor que o guardado, pontuação fora de 0–3000 e estado acima de 256 KB dão `DADOS_INVALIDOS`; nova versão menos de 1 s depois da anterior do mesmo grupo dá `LIMITE_EXCEDIDO` (o app envia a cada 2 s e tenta de novo). Grava estado e placar e atualiza `grupos.visto_em`. Métricas ≤ 16 KB, minuto 420–1140. |
 | `obter_estado(p_token, p_rodada?)` | Último estado do próprio grupo (`{rodada, minuto, versao, estado, atualizado_em}`) ou `null`. Sem rodada, usa a atual. |
 | `registrar_serie(p_token, p_rodada, p_minuto, p_metricas)` | Um ponto por (grupo, rodada, minuto); reenvio não altera (`{registrado: false}`). |
 | `registrar_eventos(p_token, p_rodada, p_eventos)` | Lista de `{minuto, tipo, mensagem?, chave?}`; até 50 por chamada e 3000 por grupo e rodada. `chave` torna o reenvio idempotente. |
@@ -110,7 +110,7 @@ Turma inexistente: `TURMA_NAO_ENCONTRADA`; rodada fora de 1–2 ou limite fora d
 | `TURMA_CHEIA` | CB010 | `max_grupos` atingido |
 | `CODIGO_EM_USO` | CB011 | `abrir_turma` com turma ativa de mesmo código e grupos, sem `p_substituir` |
 | `RELATORIO_NAO_ENCONTRADO` | CB012 | slug malformado ou inexistente |
-| `LIMITE_EXCEDIDO` | CB013 | mais de 50 eventos por chamada ou 3000 por rodada |
+| `LIMITE_EXCEDIDO` | CB013 | mais de 50 eventos por chamada ou 3000 por rodada; `enviar_estado` com menos de 1 s desde o último envio |
 
 Sem permissão de EXECUTE (anon chamando RPC de facilitador) o PostgREST responde 401 `permission denied` antes de entrar na função.
 
