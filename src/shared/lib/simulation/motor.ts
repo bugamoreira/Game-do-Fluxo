@@ -1,28 +1,41 @@
 // ============================================================
-// Motor da simulação — funções puras extraídas do tick de src/player/App.tsx
-// Sem React, sem rede, sem Math.random: todo sorteio usa o gerador de estado.rng.
+// Motor da simulação — funções puras (contrato B1, docs/contratos.md §1)
+// Regras aprovadas no Portão 2 (docs/revisao-logica.md). Sem React, sem rede,
+// sem Math.random: a demanda vem pronta da agenda (gerador de demanda) e os
+// eventos usam o gerador de estado.rng.
 // ============================================================
 
-import type { Destination, Events, LogEntry, LogType, Patient, Sector, Severity, SfxType, Stats } from '../../types/game';
-import { arrRate, calcScore, criarPaciente, hospMult, mkInit, mkSx, mkSxR2, nomeAleatorio, rollDest } from '../game-engine';
-import { BOARD_DEAD_MIN, BOARD_DET_MIN, CAP, EH, OFFSVC_DET_PROB, SH } from '../constants';
-import { criarGerador, estadoDaSemente, type Gerador } from './rng';
+import type { Events, LogEntry, LogType, Patient, Sector, Severity, Stats } from '../../types/game';
+import { calcScore, criarPaciente, hospMult, mkInit, mkSx, mkSxR2 } from '../game-engine';
+import { CAP } from '../constants';
+import { gerarChegadas, gerarLotesAlta } from './agenda';
+import {
+  ALVO_ESPERA, ATENCAO_ANTES_MIN, ATRASO_SALA1_R1, BLOQUEIO_CASCATA_MIN, ENF_EXTRA_VAGAS,
+  FAST_TRACK_FATOR_DECISAO, FAST_TRACK_VAGAS, FLUXISTA_INTERVALO_MIN, FLUXO_RAPIDO_BONUS, FLUXO_RAPIDO_OCUPACAO,
+  LAB_ACRESCIMO_CHEGADA, LABORATORIO, LIMIAR_RISCO_BOARDING, LOTES_ALTA, LWBS_LIMITE_CORREDOR,
+  NIR_ESPERA_MIN, NIR_MAX_USOS, OBITO_APOS_DET_MIN, P_DET_BOARDING, P_DET_ESPERA, P_DET_LEITO_INADEQUADO,
+  P_EMERGENCIA_CIRURGICA, P_IR_AO_CORREDOR, P_LWBS, P_OBITO, P_OBS_PROLONGADA, P_PCR, P_SOCIAL, P_SOCIAL_FAMILIA,
+  P_TOMOGRAFO, PCR_DURACAO_MIN, PRIORIDADE, SALA_VERMELHA_EXTRA, SOCIAL_DURACAO_R1, SOCIAL_DURACAO_R2,
+  SOCIAL_FAMILIA_DURACAO_R1, TOMOGRAFO,
+} from './constantes';
+import { MINUTO_FIM_PLANTAO, MINUTO_INICIO_PLANTAO } from './relogio';
+import { CANAL_DEMANDA, CANAL_EVENTOS, criarGerador, estadoDoCanal, type Gerador } from './rng';
 import type {
-  Acao, ErroAcao, EstadoSimulacao, Metricas, Ocorrencia, OpcoesEstadoInicial,
-  ResultadoPasso, Rodada, TipoOcorrencia,
+  Acao, CargaGestor, ChaveLote, CirurgiaSim, ErroAcao, EstadoSimulacao, Metricas, Ocorrencia, OpcoesEstadoInicial,
+  PacienteSim, ResultadoPasso, Risco, Rodada, SetorSim, TipoOcorrencia,
 } from './types';
 
-export const MINUTO_INICIO = SH * 60;
-export const MINUTO_FIM = EH * 60;
+export const MINUTO_INICIO = MINUTO_INICIO_PLANTAO;
+export const MINUTO_FIM = MINUTO_FIM_PLANTAO;
 export const LOG_MAX = 60;
-export const NIR_MAX_USOS = 3;
-export const NIR_ESPERA_MIN = 60;
-export const FC_MAX_USOS = 2;
+export { NIR_MAX_USOS, NIR_ESPERA_MIN, ENF_EXTRA_VAGAS };
 
 const STATS_ZERO: Stats = { disc: 0, altaHosp: 0, libDE: 0, dets: 0, deaths: 0, cxCan: 0, lwbs: 0, offS: 0, socB: 0, boardHrs: 0 };
 const EVENTOS_ZERO: Events = { pcr: false, tomo: false, surto: false, social: false, lab: false, famDelay: false, pcrEnd: 0, tomoEnd: 0, labEnd: 0 };
+const PIORA: Readonly<Record<Severity, Severity>> = { green: 'yellow', yellow: 'orange', orange: 'red', red: 'red' };
+const ORDEM_LOTES: readonly ChaveLote[] = ['enf1', 'enf2', 'enf3', 'uti1', 'uti2'];
 
-// ── Utilidades internas ─────────────────────────────────────
+// ── Utilidades ──────────────────────────────────────────────
 
 type Extra = Omit<Ocorrencia, 'minuto' | 'tipo' | 'msg' | 'nivel'>;
 
@@ -37,78 +50,177 @@ function registrar(ctx: Contexto, tipo: TipoOcorrencia, msg: string, nivel: LogT
   ctx.ocorrencias.push({ minuto: ctx.minuto, tipo, msg, nivel, ...extra });
 }
 
-function novoPaciente(ctx: Contexto, sector: Sector, dest: Destination, sev: Severity, ready = false, deT = 120): Patient {
-  const id = ctx.proximoId++;
-  return criarPaciente(id, nomeAleatorio(ctx.g.proximo), sector, dest, sev, ready, deT);
+export function paraPacienteSim(p: Patient): PacienteSim {
+  const { offSvc, ...resto } = p;
+  return {
+    ...resto, leitoInadequado: offSvc, foraDoPerfil: false,
+    risco: 'baixo', slaOk: null, entradaMin: null, detMin: null, retorno: false, bloqueioAte: 0,
+  };
 }
 
-function contar(P: readonly Patient[], setor: Sector): number {
+function cargaZero(): CargaGestor {
+  return {
+    decisoes: 0, produtivas: 0, reativas: 0,
+    alertas: { deterioracao: 0, obito: 0, cancelamento: 0, deLotado: 0, corredor: 0, lwbs: 0 },
+    automatico: { fluxista: 0, dischargeLounge: 0, fastTrack: 0, cirurgiasViabilizadas: 0 },
+    emergencias: 0, emergenciasSemSala: 0,
+  };
+}
+
+function copiarCarga(c: CargaGestor): CargaGestor {
+  return { ...c, alertas: { ...c.alertas }, automatico: { ...c.automatico } };
+}
+
+function contar(P: readonly PacienteSim[], setor: SetorSim): number {
   let n = 0;
   for (const p of P) if (p.sector === setor) n++;
   return n;
 }
 
-function emBoarding(p: Patient): boolean {
-  return p.sector === 'de' && p.ready && (p.dest === 'enf' || p.dest === 'uti');
+/** Pronto no DE esperando leito (ENF/UTI) ou transferência (fora do perfil). */
+function emBoarding(p: PacienteSim): boolean {
+  return p.sector === 'de' && p.ready && !p.dead && (p.dest === 'enf' || p.dest === 'uti' || p.dest === 'transferencia');
 }
 
-/** Novas entradas de log: addL antigo inseria no topo, então a última ocorrência fica primeiro. */
+function naFila(p: PacienteSim): boolean {
+  return p.sector === 'triagem' || p.sector === 'corredor';
+}
+
+function altaEnfPronta(p: PacienteSim): boolean {
+  return p.sector === 'enf' && p.dischReady && p.prep <= 0 && !p.social && !p.blocked;
+}
+
+/** Posição na fila: quem voltou ao DE primeiro, depois Manchester, depois ordem de chegada. */
+function ordemFila(a: PacienteSim, b: PacienteSim): number {
+  const ra = a.retorno ? -1 : PRIORIDADE[a.sev];
+  const rb = b.retorno ? -1 : PRIORIDADE[b.sev];
+  return ra - rb || a.arrMin - b.arrMin || a.id - b.id;
+}
+
 function anexarLog(log: readonly LogEntry[], ocorrencias: readonly Ocorrencia[]): LogEntry[] {
   const novas = ocorrencias.map(o => ({ msg: o.msg, type: o.nivel, t: o.minuto })).reverse();
   return [...novas, ...log].slice(0, LOG_MAX);
 }
 
-/** Capacidade efetiva de um setor para movimentos do grupo (DE perde 1 maca durante a parada cardíaca). */
-export function capacidadeSetor(estado: EstadoSimulacao, setor: Sector): number {
-  if (setor === 'enf') return CAP.enf;
-  if (setor === 'uti') return CAP.uti;
-  if (setor === 'de') return CAP.de - (estado.eventos.pcr ? 1 : 0);
-  return 999;
+function plural(n: number, singular: string, pluralTxt: string): string {
+  return `${n} ${n === 1 ? singular : pluralTxt}`;
+}
+
+/** Duração aproximada em horas: "1 h", "3 h". */
+function horas(min: number): string {
+  return `${Math.max(1, Math.round(min / 60))} h`;
+}
+
+function fmtHora(min: number): string {
+  return `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, '0') : ''}`;
+}
+
+function fimCirurgia(s: CirurgiaSim): number {
+  return Math.round((s.stH + s.dur) * 60);
+}
+
+function inicioCirurgia(s: CirurgiaSim): number {
+  return Math.round(s.stH * 60);
+}
+
+/** Capacidade de um setor para movimentos do grupo (DE perde 1 maca durante a parada cardíaca). */
+export function capacidadeSetor(estado: Pick<EstadoSimulacao, 'eventos'>, setor: SetorSim): number {
+  switch (setor) {
+    case 'enf': return CAP.enf;
+    case 'uti': return CAP.uti;
+    case 'de': return CAP.de - (estado.eventos.pcr ? 1 : 0);
+    case 'rpa': return CAP.rpa;
+    case 'fast_track': return FAST_TRACK_VAGAS;
+    case 'enf_extra': return ENF_EXTRA_VAGAS;
+    default: return 999;
+  }
+}
+
+export function calcularRisco(p: PacienteSim, minuto: number): Risco {
+  if (naFila(p)) {
+    const espera = minuto - p.arrMin;
+    const alvo = ALVO_ESPERA[p.sev];
+    if (p.det || espera > alvo) return 'alto';
+    return espera >= alvo / 2 ? 'atencao' : 'baixo';
+  }
+  if (emBoarding(p)) {
+    const limiar = LIMIAR_RISCO_BOARDING[p.sev];
+    if (p.det || p.bMin >= limiar) return 'alto';
+    return p.bMin >= limiar - ATENCAO_ANTES_MIN ? 'atencao' : 'baixo';
+  }
+  if (p.leitoInadequado && p.sector === 'enf' && !p.det) return 'atencao';
+  return 'baixo';
+}
+
+// ── Sala 4 reservada: realocação sem conflito de horário ────
+
+function realocarSala4(cirurgias: CirurgiaSim[]): CirurgiaSim[] {
+  const fixas = cirurgias.filter(s => s.sala !== 4).map(s => ({ ...s }));
+  const realocar = cirurgias.filter(s => s.sala === 4);
+  for (const s of realocar) {
+    const livre = (sala: number, ini: number): boolean =>
+      fixas.every(o => o.sala !== sala || ini + s.dur <= o.stH + 1e-9 || o.stH + o.dur <= ini + 1e-9);
+    const candidatos = [s.stH, ...fixas.map(o => o.stH + o.dur).filter(t => t > s.stH)].sort((a, b) => a - b);
+    let escolha: { sala: number; stH: number } | null = null;
+    for (const t of candidatos) {
+      const sala = [1, 2, 3].find(x => livre(x, t));
+      if (sala) { escolha = { sala, stH: t }; break; }
+    }
+    fixas.push({ ...s, ...(escolha ?? { sala: 3, stH: Math.max(...fixas.map(o => o.stH + o.dur)) }) });
+  }
+  return fixas.sort((a, b) => a.id - b.id);
 }
 
 // ── Estado inicial ──────────────────────────────────────────
 
 export function criarEstadoInicial(rodada: Rodada, semente: number, opcoes: OpcoesEstadoInicial = {}): EstadoSimulacao {
-  const ccBlocked = opcoes.ccBlocked ?? false;
-  const g = criarGerador(estadoDaSemente(semente));
+  const ccBlocked = opcoes.ccBlocked ?? rodada === 2;
+
+  // Demanda e censo: gerador próprio, independente da rodada
+  const gd = criarGerador(estadoDoCanal(semente, CANAL_DEMANDA));
   let proximoId = 1;
-  const pacientes = mkInit(g.proximo, () => proximoId++);
+  const pacientes = mkInit(gd.proximo, () => proximoId++).map(paraPacienteSim);
+  const chegadas = gerarChegadas(gd);
+  const altas = gerarLotesAlta(
+    gd,
+    pacientes.filter(p => p.sector === 'enf').map(p => p.id),
+    pacientes.filter(p => p.sector === 'uti').map(p => p.id),
+  );
 
-  // Cirurgias — em R1, atraso da primeira cirurgia na sala 1
-  const cirurgias = rodada === 2 ? mkSxR2() : mkSx();
+  // Eventos: gerador separado
+  const ge = criarGerador(estadoDoCanal(semente, CANAL_EVENTOS));
+  let cirurgias: CirurgiaSim[] = rodada === 2 ? mkSxR2() : mkSx();
+  let atrasoMin = 0;
   if (rodada === 1) {
-    const delay = g.inteiro(30, 60) / 60;
-    cirurgias.forEach(s => { if (s.sala === 1) s.stH += delay; });
+    atrasoMin = ge.inteiro(ATRASO_SALA1_R1[0], ATRASO_SALA1_R1[1]);
+    cirurgias.forEach(s => { if (s.sala === 1) s.stH += atrasoMin / 60; });
   }
-  // Sala 4 reservada para emergências: cirurgias da sala 4 vão para a sala 3
-  if (ccBlocked) cirurgias.forEach(s => { if (s.sala === 4) s.sala = 3; });
+  if (ccBlocked) cirurgias = realocarSala4(cirurgias);
 
-  const title = rodada === 2 ? 'PLANTAO LEAN' : 'PLANTAO TRAVADO';
+  const title = rodada === 2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO';
   const ccMsg = ccBlocked ? ' Sala 4 reservada para emergências.' : ' Todas as 4 salas em uso eletivo.';
-  const r2Msg = rodada === 2 ? ' FERRAMENTAS LEAN ATIVAS: Alta precoce, Fast Track, Discharge Lounge, Surgical Smoothing, Fluxista, NIR, Full Capacity, Alta Segura.' : '';
-  const log: LogEntry[] = [{ msg: `${title} iniciado! DE 8/15, Enf 71/85, UTI 13/15. Ocupação hospitalar: 84%.${ccMsg}${r2Msg}`, type: 'info', t: MINUTO_INICIO }];
-  if (rodada === 1) {
-    const delayMin = Math.round(((cirurgias.find(s => s.sala === 1)?.stH ?? 7.5) - 7.5) * 60);
-    if (delayMin > 0) log.push({ msg: `ATRASO: Primeira cirurgia atrasou ${delayMin}min. Efeito cascata na Sala 1.`, type: 'warning', t: MINUTO_INICIO });
-  }
-  if (rodada === 2) log.push({ msg: 'BED HUDDLE 7h: Previsão ~40 pacientes. 7 cirurgias redistribuídas. Pico 11h-14h.', type: 'info', t: MINUTO_INICIO });
-
-  const proximaChegada = MINUTO_INICIO + g.inteiro(5, 12);
+  const r2Msg = rodada === 2 ? ' FERRAMENTAS LEAN ATIVAS: Bed Huddle, Discharge Lounge, Fast Track, Surgical Smoothing, Fluxista, Alta Segura, Fluxo Rápido, NIR e PCP.' : '';
+  const log: LogEntry[] = [{ msg: `${title} iniciado! DE 8/15, ENF 71/85, UTI 13/15. Ocupação hospitalar: 84%.${ccMsg}${r2Msg}`, type: 'info', t: MINUTO_INICIO }];
+  if (atrasoMin > 0) log.push({ msg: `ATRASO: a sala 1 começou ${atrasoMin} min atrasada e as cirurgias dela foram adiadas.`, type: 'warning', t: MINUTO_INICIO });
+  if (rodada === 2) log.push({ msg: 'BED HUDDLE 7h: previsão de cerca de 45 pacientes, cirurgias redistribuídas e pico das 11h às 14h.', type: 'info', t: MINUTO_INICIO });
 
   return {
     versao: 0,
     rodada,
     minuto: MINUTO_INICIO,
-    rng: g.estado(),
+    rng: ge.estado(),
     pacientes,
     cirurgias,
     stats: { ...STATS_ZERO },
     eventos: { ...EVENTOS_ZERO },
     flags: ccBlocked ? { ccBlocked: true } : {},
-    proximaChegada,
+    proximaChegada: chegadas[0]?.minuto ?? MINUTO_FIM + 1,
+    agenda: { chegadas, altas },
+    chegadasProcessadas: 0,
     ferramentas: { nirUsos: 0, nirEspera: 0, fcUsos: 0, fcLiberado: false },
     log,
     proximoId,
+    carga: cargaZero(),
   };
 }
 
@@ -124,300 +236,341 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
   const rand = ctx.g.proximo;
   const rnd = ctx.g.inteiro;
 
-  const P = estado.pacientes.map(p => ({ ...p }));
+  const P: PacienteSim[] = estado.pacientes.map(p => ({ ...p }));
   const S: Stats = { ...estado.stats };
   const E: Events = { ...estado.eventos };
   const R: Record<string, boolean> = { ...estado.flags };
   const ccBlocked = R.ccBlocked === true;
   const ferramentas = { ...estado.ferramentas };
-  let proximaChegada = estado.proximaChegada;
+  const cirurgias = estado.cirurgias.map(s => ({ ...s }));
+  const carga = copiarCarga(estado.carga);
+  const tomo = TOMOGRAFO[estado.rodada];
+  const lab = LABORATORIO[estado.rodada];
+  const emAvaliacao = (p: PacienteSim): boolean => (p.sector === 'de' || p.sector === 'fast_track') && !p.ready && !p.obsProlong;
+  const rpaReservada = (): number => contar(P, 'rpa') + cirurgias.filter(s => s.st === 'andamento').length;
+
+  const deteriorar = (p: PacienteSim, tipo: TipoOcorrencia, msg: string): void => {
+    p.det = true; p.detMin = cm; p.sev = PIORA[p.sev]; S.dets++; carga.alertas.deterioracao++;
+    registrar(ctx, tipo, msg, 'warning', { som: 'det', pacienteId: p.id });
+  };
+  const obito = (p: PacienteSim, tipo: TipoOcorrencia, msg: string): void => {
+    p.dead = true; p.sector = 'obito'; p.ready = false; p.bStart = null; S.deaths++; carga.alertas.obito++;
+    registrar(ctx, tipo, msg, 'danger', { som: 'death', flashObito: true, pacienteId: p.id });
+  };
 
   // ── Eventos aleatórios ────────────────────────────────────
 
-  // Parada cardíaca — mais frequente em R1
-  if (ch >= 9 && ch < 16 && !E.pcr && rand() < (isR2 ? 0.004 : 0.008)) {
-    E.pcr = true; E.pcrEnd = cm + 60;
-    registrar(ctx, 'pcr', 'PARADA CARDIACA no DE! 1 maca bloqueada por 1h.', 'danger');
+  // Parada cardíaca (mesma frequência nas duas rodadas)
+  if (ch >= 9 && ch < 16 && !E.pcr && rand() < P_PCR) {
+    E.pcr = true; E.pcrEnd = cm + PCR_DURACAO_MIN;
+    registrar(ctx, 'pcr', 'PARADA CARDÍACA no DE! Uma maca fica bloqueada por 1 h.', 'danger');
   }
   if (E.pcr && cm >= E.pcrEnd) { E.pcr = false; registrar(ctx, 'pcr_fim', 'Parada resolvida. Maca liberada.', 'success'); }
 
-  // Tomógrafo quebrado
-  if (ch >= 8 && ch < 14 && !E.tomo && rand() < 0.005) {
-    const tomoDur = isR2 ? 60 : 120;
-    E.tomo = true; E.tomoEnd = cm + tomoDur;
-    if (isR2) registrar(ctx, 'tomografo', 'TOMOGRAFO: manutencao preventiva, retorno em 1h.', 'warning');
-    else registrar(ctx, 'tomografo', 'TOMOGRAFO QUEBROU! Decisao +120min para todos no DE.', 'danger');
+  // Tomógrafo: atrasa todos os que ainda não estão prontos e os que chegarem durante a parada
+  if (ch >= 8 && ch < 14 && !E.tomo && rand() < P_TOMOGRAFO) {
+    E.tomo = true; E.tomoEnd = cm + tomo.duracao;
+    P.forEach(p => { if (emAvaliacao(p)) p.deNeed += tomo.acrescimo; });
+    if (isR2) registrar(ctx, 'tomografo', `TOMÓGRAFO EM MANUTENÇÃO PREVENTIVA: volta em ${horas(tomo.duracao)}. Quem está em avaliação espera mais ${tomo.acrescimo} min pela decisão.`, 'warning');
+    else registrar(ctx, 'tomografo', `TOMÓGRAFO QUEBRADO! Todos em avaliação no DE esperam mais ${tomo.acrescimo} min pela decisão.`, 'danger');
   }
-  if (E.tomo && cm >= E.tomoEnd) { E.tomo = false; registrar(ctx, 'tomografo_fim', 'Tomografo reparado.', 'success'); }
+  if (E.tomo && cm >= E.tomoEnd) { E.tomo = false; registrar(ctx, 'tomografo_fim', 'Tomógrafo reparado.', 'success'); }
 
-  // Exames com atraso (Teoria das Restrições)
-  if (ch >= 9 && ch < 16 && !E.lab && rand() < (isR2 ? 0.002 : 0.006)) {
-    E.lab = true; E.labEnd = cm + (isR2 ? 45 : 90);
-    const affected = P.filter(p => p.sector === 'de' && !p.ready && !p.obsProlong).slice(0, rnd(2, 4));
-    affected.forEach(p => { p.deNeed += isR2 ? 30 : 60; p.labDelay = true; });
-    registrar(ctx, 'laboratorio', `ATRASO NO LABORATORIO! ${affected.length} pacientes aguardando resultados (+${isR2 ? 30 : 60}min).`, 'warning');
+  // Laboratório com atraso
+  if (ch >= 9 && ch < 16 && !E.lab && rand() < lab.p) {
+    E.lab = true; E.labEnd = cm + lab.duracao;
+    const affected = P.filter(emAvaliacao).slice(0, rnd(2, 4));
+    affected.forEach(p => { p.deNeed += lab.acrescimo; p.labDelay = true; });
+    registrar(ctx, 'laboratorio', `ATRASO NO LABORATÓRIO! ${plural(affected.length, 'paciente aguarda', 'pacientes aguardam')} resultado (mais ${lab.acrescimo} min).`, 'warning');
   }
   if (E.lab && cm >= E.labEnd) {
     E.lab = false;
     P.forEach(p => { if (p.labDelay) p.labDelay = false; });
-    registrar(ctx, 'laboratorio_fim', 'Laboratorio normalizado.', 'success');
+    registrar(ctx, 'laboratorio_fim', 'Laboratório normalizado.', 'success');
   }
 
-  // Surto: GARANTIDO às 12h na R1, aleatório na R2
-  const surtoForced = !isR2 && cm === 12 * 60 && !E.surto;
-  const surtoRandom = ch >= 12 && ch < 15 && !E.surto && rand() < 0.006;
-  if (surtoForced || surtoRandom) {
-    E.surto = true;
-    for (let i = 0; i < 3; i++) {
-      const d = i < 2 ? rollDest(isR2, rand) : { dest: 'uti' as const, sev: 'red' as const, de: rnd(90, 150) };
-      const np = novoPaciente(ctx, 'triagem', d.dest, d.sev, false, d.de); np.arrMin = cm; P.push(np);
-    }
-    registrar(ctx, 'surto', 'SURTO! 3 pacientes simultâneos chegando!', 'danger', { som: 'cascade' });
-  }
-
-  // Paciente social (atraso de familiares)
-  if (ch >= 10 && ch < 17 && !E.social && rand() < 0.005) {
-    E.social = true;
-    const ef = P.find(p => p.sector === 'enf' && p.dischReady && p.prep <= 0 && !p.social && !p.blocked);
+  // Paciente social (atraso de familiares). Sem paciente elegível, tenta de novo depois.
+  if (ch >= 10 && ch < 17 && !E.social && rand() < P_SOCIAL) {
+    const ef = P.find(altaEnfPronta);
     if (ef) {
-      ef.social = true; ef.socialDelay = isR2 ? 60 : rnd(180, 300); S.socB++;
+      E.social = true;
+      ef.social = true; ef.socialDelay = isR2 ? SOCIAL_DURACAO_R2 : rnd(SOCIAL_DURACAO_R1[0], SOCIAL_DURACAO_R1[1]); S.socB++;
       registrar(ctx, 'social',
-        `ATRASO DE FAMILIARES: ${ef.name} — leito bloqueado ~${Math.round(ef.socialDelay / 60)}h.${isR2 ? ' Alta segura acionada: reduzido a 1h.' : ''}`,
+        `ATRASO DA FAMÍLIA: o leito de ${ef.name} fica bloqueado por cerca de ${horas(ef.socialDelay)}.${isR2 ? ' Alta Segura acionada: bloqueio reduzido a 1 h.' : ''}`,
         isR2 ? 'info' : 'warning', { pacienteId: ef.id });
     }
   }
 
-  // Segundo caso social em R1 (agrava o problema)
-  if (!isR2 && ch >= 13 && ch < 16 && !E.famDelay && rand() < 0.004) {
-    E.famDelay = true;
-    const ef = P.find(p => p.sector === 'enf' && p.dischReady && p.prep <= 0 && !p.social && !p.blocked);
+  // Segundo caso social (sem responsável)
+  if (ch >= 13 && ch < 16 && !E.famDelay && rand() < P_SOCIAL_FAMILIA) {
+    const ef = P.find(altaEnfPronta);
     if (ef) {
-      ef.social = true; ef.socialDelay = rnd(120, 240); S.socB++;
-      registrar(ctx, 'bloqueio_social', `BLOQUEIO SOCIAL: ${ef.name} — sem responsavel, leito preso ~${Math.round(ef.socialDelay / 60)}h!`, 'warning', { pacienteId: ef.id });
+      E.famDelay = true;
+      ef.social = true; ef.socialDelay = isR2 ? SOCIAL_DURACAO_R2 : rnd(SOCIAL_FAMILIA_DURACAO_R1[0], SOCIAL_FAMILIA_DURACAO_R1[1]); S.socB++;
+      registrar(ctx, 'bloqueio_social',
+        `BLOQUEIO SOCIAL: ${ef.name} está sem responsável e o leito fica preso por cerca de ${horas(ef.socialDelay)}!${isR2 ? ' Alta Segura acionada: bloqueio reduzido a 1 h.' : ''}`,
+        isR2 ? 'info' : 'warning', { pacienteId: ef.id });
     }
   }
 
-  // Cirurgia de emergência do DE
-  if (ch >= 9 && ch < 16 && rand() < (isR2 ? 0.003 : 0.005)) {
-    const emg = P.find(p => p.sector === 'de' && p.sev === 'red' && !p.dead && !p.postOp);
+  // Emergência cirúrgica do DE (RPA conta as cirurgias em andamento como reservadas)
+  if (ch >= 9 && ch < 16 && rand() < P_EMERGENCIA_CIRURGICA) {
+    const emg = P.find(p => p.sector === 'de' && p.sev === 'red' && !p.dead && !p.postOp && !p.foraDoPerfil);
     if (emg) {
-      const rpaCount = contar(P, 'rpa');
-      if (rpaCount < CAP.rpa) {
-        emg.sector = 'rpa'; emg.postOp = true; emg.ready = true; emg.dest = 'uti';
+      carga.emergencias++;
+      if (rpaReservada() >= CAP.rpa) carga.emergenciasSemSala++;
+      if (rpaReservada() < CAP.rpa) {
+        emg.sector = 'rpa'; emg.postOp = true; emg.ready = true; emg.dest = 'uti'; emg.bStart = null; emg.bMin = 0;
         emg.name = `EMG-${emg.name.split(' ')[0]}`;
-        registrar(ctx, 'emergencia_cirurgica', `EMERGÊNCIA CIRÚRGICA: ${emg.name} → CC${ccBlocked ? ' (sala reservada)' : ''} → RPA.`, 'danger', { som: 'cascade', pacienteId: emg.id });
+        registrar(ctx, 'emergencia_cirurgica', `EMERGÊNCIA CIRÚRGICA: ${emg.name} foi operado${ccBlocked ? ' na sala reservada' : ''} e está na RPA.`, 'danger', { som: 'cascade', pacienteId: emg.id });
       } else if (!ccBlocked) {
-        // RPA lotada e sem sala reservada → óbito
-        emg.dead = true; S.deaths++;
-        registrar(ctx, 'emergencia_obito', `SEM SALA CIRÚRGICA! ${emg.name} — óbito evitável. RPA lotada, sem sala reservada.`, 'danger', { som: 'death', flashObito: true, pacienteId: emg.id });
+        obito(emg, 'emergencia_obito', `SEM SALA CIRÚRGICA! Óbito evitável de ${emg.name}: RPA lotada e nenhuma sala reservada.`);
       } else {
-        // Sala reservada mas RPA lotada — opera na sala reservada, paciente fica em espera
         emg.blocked = true;
         emg.ready = false;
-        registrar(ctx, 'emergencia_espera', `EMERGÊNCIA: ${emg.name} operado na sala reservada. Aguardando vaga na RPA.`, 'warning', { pacienteId: emg.id });
+        registrar(ctx, 'emergencia_espera', `EMERGÊNCIA: ${emg.name} foi operado na sala reservada e aguarda vaga na RPA.`, 'warning', { pacienteId: emg.id });
       }
     }
   }
 
   // Observação prolongada
-  if (ch >= 9 && ch < 15 && rand() < 0.004) {
-    const pp = P.find(p => p.sector === 'de' && !p.ready && !p.obsProlong);
+  if (ch >= 9 && ch < 15 && rand() < P_OBS_PROLONGADA) {
+    const pp = P.find(p => p.sector === 'de' && !p.ready && !p.obsProlong && !p.foraDoPerfil);
     if (pp) {
       pp.obsProlong = true; pp.obsEnd = cm + rnd(300, 480); pp.deNeed = 99999;
-      registrar(ctx, 'obs_prolongada', `OBS PROLONGADA: ${pp.name} — maca presa por ${Math.round((pp.obsEnd - cm) / 60)}h.`, 'warning', { pacienteId: pp.id });
+      registrar(ctx, 'obs_prolongada', `OBSERVAÇÃO PROLONGADA: ${pp.name} vai ocupar a maca por cerca de ${horas(pp.obsEnd - cm)}.`, 'warning', { pacienteId: pp.id });
     }
   }
   P.forEach(p => {
     if (p.obsProlong && cm >= p.obsEnd) {
       p.obsProlong = false; p.ready = true; p.dest = 'alta_de';
-      registrar(ctx, 'obs_fim', `${p.name} (obs) liberado.`, 'success', { pacienteId: p.id });
+      registrar(ctx, 'obs_fim', `${p.name} terminou a observação e pode receber alta.`, 'success', { pacienteId: p.id });
     }
   });
 
-  // ── Chegadas ──────────────────────────────────────────────
-  if (cm >= proximaChegada) {
-    const d = rollDest(isR2, rand);
-    const np = novoPaciente(ctx, 'triagem', d.dest, d.sev, false, d.de);
+  // ── Chegadas da agenda ────────────────────────────────────
+  let processadas = estado.chegadasProcessadas;
+  const chegadas = estado.agenda.chegadas;
+  let surtoAgora = false;
+  while (processadas < chegadas.length && chegadas[processadas]!.minuto <= cm) {
+    const c = chegadas[processadas]!;
+    processadas++;
+    const np = paraPacienteSim(criarPaciente(ctx.proximoId++, c.nome, 'triagem', c.dest, c.sev, false, c.deNeed));
     np.arrMin = cm;
-    if (E.tomo) np.deNeed += 120;
-    if (E.lab) { np.deNeed += 30; np.labDelay = true; }
-    const pcrB0 = E.pcr ? 1 : 0;
-    if (contar(P, 'de') < CAP.de - pcrB0) np.sector = 'de';
+    if (c.foraDoPerfil) { np.foraDoPerfil = true; np.dest = 'transferencia'; }
+    if (E.tomo) np.deNeed += tomo.acrescimo;
+    if (E.lab) { np.deNeed += LAB_ACRESCIMO_CHEGADA; np.labDelay = true; }
     P.push(np);
-    const rate = arrRate(ch, isR2);
-    proximaChegada = cm + Math.max(3, Math.round(60 / rate) + rnd(-4, 4));
+    if (c.surto) surtoAgora = true;
+  }
+  if (surtoAgora) {
+    E.surto = true;
+    registrar(ctx, 'surto', 'SURTO! Três pacientes chegam ao mesmo tempo!', 'danger', { som: 'cascade' });
+  }
+  const proximaChegada = chegadas[processadas]?.minuto ?? MINUTO_FIM + 1;
+
+  // ── Deterioração em leito inadequado (paciente de UTI internado na ENF) ──
+  P.forEach(p => {
+    if (p.leitoInadequado && p.sector === 'enf' && !p.dead && !p.det && rand() < P_DET_LEITO_INADEQUADO) {
+      if (contar(P, 'uti') >= CAP.uti) {
+        deteriorar(p, 'retorno_de', `RETORNO AO DE: ${p.name} piorou em leito inadequado e não há vaga na UTI. Controle de danos.`);
+        // Volta pela fila com prioridade máxima: só entra no DE se houver maca (ou sala vermelha)
+        p.sector = 'triagem'; p.leitoInadequado = false; p.retorno = true; p.arrMin = cm; p.bStart = null; p.bMin = 0;
+      } else {
+        deteriorar(p, 'deterioracao_leito_inadequado', `${p.name} piorou em LEITO INADEQUADO (paciente de UTI na enfermaria)!`);
+      }
+    }
+  });
+
+  // ── Fila de Manchester: triagem/corredor → Fast Track ou DE ──
+  const pcrB = E.pcr ? 1 : 0;
+  const fila = P.filter(naFila).sort(ordemFila);
+  for (const p of fila) {
+    let destino: SetorSim | null = null;
+    if (isR2 && p.sev === 'green' && !p.retorno && contar(P, 'fast_track') < FAST_TRACK_VAGAS) destino = 'fast_track';
+    else if (contar(P, 'de') < CAP.de - pcrB) destino = 'de';
+    else if (p.sev === 'red' && contar(P, 'de') < CAP.de - pcrB + SALA_VERMELHA_EXTRA) destino = 'de';
+    if (!destino) continue;
+    p.sector = destino;
+    p.entradaMin = cm;
+    if (destino === 'fast_track') { p.deNeed = Math.round(p.deNeed * FAST_TRACK_FATOR_DECISAO); carga.automatico.fastTrack++; }
+    if (!p.retorno && p.slaOk === null) p.slaOk = cm - p.arrMin <= ALVO_ESPERA[p.sev];
+    p.retorno = false;
   }
 
-  // Triagem → DE automático
-  const porta = P.filter(p => p.sector === 'triagem').sort((a, b) => a.arrMin - b.arrMin);
-  const pcrB = E.pcr ? 1 : 0;
-  const space = CAP.de - pcrB - contar(P, 'de');
-  for (let i = 0; i < Math.min(space, porta.length); i++) porta[i]!.sector = 'de';
-
-  // Processamento do DE com multiplicador de congestão hospitalar
-  const mult = hospMult(contar(P, 'enf'), contar(P, 'uti'), isR2);
+  // ── Avaliação no DE (mesmo multiplicador de lotação nas duas rodadas) ──
+  const mult = hospMult(contar(P, 'enf') + contar(P, 'enf_extra'), contar(P, 'uti'), false);
   P.forEach(p => {
-    if (p.sector === 'de' && !p.ready && !p.obsProlong) {
+    if (emAvaliacao(p)) {
       p.deSpent += mult;
-      if (p.deSpent >= p.deNeed) { p.ready = true; if (p.labDelay) p.labDelay = false; }
+      if (p.deSpent >= p.deNeed) {
+        p.ready = true;
+        if (p.labDelay) p.labDelay = false;
+        if (p.foraDoPerfil) {
+          registrar(ctx, 'fora_do_perfil', `FORA DO PERFIL: ${p.name} precisa de um recurso que o hospital não tem e aguarda transferência (NIR).`, 'warning', { pacienteId: p.id });
+        }
+      }
     }
   });
 
-  // R2: Fluxista — alta automática de alta_de a cada 20 min
-  if (isR2 && cm % 20 === 0) {
-    const fluxPts = P.filter(p => p.sector === 'de' && p.ready && p.dest === 'alta_de');
+  // R2: Fluxista — alta automática do DE e do Fast Track a cada 20 min (conta como liberação do DE)
+  if (isR2 && cm % FLUXISTA_INTERVALO_MIN === 0) {
+    const fluxPts = P.filter(p => (p.sector === 'de' || p.sector === 'fast_track') && p.ready && p.dest === 'alta_de');
     fluxPts.forEach((p, i) => {
-      p.sector = 'alta'; S.disc++;
-      const som: SfxType | undefined = i === 0 ? 'fluxista' : undefined;
-      registrar(ctx, 'fluxista', `Fluxista: ${p.name} — alta automática.`, 'success', som ? { som, pacienteId: p.id } : { pacienteId: p.id });
+      p.sector = 'alta'; S.disc++; S.libDE++; carga.automatico.fluxista++;
+      registrar(ctx, 'fluxista', `Fluxista: alta automática de ${p.name}.`, 'success', i === 0 ? { som: 'fluxista', pacienteId: p.id } : { pacienteId: p.id });
     });
   }
 
-  // R2: Fast Track — verdes processam 40% mais rápido
-  if (isR2) {
-    P.forEach(p => { if (p.sector === 'de' && !p.ready && !p.obsProlong && p.sev === 'green') p.deSpent += 0.4; });
+  // R2: Protocolo de fluxo rápido — DE lotado acelera as decisões
+  if (isR2 && contar(P, 'de') >= Math.round(CAP.de * FLUXO_RAPIDO_OCUPACAO)) {
+    P.forEach(p => { if (p.sector === 'de' && !p.ready && !p.obsProlong) p.deSpent += FLUXO_RAPIDO_BONUS; });
+    if (!R.pullLog) { R.pullLog = true; registrar(ctx, 'fluxo_rapido', 'PROTOCOLO DE FLUXO RÁPIDO ATIVO: decisões aceleradas no DE.', 'success'); }
   }
 
-  // R2: Fluxo puxado — DE lotado ACELERA decisões
-  if (isR2 && contar(P, 'de') >= Math.round(CAP.de * 0.8)) {
-    P.forEach(p => { if (p.sector === 'de' && !p.ready && !p.obsProlong) p.deSpent += 1.0; });
-    if (!R.pullLog) { R.pullLog = true; registrar(ctx, 'fluxo_rapido', 'PROTOCOLO DE FLUXO RAPIDO ATIVO — decisoes aceleradas no DE.', 'success'); }
-  }
-
-  // Espera do NIR
   if (ferramentas.nirEspera > 0) ferramentas.nirEspera = Math.max(0, ferramentas.nirEspera - 1);
 
-  // ── Consequências do boarding ─────────────────────────────
+  // ── Boarding: risco de deteriorar depois do limiar da gravidade ──
   P.forEach(p => {
-    if (emBoarding(p)) {
-      if (!p.bStart) p.bStart = cm;
-      p.bMin = cm - p.bStart;
-      S.boardHrs += 1 / 60;
-      if (p.bMin >= BOARD_DET_MIN && !p.det) {
-        p.det = true; S.dets++;
-        registrar(ctx, 'deterioracao', `DETERIORAÇÃO: ${p.name} — ${Math.floor(p.bMin / 60)}h em boarding!`, 'warning', { som: 'det', pacienteId: p.id });
-      }
-      if (p.bMin >= BOARD_DEAD_MIN && !p.dead) {
-        p.dead = true; S.deaths++;
-        registrar(ctx, 'obito', `ÓBITO EVITÁVEL: ${p.name} — ${Math.floor(p.bMin / 60)}h em boarding.`, 'danger', { som: 'death', flashObito: true, pacienteId: p.id });
-      }
+    if (!emBoarding(p)) return;
+    if (!p.bStart) p.bStart = cm;
+    p.bMin = cm - p.bStart;
+    S.boardHrs += 1 / 60;
+    if (!p.det && p.bMin >= LIMIAR_RISCO_BOARDING[p.sev] && rand() < P_DET_BOARDING) {
+      deteriorar(p, 'deterioracao', `DETERIORAÇÃO: ${p.name} piorou depois de ${fmtHora(p.bMin)} em boarding!`);
     }
   });
 
-  // Deterioração fora do perfil
+  // Espera na triagem/corredor além do tempo-alvo
   P.forEach(p => {
-    if (p.offSvc && p.sector === 'enf' && !p.dead && !p.det && rand() < OFFSVC_DET_PROB) {
-      p.det = true; p.sev = 'red'; S.dets++;
-      // Fluxo reverso: deteriorou fora do perfil + UTI lotada → volta ao DE
-      if (contar(P, 'uti') >= CAP.uti) {
-        p.sector = 'de'; p.offSvc = false;
-        registrar(ctx, 'retorno_de', `RETORNO AO DE: ${p.name} — deteriorou na ENF, sem vaga UTI. Damage control.`, 'danger', { som: 'det', pacienteId: p.id });
-      } else {
-        registrar(ctx, 'deterioracao_fora_do_perfil', `${p.name} deteriorou FORA DO PERFIL!`, 'warning', { som: 'det', pacienteId: p.id });
-      }
+    if (!naFila(p) || p.retorno) return;
+    const espera = cm - p.arrMin;
+    if (espera <= ALVO_ESPERA[p.sev]) return;
+    if (p.slaOk === null) p.slaOk = false;
+    if (!p.det && rand() < P_DET_ESPERA) {
+      deteriorar(p, 'deterioracao_espera', `DETERIORAÇÃO: ${p.name} piorou depois de esperar ${espera} min por atendimento.`);
+    }
+  });
+
+  // Óbito: só quem já deteriorou e continua esperando
+  P.forEach(p => {
+    if (!p.det || p.dead || p.detMin === null || cm - p.detMin < OBITO_APOS_DET_MIN) return;
+    if (emBoarding(p)) {
+      if (rand() < P_OBITO) obito(p, 'obito', `ÓBITO EVITÁVEL: ${p.name} morreu depois de ${fmtHora(p.bMin)} em boarding.`);
+    } else if (naFila(p)) {
+      if (rand() < P_OBITO) obito(p, 'obito_espera', `ÓBITO EVITÁVEL: ${p.name} morreu esperando atendimento.`);
     }
   });
 
   // Dados reais — overlay educativo (1x cada)
-  if (S.boardHrs >= 2 && !R.factBoard) { R.factBoard = true; registrar(ctx, 'dado_real', 'Dados reais: boarding >2h aumenta risco de eventos adversos em 20%.', 'fact'); }
-  if (S.dets >= 1 && !R.factDet) { R.factDet = true; registrar(ctx, 'dado_real', 'Estudos mostram: cada hora de boarding >4h aumenta mortalidade em 2%.', 'fact'); }
-  if (S.deaths >= 1 && !R.factDeath) { R.factDeath = true; registrar(ctx, 'dado_real', 'Em hospitais com ocupação >95%, mortalidade cresce 8% por cada 10% de boarding adicional.', 'fact'); }
-  if (S.cxCan >= 1 && !R.factCx) { R.factCx = true; registrar(ctx, 'dado_real', 'Cirurgias canceladas por falta de leito custam em média R$15.000 por caso.', 'fact'); }
+  if (S.boardHrs >= 2 && !R.factBoard) { R.factBoard = true; registrar(ctx, 'dado_real', 'Dados reais: boarding acima de 2 h aumenta em 20% o risco de eventos adversos.', 'fact'); }
+  if (S.dets >= 1 && !R.factDet) { R.factDet = true; registrar(ctx, 'dado_real', 'Estudos mostram que cada hora de boarding acima de 4 h aumenta a mortalidade em 2%.', 'fact'); }
+  if (S.deaths >= 1 && !R.factDeath) { R.factDeath = true; registrar(ctx, 'dado_real', 'Em hospitais com ocupação acima de 95%, a mortalidade cresce 8% a cada 10% de boarding adicional.', 'fact'); }
+  if (S.cxCan >= 1 && !R.factCx) { R.factCx = true; registrar(ctx, 'dado_real', 'Cirurgias canceladas por falta de leito custam em média R$ 15.000 por caso.', 'fact'); }
 
-  // Corredor — DE cheio e mais de 2 na triagem
+  // Corredor: DE cheio e mais de 2 na triagem → o menos urgente vai para o corredor
   if (contar(P, 'de') >= CAP.de - pcrB && contar(P, 'triagem') > 2) {
-    const tc = P.find(p => p.sector === 'triagem');
-    if (tc && rand() < 0.4) { tc.sector = 'corredor'; registrar(ctx, 'corredor', `${tc.name} → CORREDOR — sem macas disponíveis!`, 'warning', { pacienteId: tc.id }); }
+    const tc = P.filter(p => p.sector === 'triagem' && p.sev !== 'red' && !p.retorno).sort(ordemFila).pop();
+    if (tc && rand() < P_IR_AO_CORREDOR) { tc.sector = 'corredor'; carga.alertas.corredor++; registrar(ctx, 'corredor', `${tc.name} foi para o CORREDOR: não há macas disponíveis!`, 'warning', { pacienteId: tc.id }); }
   }
-  // LWBS dispara mais cedo em R1 (corredor > 2)
-  const corredorLimit = isR2 ? 3 : 2;
-  if (contar(P, 'corredor') > corredorLimit) {
-    const lw = P.find(p => p.sector === 'corredor' && p.dest === 'alta_de' && !p.dead);
-    if (lw && rand() < 0.3) { lw.sector = 'alta'; S.lwbs++; registrar(ctx, 'lwbs', `${lw.name} SAIU SEM ATENDIMENTO! (LWBS)`, 'danger', { pacienteId: lw.id }); }
+  // LWBS: corredor acima do limite → paciente de baixa complexidade vai embora
+  if (contar(P, 'corredor') > LWBS_LIMITE_CORREDOR) {
+    const lw = P.filter(p => p.sector === 'corredor' && p.dest === 'alta_de' && !p.dead).sort(ordemFila).pop();
+    if (lw && rand() < P_LWBS) {
+      lw.sector = 'alta'; lw.slaOk = false; S.lwbs++; carga.alertas.lwbs++;
+      registrar(ctx, 'lwbs', `${lw.name} SAIU SEM ATENDIMENTO (LWBS)!`, 'danger', { pacienteId: lw.id });
+    }
   }
 
-  // Contagem regressiva do bloqueio social
+  // Contagem regressiva do bloqueio social e do bloqueio por efeito cascata
   P.forEach(p => {
     if (p.social && p.socialDelay > 0) {
       p.socialDelay--;
-      if (p.socialDelay <= 0) { p.social = false; registrar(ctx, 'social_fim', `${p.name} (social) liberado.`, 'success', { pacienteId: p.id }); }
+      if (p.socialDelay <= 0) { p.social = false; registrar(ctx, 'social_fim', `${p.name}: bloqueio social resolvido, alta liberada.`, 'success', { pacienteId: p.id }); }
+    }
+    if (p.blocked && p.bloqueioAte > 0 && cm >= p.bloqueioAte) {
+      p.blocked = false; p.bloqueioAte = 0; p.dischReady = true; p.prep = 0;
+      registrar(ctx, 'bloqueio_fim', `${p.name}: alta desbloqueada; o leito volta a girar.`, 'success', { pacienteId: p.id });
     }
   });
 
-  // Rounds da ENF — R1: round médico às 11h (preparo 2-3h); R2: Bed Huddle às 8h (leito libera na hora)
-  const enfRoundH = isR2 ? 8 : 11;
-  const candidatosAlta = (): Patient[] => P.filter(p => p.sector === 'enf' && !p.dischReady && !p.blocked && !p.social);
-  if (ch >= enfRoundH && !R.e1) {
-    R.e1 = true;
-    const c = candidatosAlta();
-    const n = Math.min(rnd(6, 8), c.length);
-    for (let i = 0; i < n; i++) { c[i]!.dischReady = true; c[i]!.prep = isR2 ? 0 : rnd(120, 180); }
-    if (isR2) registrar(ctx, 'round_enf', `BED HUDDLE ${enfRoundH}h: ${n} altas prescritas. Discharge Lounge: leitos liberam IMEDIATO.`, 'success');
-    else registrar(ctx, 'round_enf', `ROUND MÉDICO ${enfRoundH}h: ${n} altas prescritas. Preparo estimado: 2-3h. TARDE DEMAIS!`, 'warning');
-  }
-  if (ch >= 14 && !R.e2) {
-    R.e2 = true;
-    const c = candidatosAlta();
-    const n = Math.min(rnd(3, 4), c.length);
-    for (let i = 0; i < n; i++) { c[i]!.dischReady = true; c[i]!.prep = isR2 ? 0 : rnd(90, 120); }
-    registrar(ctx, 'round_enf', `ROUND 14h: ${n} altas.${isR2 ? ' Liberação imediata.' : ' Preparo ~1.5-2h.'}`, 'success');
-  }
-  if (ch >= 17 && !R.e3) {
-    R.e3 = true;
-    const c = candidatosAlta();
-    const n = Math.min(rnd(1, 2), c.length);
-    for (let i = 0; i < n; i++) { c[i]!.dischReady = true; c[i]!.prep = isR2 ? 0 : 60; }
-    if (n > 0) registrar(ctx, 'round_enf', `ROUND 17h: ${n} alta(s) esporádica(s).`, 'info');
-  }
-
-  // Step-down da UTI
-  if (ch >= 11 && !R.u1) {
-    R.u1 = true;
-    const c = P.filter(p => p.sector === 'uti' && !p.dischReady);
-    for (let i = 0; i < Math.min(2, c.length); i++) {
-      const u = c[i]!;
-      u.dischReady = true; u.dest = 'enf'; u.prep = isR2 ? 0 : 60;
-      registrar(ctx, 'round_uti', `Alta UTI: ${u.name} step-down → ENF.`, 'info', { pacienteId: u.id });
+  // ── Altas programadas: mesmos pacientes, horário conforme a rodada ──
+  for (const chave of ORDEM_LOTES) {
+    const cfg = LOTES_ALTA[chave];
+    const hora = isR2 ? cfg.horaR2 : cfg.horaR1;
+    if (cm < hora * 60 || R[chave]) continue;
+    R[chave] = true;
+    const lote = estado.agenda.altas.find(l => l.chave === chave);
+    const prontos: PacienteSim[] = [];
+    for (const item of lote?.pacientes ?? []) {
+      const p = P.find(x => x.id === item.id);
+      if (!p || p.sector !== cfg.setor || p.dischReady || p.blocked || p.social || p.dead) continue;
+      p.dischReady = true;
+      p.prep = isR2 ? 0 : item.prepR1;
+      if (cfg.setor === 'uti') p.dest = 'enf';
+      if (isR2) carga.automatico.dischargeLounge++;
+      prontos.push(p);
     }
-  }
-  if (ch >= 15 && !R.u2) {
-    R.u2 = true;
-    const u = P.find(p => p.sector === 'uti' && !p.dischReady);
-    if (u) {
-      u.dischReady = true; u.dest = 'enf'; u.prep = isR2 ? 0 : 60;
-      registrar(ctx, 'round_uti', `Alta UTI: ${u.name} step-down → ENF.`, 'info', { pacienteId: u.id });
+    const n = prontos.length;
+    if (cfg.setor === 'uti') {
+      prontos.forEach(p => registrar(ctx, 'round_uti', `Alta da UTI: ${p.name} pode descer para a ENF (step-down).${isR2 ? '' : ' Preparo de cerca de 1 h.'}`, 'info', { pacienteId: p.id }));
+    } else if (chave === 'enf1') {
+      if (isR2) registrar(ctx, 'round_enf', `BED HUDDLE ${hora}h: ${plural(n, 'alta prescrita', 'altas prescritas')}. Discharge Lounge: os leitos são liberados na hora.`, 'success');
+      else registrar(ctx, 'round_enf', `ROUND MÉDICO ${hora}h: ${plural(n, 'alta prescrita', 'altas prescritas')}. Preparo estimado: 2 a 3 h. TARDE DEMAIS!`, 'warning');
+    } else if (chave === 'enf2') {
+      registrar(ctx, 'round_enf', `ROUND ${hora}h: ${plural(n, 'alta prescrita', 'altas prescritas')}.${isR2 ? ' Liberação imediata.' : ' Preparo de 1h30 a 2 h.'}`, 'success');
+    } else if (n > 0) {
+      registrar(ctx, 'round_enf', `ROUND ${hora}h: ${plural(n, 'alta esporádica', 'altas esporádicas')}.${isR2 ? ' Liberação imediata.' : ''}`, 'info');
     }
   }
 
   P.forEach(p => { if (p.prep > 0) p.prep--; });
 
-  // ── Centro cirúrgico ──────────────────────────────────────
-  const cirurgias = estado.cirurgias.map(s => ({ ...s }));
+  // ── Centro cirúrgico: decisão no horário de início ────────
   cirurgias.forEach(s => {
-    if (s.st !== 'scheduled') return;
-    const enM = s.stH * 60 + s.dur * 60;
-    if (cm < enM) return;
-    if (contar(P, 'rpa') >= CAP.rpa) {
-      s.st = 'cancelled'; S.cxCan++;
-      const disch = P.find(p => p.sector === 'enf' && p.dischReady && p.prep <= 0 && !p.blocked && !p.social);
-      if (disch) {
-        disch.dischReady = false; disch.blocked = true;
-        registrar(ctx, 'cirurgia_cancelada', `${s.label} CANCELADA! ${disch.name} perde alta. EFEITO CASCATA.`, 'danger',
-          { som: 'cascade', pacienteId: disch.id, cascata: { texto: `${s.label} cancelada → ${disch.name} perde alta → leito não gira`, duracaoMs: 8000 } });
+    if (s.st === 'scheduled' && cm >= inicioCirurgia(s)) {
+      const leitoLivre = s.dest === 'uti' ? contar(P, 'uti') < CAP.uti : contar(P, 'enf') < CAP.enf;
+      const altaPronta = s.dest === 'uti'
+        ? P.some(p => p.sector === 'uti' && p.dischReady && p.prep <= 0)
+        : P.some(altaEnfPronta);
+      if (rpaReservada() < CAP.rpa && (leitoLivre || altaPronta)) {
+        s.st = 'andamento';
+        if (!leitoLivre) carga.automatico.cirurgiasViabilizadas++;
+        registrar(ctx, 'cirurgia_iniciada', `${s.label} iniciada (sala ${s.sala}).`, 'info');
       } else {
-        registrar(ctx, 'cirurgia_cancelada', `${s.label} CANCELADA — RPA lotada!`, 'danger',
-          { som: 'cascade', cascata: { texto: 'Cirurgia cancelada → menos giro → mais boarding', duracaoMs: 6000 } });
+        s.st = 'cancelled'; S.cxCan++; carga.alertas.cancelamento++;
+        const disch = P.find(altaEnfPronta);
+        if (disch) {
+          disch.dischReady = false; disch.blocked = true; disch.bloqueioAte = cm + BLOQUEIO_CASCATA_MIN;
+          registrar(ctx, 'cirurgia_cancelada', `${s.label} cancelada antes de iniciar: sem leito/RPA. ${disch.name} perde a alta por ${horas(BLOQUEIO_CASCATA_MIN)}. EFEITO CASCATA.`, 'danger',
+            { som: 'cascade', pacienteId: disch.id, cascata: { texto: `${s.label} cancelada → ${disch.name} perde a alta → leito não gira`, duracaoMs: 8000 } });
+        } else {
+          registrar(ctx, 'cirurgia_cancelada', `${s.label} cancelada antes de iniciar: sem leito/RPA.`, 'danger',
+            { som: 'cascade', cascata: { texto: 'Cirurgia cancelada → menos giro → mais boarding', duracaoMs: 6000 } });
+        }
       }
-    } else {
+    }
+    if (s.st === 'andamento' && cm >= fimCirurgia(s) && contar(P, 'rpa') < CAP.rpa) {
       s.st = 'done';
-      const np = criarPaciente(ctx.proximoId++, `PO-${s.label.replace('Cx ', '')}`, 'rpa', s.dest, s.dest === 'uti' ? 'red' : 'orange', true);
+      const np = paraPacienteSim(criarPaciente(ctx.proximoId++, `PO-${s.label.replace('Cx ', '')}`, 'rpa', s.dest, s.dest === 'uti' ? 'red' : 'orange', true));
       np.postOp = true;
+      np.arrMin = cm;
       P.push(np);
-      registrar(ctx, 'cirurgia_concluida', `${np.name} → RPA, precisa de ${s.dest === 'uti' ? 'UTI' : 'ENF'}.`, 'info', { pacienteId: np.id });
+      registrar(ctx, 'cirurgia_concluida', `${np.name} chegou à RPA e precisa de leito na ${s.dest === 'uti' ? 'UTI' : 'ENF'}.`, 'info', { pacienteId: np.id });
     }
   });
 
-  if (cm >= MINUTO_FIM) registrar(ctx, 'fim', 'Plantao encerrado!', 'success');
+  P.forEach(p => { p.risco = calcularRisco(p, cm); });
+
+  // Alerta: DE lotado (conta cada vez que as macas acabam)
+  const deCheio = contar(P, 'de') >= CAP.de - pcrB;
+  if (deCheio && !R.deCheio) {
+    carga.alertas.deLotado++;
+    registrar(ctx, 'de_lotado', 'DE LOTADO: todas as macas estão ocupadas.', 'danger');
+  }
+  R.deCheio = deCheio;
+
+  if (cm >= MINUTO_FIM) registrar(ctx, 'fim', 'Plantão encerrado!', 'success');
 
   return {
     estado: {
@@ -431,9 +584,12 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
       eventos: E,
       flags: R,
       proximaChegada,
+      agenda: estado.agenda,
+      chegadasProcessadas: processadas,
       ferramentas,
       log: anexarLog(estado.log, ctx.ocorrencias),
       proximoId: ctx.proximoId,
+      carga,
     },
     ocorrencias: ctx.ocorrencias,
   };
@@ -454,20 +610,21 @@ export function avancarAte(estado: EstadoSimulacao, minuto: number): ResultadoPa
 
 // ── Decisões do grupo ───────────────────────────────────────
 
-/** Destinos que o grupo pode escolher para o paciente (sem checar lotação). Igual ao getT do App. */
+/** Destinos que o grupo pode escolher para o paciente (sem checar lotação). */
 export function destinosPossiveis(estado: EstadoSimulacao, pacienteId: number): Sector[] {
   const p = estado.pacientes.find(x => x.id === pacienteId);
-  if (!p) return [];
+  if (!p || p.dead) return [];
   const t: Sector[] = [];
-  if (p.sector === 'triagem' || p.sector === 'corredor') t.push('de');
-  if (p.sector === 'de' && p.ready) {
+  if (naFila(p)) t.push('de');
+  if ((p.sector === 'de' || p.sector === 'fast_track') && p.ready) {
     if (p.dest === 'alta_de') t.push('alta');
     if (p.dest === 'enf') t.push('enf');
     if (p.dest === 'uti') { t.push('uti'); t.push('enf'); }
   }
-  if (p.sector === 'enf' && p.dischReady && p.prep <= 0 && !p.social) t.push('alta');
-  if (p.sector === 'uti' && p.dischReady && p.prep <= 0) { if (p.dest === 'enf') t.push('enf'); else t.push('alta'); }
+  if (altaEnfPronta(p)) t.push('alta');
+  if (p.sector === 'uti' && p.dischReady && p.prep <= 0) t.push(p.dest === 'enf' ? 'enf' : 'alta');
   if (p.sector === 'rpa' && p.ready) { if (p.dest === 'enf') t.push('enf'); if (p.dest === 'uti') { t.push('uti'); t.push('enf'); } }
+  if (p.sector === 'enf_extra') t.push('enf');
   return t;
 }
 
@@ -476,100 +633,131 @@ function erro(codigo: ErroAcao['codigo'], msg: string): ErroAcao {
 }
 
 function concluirAcao(estado: EstadoSimulacao, mudancas: Partial<EstadoSimulacao>, ocorrencias: Ocorrencia[]): ResultadoPasso {
-  const novo: EstadoSimulacao = { ...estado, ...mudancas, versao: estado.versao + 1 };
+  const carga = copiarCarga(estado.carga);
+  for (const o of ocorrencias) {
+    if (!o.decisao) continue;
+    carga.decisoes++;
+    if (o.decisao === 'produtiva') carga.produtivas++; else carga.reativas++;
+  }
+  const novo: EstadoSimulacao = { ...estado, ...mudancas, carga, versao: estado.versao + 1 };
   novo.log = anexarLog(estado.log, ocorrencias);
   return { estado: novo, ocorrencias };
 }
 
-function substituir(P: readonly Patient[], id: number, f: (p: Patient) => Patient): Patient[] {
-  return P.map(p => (p.id === id ? f(p) : p));
+function substituir(P: readonly PacienteSim[], id: number, f: (p: PacienteSim) => PacienteSim, minuto: number): PacienteSim[] {
+  return P.map(p => {
+    if (p.id !== id) return p;
+    const novo = f(p);
+    return { ...novo, risco: calcularRisco(novo, minuto) };
+  });
 }
 
 function oc(estado: EstadoSimulacao, tipo: TipoOcorrencia, msg: string, nivel: LogType, extra: Extra = {}): Ocorrencia {
   return { minuto: estado.minuto, tipo, msg, nivel, ...extra };
 }
 
-function verificarLotacao(estado: EstadoSimulacao, destino: Sector): ErroAcao | null {
+/** Nome do setor com artigo e gênero, para a concordância das mensagens. */
+const SETOR_TEXTO: Partial<Record<SetorSim, { nome: string; artigo: 'o' | 'a' }>> = {
+  de: { nome: 'DE', artigo: 'o' }, enf: { nome: 'ENF', artigo: 'a' }, uti: { nome: 'UTI', artigo: 'a' },
+  rpa: { nome: 'RPA', artigo: 'a' }, enf_extra: { nome: 'CORREDOR DA ENFERMARIA', artigo: 'o' },
+  fast_track: { nome: 'FAST TRACK', artigo: 'o' }, triagem: { nome: 'TRIAGEM', artigo: 'a' }, corredor: { nome: 'CORREDOR', artigo: 'o' },
+};
+
+function setorComArtigo(setor: SetorSim): string {
+  const t = SETOR_TEXTO[setor];
+  return t ? `${t.artigo} ${t.nome}` : setor;
+}
+
+function setorLotado(setor: SetorSim): string {
+  const t = SETOR_TEXTO[setor];
+  return t ? `${t.nome} ${t.artigo === 'a' ? 'LOTADA' : 'LOTADO'}!` : `${setor} sem vaga!`;
+}
+
+function verificarLotacao(estado: EstadoSimulacao, destino: SetorSim): ErroAcao | null {
   if (destino === 'alta') return null;
   if (contar(estado.pacientes, destino) >= capacidadeSetor(estado, destino)) {
-    return erro('lotado', `${destino.toUpperCase()} LOTADO!`);
+    return erro('lotado', setorLotado(destino));
   }
   return null;
 }
 
-function mover(estado: EstadoSimulacao, p: Patient, destino: Sector): ResultadoPasso | ErroAcao {
-  if (!destinosPossiveis(estado, p.id).includes(destino)) return erro('destino_invalido', `${p.name} não pode ir para ${destino.toUpperCase()} agora.`);
+function mover(estado: EstadoSimulacao, p: PacienteSim, destino: Sector): ResultadoPasso | ErroAcao {
+  if (!destinosPossiveis(estado, p.id).includes(destino)) return erro('destino_invalido', destino === 'alta' ? `${p.name} ainda não pode receber alta.` : `${p.name} não pode ir para ${setorComArtigo(destino)} agora.`);
   const lotado = verificarLotacao(estado, destino);
   if (lotado) return lotado;
-  const isOff = p.dest === 'uti' && destino === 'enf' && p.sector !== 'uti';
-  if (isOff) return erro('confirmar_fora_do_perfil', `${p.name} precisa de UTI. Confirme o envio FORA DO PERFIL para a ENF.`);
+  const inadequado = p.dest === 'uti' && destino === 'enf' && p.sector !== 'uti';
+  if (inadequado) return erro('confirmar_leito_inadequado', `${p.name} precisa de UTI. Confirme a internação em leito inadequado na enfermaria.`);
 
   const isProd = destino === 'alta' || destino === 'enf' || (destino === 'uti' && p.dest === 'uti');
   const decisao = isProd ? 'produtiva' as const : 'reativa' as const;
   let stats = estado.stats;
   let ocorrencia: Ocorrencia;
   if (destino === 'alta') {
-    const isHospDisc = p.sector === 'enf'; // alta hospitalar = só ENF
-    stats = { ...stats, disc: stats.disc + 1, altaHosp: stats.altaHosp + (isHospDisc ? 1 : 0), libDE: stats.libDE + (p.sector === 'de' ? 1 : 0) };
-    ocorrencia = oc(estado, 'alta', `${p.name} — ${isHospDisc ? 'alta hospitalar' : 'liberação DE'}.`, 'success', { som: 'disc', pacienteId: p.id, decisao });
+    const isHospDisc = p.sector === 'enf';
+    const isDe = p.sector === 'de' || p.sector === 'fast_track';
+    stats = { ...stats, disc: stats.disc + 1, altaHosp: stats.altaHosp + (isHospDisc ? 1 : 0), libDE: stats.libDE + (isDe ? 1 : 0) };
+    ocorrencia = oc(estado, 'alta', `${p.name} recebeu ${isHospDisc ? 'alta hospitalar' : 'alta do DE'}.`, 'success', { som: 'disc', pacienteId: p.id, decisao });
   } else {
-    ocorrencia = oc(estado, 'movimento', `${p.name} → ${destino.toUpperCase()}`, 'info', { pacienteId: p.id, decisao });
+    ocorrencia = oc(estado, 'movimento', `${p.name} foi para ${setorComArtigo(destino)}.`, 'info', { pacienteId: p.id, decisao });
   }
-  // Evolução clínica: step-down UTI→ENF = melhorou
   const sev: Severity = p.sector === 'uti' && destino === 'enf' && p.dischReady ? 'green' : p.sev;
+  const entrouNoDe = destino === 'de' && naFila(p);
   const pacientes = substituir(estado.pacientes, p.id, x => ({
-    ...x, sector: destino, sev, ready: false, dischReady: false, bStart: null, bMin: 0, offSvc: false, obsProlong: false,
-  }));
+    ...x, sector: destino, sev, ready: false, dischReady: false, bStart: null, bMin: 0, leitoInadequado: false, obsProlong: false,
+    ...(entrouNoDe ? {
+      entradaMin: estado.minuto,
+      slaOk: x.slaOk ?? (x.retorno ? null : estado.minuto - x.arrMin <= ALVO_ESPERA[x.sev]),
+      retorno: false,
+    } : {}),
+  }), estado.minuto);
   return concluirAcao(estado, { pacientes, stats }, [ocorrencia]);
 }
 
-function confirmarForaDoPerfil(estado: EstadoSimulacao, p: Patient): ResultadoPasso | ErroAcao {
-  const isOff = p.dest === 'uti' && p.sector !== 'uti' && destinosPossiveis(estado, p.id).includes('enf');
-  if (!isOff) return erro('destino_invalido', `${p.name} não é candidato a envio fora do perfil.`);
+function confirmarLeitoInadequado(estado: EstadoSimulacao, p: PacienteSim): ResultadoPasso | ErroAcao {
+  const candidato = p.dest === 'uti' && p.sector !== 'uti' && destinosPossiveis(estado, p.id).includes('enf');
+  if (!candidato) return erro('destino_invalido', `${p.name} não é paciente de UTI à espera de leito.`);
   const lotado = verificarLotacao(estado, 'enf');
   if (lotado) return lotado;
-  const pacientes = substituir(estado.pacientes, p.id, x => ({ ...x, sector: 'enf', ready: false, dischReady: false, bStart: null, bMin: 0, offSvc: true }));
+  const pacientes = substituir(estado.pacientes, p.id, x => ({ ...x, sector: 'enf', ready: false, dischReady: false, bStart: null, bMin: 0, leitoInadequado: true }), estado.minuto);
   const stats = { ...estado.stats, offS: estado.stats.offS + 1 };
   return concluirAcao(estado, { pacientes, stats }, [
-    oc(estado, 'fora_do_perfil', `FORA DO PERFIL: ${p.name} UTI→ENF. Risco elevado!`, 'warning', { pacienteId: p.id, decisao: 'reativa' }),
+    oc(estado, 'leito_inadequado', `LEITO INADEQUADO: ${p.name}, paciente de UTI, foi internado na enfermaria. Risco elevado!`, 'warning', { pacienteId: p.id, decisao: 'reativa' }),
   ]);
 }
 
-function nir(estado: EstadoSimulacao, p: Patient): ResultadoPasso | ErroAcao {
+function nir(estado: EstadoSimulacao, p: PacienteSim): ResultadoPasso | ErroAcao {
   const f = estado.ferramentas;
-  if (estado.rodada !== 2) return erro('ferramenta_indisponivel', 'NIR disponível apenas no Plantão Lean.');
-  if (f.nirUsos >= NIR_MAX_USOS) return erro('ferramenta_indisponivel', `NIR esgotado — limite de ${NIR_MAX_USOS} usos atingido.`);
-  if (f.nirEspera > 0) return erro('ferramenta_indisponivel', `NIR em espera — disponível em ${f.nirEspera} min.`);
-  if (p.sector !== 'de' || !p.ready || p.dest === 'alta_de') return erro('destino_invalido', 'NIR apenas para pacientes do DE com indicação de internação.');
+  if (estado.rodada !== 2) return erro('ferramenta_indisponivel', 'O NIR só está disponível no Plantão Lean.');
+  if (f.nirUsos >= NIR_MAX_USOS) return erro('ferramenta_indisponivel', `NIR esgotado: o limite de ${NIR_MAX_USOS} usos foi atingido.`);
+  if (f.nirEspera > 0) return erro('ferramenta_indisponivel', `NIR em espera: disponível de novo em ${f.nirEspera} min.`);
+  if (!emBoarding(p)) return erro('destino_invalido', 'O NIR só vale para paciente pronto no DE à espera de transferência ou de leito na ENF ou na UTI.');
   const pacientes = estado.pacientes.filter(x => x.id !== p.id);
   const ferramentas = { ...f, nirUsos: f.nirUsos + 1, nirEspera: NIR_ESPERA_MIN };
   return concluirAcao(estado, { pacientes, ferramentas }, [
-    oc(estado, 'nir', `NIR: ${p.name} transferido para outra unidade. (${f.nirUsos + 1}/3 usos)`, 'success', { som: 'disc', pacienteId: p.id }),
+    oc(estado, 'nir', `NIR: ${p.name} foi transferido para outro hospital (${f.nirUsos + 1}/${NIR_MAX_USOS} usos).`, 'success', { som: 'disc', pacienteId: p.id, decisao: 'produtiva' }),
   ]);
 }
 
-function fullCapacity(estado: EstadoSimulacao, p: Patient): ResultadoPasso | ErroAcao {
+function fullCapacity(estado: EstadoSimulacao, p: PacienteSim): ResultadoPasso | ErroAcao {
   const f = estado.ferramentas;
-  if (estado.rodada !== 2) return erro('ferramenta_indisponivel', 'FULL CAPACITY disponível apenas no Plantão Lean.');
-  if (!f.fcLiberado) return erro('ferramenta_indisponivel', 'FULL CAPACITY negado — aguardando autorização da Diretoria.');
-  if (f.fcUsos >= FC_MAX_USOS) return erro('ferramenta_indisponivel', 'FULL CAPACITY esgotado — limite de 2 pacientes atingido.');
-  if (p.sector !== 'de' || !p.ready || p.sev !== 'green' || p.dest === 'alta_de') {
-    return erro('destino_invalido', 'FULL CAPACITY apenas para pacientes VERDES com indicação de internação no DE.');
-  }
-  const pacientes = substituir(estado.pacientes, p.id, x => ({ ...x, sector: 'corredor', bStart: null, bMin: 0 }));
+  if (estado.rodada !== 2) return erro('ferramenta_indisponivel', 'O PCP (Full Capacity) só está disponível no Plantão Lean.');
+  if (!f.fcLiberado) return erro('ferramenta_indisponivel', 'PCP (Full Capacity) negado: aguarda autorização da diretoria.');
+  if (!emBoarding(p) || p.dest !== 'enf') return erro('destino_invalido', 'O PCP (Full Capacity) só vale para paciente pronto no DE à espera de leito na ENF.');
+  if (contar(estado.pacientes, 'enf_extra') >= ENF_EXTRA_VAGAS) return erro('lotado', `CORREDOR DA ENFERMARIA LOTADO: são só ${ENF_EXTRA_VAGAS} vagas.`);
+  const pacientes = substituir(estado.pacientes, p.id, x => ({ ...x, sector: 'enf_extra', ready: false, bStart: null, bMin: 0 }), estado.minuto);
   const ferramentas = { ...f, fcUsos: f.fcUsos + 1 };
   return concluirAcao(estado, { pacientes, ferramentas }, [
-    oc(estado, 'full_capacity', `FULL CAPACITY: ${p.name} ao corredor da enfermaria. Maca liberada. (${f.fcUsos + 1}/2 usos)`, 'success', { pacienteId: p.id }),
+    oc(estado, 'full_capacity', `PCP: ${p.name} foi internado no corredor da enfermaria. Maca do DE liberada.`, 'success', { pacienteId: p.id, decisao: 'reativa' }),
   ]);
 }
 
 export function aplicarAcao(estado: EstadoSimulacao, acao: Acao): ResultadoPasso | ErroAcao {
   if (estado.minuto >= MINUTO_FIM) return erro('fim_de_jogo', 'Plantão encerrado.');
   const p = estado.pacientes.find(x => x.id === acao.pacienteId);
-  if (!p) return erro('paciente_inexistente', 'Paciente não encontrado.');
+  if (!p || p.dead) return erro('paciente_inexistente', 'Paciente não encontrado.');
   switch (acao.tipo) {
     case 'mover': return mover(estado, p, acao.destino);
-    case 'confirmarForaDoPerfil': return confirmarForaDoPerfil(estado, p);
+    case 'confirmarLeitoInadequado': return confirmarLeitoInadequado(estado, p);
     case 'nir': return nir(estado, p);
     case 'fullCapacity': return fullCapacity(estado, p);
   }
@@ -579,41 +767,68 @@ export function ehErro(r: ResultadoPasso | ErroAcao): r is ErroAcao {
   return 'erro' in r;
 }
 
-/** Facilitador libera o Full Capacity (hoje: polling de rooms.full_cap_approved). Só tem efeito na R2. */
+/** Facilitador libera o PCP/Full Capacity. Só tem efeito na R2. */
 export function liberarFullCapacity(estado: EstadoSimulacao): ResultadoPasso {
   if (estado.rodada !== 2 || estado.ferramentas.fcLiberado) return { estado, ocorrencias: [] };
   return concluirAcao(estado, { ferramentas: { ...estado.ferramentas, fcLiberado: true } }, [
-    oc(estado, 'full_capacity_liberado', 'DIRETORIA AUTORIZOU Full Capacity! 2 pacientes verdes podem ir ao corredor.', 'success'),
+    oc(estado, 'full_capacity_liberado', `A DIRETORIA AUTORIZOU o PCP (Full Capacity): ${ENF_EXTRA_VAGAS} vagas no corredor da enfermaria.`, 'success'),
   ]);
 }
 
 // ── Leituras ────────────────────────────────────────────────
 
 export function pontuacao(estado: EstadoSimulacao): number {
-  return calcScore({ ...estado.stats, isR2: estado.rodada === 2 });
+  return calcScore(estado.stats);
+}
+
+export function slaPct(estado: EstadoSimulacao): number {
+  let ok = 0;
+  let total = 0;
+  for (const p of estado.pacientes) {
+    if (p.slaOk === null) continue;
+    total++;
+    if (p.slaOk) ok++;
+  }
+  return total === 0 ? 100 : Math.round((ok / total) * 100);
 }
 
 export function metricas(estado: EstadoSimulacao): Metricas {
   const P = estado.pacientes;
   const S = estado.stats;
-  const brd = P.filter(p => emBoarding(p) && !p.dead);
+  const C = estado.carga;
+  const brd = P.filter(emBoarding);
   const avgB = brd.length > 0 ? Math.round(brd.reduce((a, p) => a + p.bMin, 0) / brd.length) : 0;
   return {
-    dis: S.disc, det: S.dets, dth: S.deaths, cxC: S.cxCan, lw: S.lwbs, off: S.offS, soc: S.socB, bH: S.boardHrs,
+    dis: S.disc, det: S.dets, dth: S.deaths, cxC: S.cxCan, lw: S.lwbs, leitoInadequado: S.offS, soc: S.socB, bH: S.boardHrs,
     deOcc: contar(P, 'de'), enfOcc: contar(P, 'enf'), utiOcc: contar(P, 'uti'), rpaOcc: contar(P, 'rpa'),
     boarding: brd.length, avgB, corredor: contar(P, 'corredor'),
     altaHosp: S.altaHosp, libDE: S.libDE,
+    slaPct: slaPct(estado),
+    triagemOcc: contar(P, 'triagem'),
+    fastTrackOcc: contar(P, 'fast_track'),
+    enfExtraOcc: contar(P, 'enf_extra'),
+    aguardandoTransferencia: P.filter(p => emBoarding(p) && p.dest === 'transferencia').length,
+    decisoes: C.decisoes,
+    decisoesProdutivas: C.produtivas,
+    decisoesReativas: C.reativas,
+    alertas: Object.values(C.alertas).reduce((a, n) => a + n, 0),
+    autoFluxista: C.automatico.fluxista,
+    autoDischargeLounge: C.automatico.dischargeLounge,
+    autoFastTrack: C.automatico.fastTrack,
+    autoCirurgiasViabilizadas: C.automatico.cirurgiasViabilizadas,
+    emergencias: C.emergencias,
+    emergenciasSemSala: C.emergenciasSemSala,
   };
 }
 
-/** Aviso de RPA quase cheia antes da próxima cirurgia terminar (hoje `setRpaW`). */
+/** Aviso de RPA quase cheia antes da próxima cirurgia começar. */
 export function alertaRpa(estado: EstadoSimulacao): string | null {
   const cm = estado.minuto;
-  const rC = contar(estado.pacientes, 'rpa');
-  const nxt = estado.cirurgias.find(s => s.st === 'scheduled' && cm < s.stH * 60 + s.dur * 60);
-  if (!nxt || rC < 2) return null;
-  const mL = Math.round(nxt.stH * 60 + nxt.dur * 60 - cm);
-  return mL > 0 && mL <= 45 ? `RPA ${rC}/${CAP.rpa} — ${nxt.label} termina em ${mL} min` : null;
+  const reservada = contar(estado.pacientes, 'rpa') + estado.cirurgias.filter(s => s.st === 'andamento').length;
+  const nxt = estado.cirurgias.find(s => s.st === 'scheduled' && cm < inicioCirurgia(s));
+  if (!nxt || reservada < 2) return null;
+  const mL = inicioCirurgia(nxt) - cm;
+  return mL > 0 && mL <= 45 ? `RPA ${reservada}/${CAP.rpa} (com cirurgias em andamento) — ${nxt.label} começa em ${mL} min` : null;
 }
 
 export function encerrado(estado: EstadoSimulacao): boolean {

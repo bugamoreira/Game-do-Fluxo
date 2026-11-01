@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { CAP } from '../../constants';
 import { calcScore } from '../../game-engine';
-import { aplicarAcao, capacidadeSetor, criarEstadoInicial, ehErro, passo, pontuacao, MINUTO_FIM, MINUTO_INICIO } from '../motor';
+import { aplicarAcao, capacidadeSetor, criarEstadoInicial, ehErro, liberarFullCapacity, passo, pontuacao, MINUTO_FIM, MINUTO_INICIO } from '../motor';
+import { ENF_EXTRA_VAGAS, FAST_TRACK_VAGAS, SALA_VERMELHA_EXTRA } from '../constantes';
 import { ESTRATEGIAS } from '../estrategias';
 import type { EstadoSimulacao, Rodada } from '../types';
 
@@ -17,10 +18,13 @@ function verificar(e: EstadoSimulacao): void {
   expect(contar(e, 'enf')).toBeLessThanOrEqual(CAP.enf);
   expect(contar(e, 'uti')).toBeLessThanOrEqual(CAP.uti);
   expect(contar(e, 'rpa')).toBeLessThanOrEqual(CAP.rpa);
-  expect(pontuacao(e)).toBe(calcScore({ ...e.stats, isR2: e.rodada === 2 }));
+  expect(contar(e, 'de')).toBeLessThanOrEqual(CAP.de + SALA_VERMELHA_EXTRA);
+  expect(contar(e, 'fast_track')).toBeLessThanOrEqual(FAST_TRACK_VAGAS);
+  expect(contar(e, 'enf_extra')).toBeLessThanOrEqual(ENF_EXTRA_VAGAS);
+  expect(pontuacao(e)).toBe(calcScore(e.stats));
+  expect(e.pacientes.filter(p => p.dead).every(p => p.sector === 'obito')).toBe(true);
   expect(e.log.length).toBeLessThanOrEqual(60);
   expect(e.ferramentas.nirUsos).toBeLessThanOrEqual(3);
-  expect(e.ferramentas.fcUsos).toBeLessThanOrEqual(2);
 }
 
 describe('invariantes em partidas inteiras', () => {
@@ -28,7 +32,8 @@ describe('invariantes em partidas inteiras', () => {
     for (const rodada of [1, 2] as Rodada[]) {
       it(`${nome} · R${rodada}`, () => {
         for (const semente of SEMENTES) {
-          let e = criarEstadoInicial(rodada, semente, { ccBlocked: semente % 2 === 0 });
+          let e = criarEstadoInicial(rodada, semente, semente % 3 === 0 ? { ccBlocked: rodada === 1 } : {});
+          if (rodada === 2) e = liberarFullCapacity(e).estado;
           let versao = e.versao;
           while (e.minuto < MINUTO_FIM) {
             for (let i = 0; i < 2; i++) {
@@ -37,7 +42,7 @@ describe('invariantes em partidas inteiras', () => {
               const r = aplicarAcao(e, acao);
               if (ehErro(r)) break;
               // Ação do grupo nunca passa da capacidade do setor de destino
-              const destino = acao.tipo === 'mover' ? acao.destino : acao.tipo === 'confirmarForaDoPerfil' ? 'enf' : null;
+              const destino = acao.tipo === 'mover' ? acao.destino : acao.tipo === 'confirmarLeitoInadequado' ? 'enf' : acao.tipo === 'fullCapacity' ? 'enf_extra' : null;
               if (destino && destino !== 'alta') {
                 expect(contar(r.estado, destino)).toBeLessThanOrEqual(capacidadeSetor(r.estado, destino));
               }
@@ -56,7 +61,8 @@ describe('invariantes em partidas inteiras', () => {
             expect(r.ocorrencias.every(o => o.minuto === e.minuto)).toBe(true);
           }
           expect(new Set(e.pacientes.map(p => p.id)).size).toBe(e.pacientes.length);
-          expect(e.eventos.surto || rodada === 2).toBe(true);
+          expect(e.eventos.surto).toBe(true);
+          expect(e.chegadasProcessadas).toBe(e.agenda.chegadas.length);
         }
       }, 60_000);
     }

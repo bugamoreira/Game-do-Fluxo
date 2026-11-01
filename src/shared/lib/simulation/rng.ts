@@ -33,3 +33,14 @@ export function criarGerador(estadoInicial: number): Gerador {
     estado: () => a,
   };
 }
+
+/** Canais independentes derivados da mesma semente (demanda ≠ eventos). */
+export const CANAL_DEMANDA = 1;
+export const CANAL_EVENTOS = 2;
+
+/** Estado inicial de um gerador independente para o canal pedido. */
+export function estadoDoCanal(semente: number, canal: number): number {
+  const g = criarGerador((estadoDaSemente(semente) ^ Math.imul(canal, 0x9e3779b9)) >>> 0);
+  g.proximo();
+  return g.estado();
+}

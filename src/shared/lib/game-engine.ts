@@ -44,15 +44,17 @@ export function mkSx(): Surgery[] {
 }
 
 // ── Cirurgias R2 — redistribuídas (Surgical Smoothing) ─────
+// Calibração do Portão 2: as complexas (destino UTI) começam junto com os step-downs
+// da UTI na R2 (9h e 13h) e a sala 4 não abre uma 4ª cirurgia simultânea às 10h.
 export function mkSxR2(): Surgery[] {
   return [
     { id: 1, label: 'Cx Eletiva 1',  sala: 1, stH: 8,    dur: 2,   dest: 'enf', st: 'scheduled' },
     { id: 2, label: 'Cx Eletiva 2',  sala: 2, stH: 9,    dur: 2,   dest: 'enf', st: 'scheduled' },
-    { id: 3, label: 'Cx Complexa 1', sala: 3, stH: 8.5,  dur: 3,   dest: 'uti', st: 'scheduled' },
-    { id: 4, label: 'Cx Eletiva 3',  sala: 4, stH: 10,   dur: 2,   dest: 'enf', st: 'scheduled' },
+    { id: 3, label: 'Cx Complexa 1', sala: 3, stH: 9,    dur: 3,   dest: 'uti', st: 'scheduled' },
+    { id: 4, label: 'Cx Eletiva 3',  sala: 4, stH: 11.5, dur: 2,   dest: 'enf', st: 'scheduled' },
     { id: 5, label: 'Cx Eletiva 4',  sala: 1, stH: 14,   dur: 2,   dest: 'enf', st: 'scheduled' },
     { id: 6, label: 'Cx Eletiva 5',  sala: 2, stH: 14.5, dur: 2,   dest: 'enf', st: 'scheduled' },
-    { id: 7, label: 'Cx Complexa 2', sala: 3, stH: 15,   dur: 2.5, dest: 'uti', st: 'scheduled' },
+    { id: 7, label: 'Cx Complexa 2', sala: 3, stH: 13,   dur: 2.5, dest: 'uti', st: 'scheduled' },
   ];
 }
 
@@ -184,6 +186,6 @@ export function calcScore(s: ScoreInput): number {
   sc -= s.socB   * 15;
   sc += (s.altaHosp ?? s.disc ?? 0) * 3;
   if (s.deaths === 0) sc += 150;
-  if (s.isR2 && s.deaths === 0 && s.dets === 0 && s.cxCan === 0) sc += 300;
+  // Sem bônus exclusivo da R2 (decisão do Portão 2): a mesma fórmula vale nas duas rodadas.
   return Math.max(50, Math.round(sc));
 }

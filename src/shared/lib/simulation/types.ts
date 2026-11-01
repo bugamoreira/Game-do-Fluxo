@@ -2,9 +2,71 @@
 // Tipos do motor da simulação (contrato B1 — docs/contratos.md §1)
 // ============================================================
 
-import type { Events, LogEntry, LogType, Patient, Round, Sector, SfxType, Stats, Surgery } from '../../types/game';
+import type { Destination, Events, LogEntry, LogType, Patient, Round, Sector, Severity, SfxType, Stats, Surgery, SurgeryStatus } from '../../types/game';
 
 export type Rodada = Round;
+
+/**
+ * Setores do motor. Além dos de `Sector`: `fast_track` (área dos verdes na R2, 4 vagas),
+ * `enf_extra` (corredor da enfermaria do PCP/Full Capacity, 2 vagas) e `obito` (saiu do leito).
+ */
+export type SetorSim = Sector | 'fast_track' | 'enf_extra' | 'obito';
+
+/** Halo de risco na tela. */
+export type Risco = 'baixo' | 'atencao' | 'alto';
+
+/** Destino do paciente; `transferencia` = fora do perfil do hospital, só sai por NIR. */
+export type DestinoSim = Destination | 'transferencia';
+
+export interface PacienteSim extends Omit<Patient, 'sector' | 'dest' | 'offSvc'> {
+  sector: SetorSim;
+  dest: DestinoSim;
+  /** Paciente de UTI internado na ENF por falta de leito (antigo `offSvc`) */
+  leitoInadequado: boolean;
+  /** Necessidade que o hospital não atende (ex.: hemodinâmica, cirurgia oncológica): precisa de transferência */
+  foraDoPerfil: boolean;
+  risco: Risco;
+  /** Entrou no DE dentro do tempo-alvo? null = ainda não decidido (ou paciente do censo inicial) */
+  slaOk: boolean | null;
+  /** Minuto em que entrou no DE/Fast Track */
+  entradaMin: number | null;
+  /** Minuto em que deteriorou */
+  detMin: number | null;
+  /** Voltou ao DE (deteriorou fora do perfil): prioridade máxima na fila */
+  retorno: boolean;
+  /** Alta bloqueada por efeito cascata até este minuto (0 = sem prazo) */
+  bloqueioAte: number;
+}
+
+export type StatusCirurgia = SurgeryStatus | 'andamento';
+
+export interface CirurgiaSim extends Omit<Surgery, 'st'> {
+  st: StatusCirurgia;
+}
+
+export interface ChegadaPlanejada {
+  minuto: number;
+  sev: Severity;
+  dest: 'alta_de' | 'enf' | 'uti';
+  deNeed: number;
+  nome: string;
+  surto: boolean;
+  /** Fora do perfil do hospital: fica pronto com destino "transferência" e só sai por NIR */
+  foraDoPerfil: boolean;
+}
+
+export type ChaveLote = 'enf1' | 'enf2' | 'enf3' | 'uti1' | 'uti2';
+
+export interface LoteAlta {
+  chave: ChaveLote;
+  pacientes: { id: number; prepR1: number }[];
+}
+
+/** Gerada da semente no início; idêntica na R1 e na R2. */
+export interface Agenda {
+  chegadas: ChegadaPlanejada[];
+  altas: LoteAlta[];
+}
 
 export interface Ferramentas {
   /** NIR usados (máx. 3, só R2) */
@@ -25,25 +87,61 @@ export interface EstadoSimulacao {
   /** Minuto do dia: 420 (7h) a 1140 (19h) */
   minuto: number;
   /** Estado do gerador mulberry32 */
+  /** Estado do gerador de EVENTOS (a demanda vem pronta em `agenda`) */
   rng: number;
-  pacientes: Patient[];
-  cirurgias: Surgery[];
+  pacientes: PacienteSim[];
+  cirurgias: CirurgiaSim[];
   stats: Stats;
   eventos: Events;
   /** Rounds e mensagens já disparados; `ccBlocked` = sala 4 reservada para emergências */
   flags: Record<string, boolean>;
-  /** Minuto da próxima chegada espontânea */
+  /** Minuto da próxima chegada da agenda (> 1140 quando acabou) */
   proximaChegada: number;
+  /** Chegadas e lotes de alta do plantão (extensão do contrato) */
+  agenda: Agenda;
+  /** Quantas chegadas da agenda já entraram (extensão do contrato) */
+  chegadasProcessadas: number;
   ferramentas: Ferramentas;
   /** Últimas 60 entradas, a mais recente primeiro */
   log: LogEntry[];
   /** Próximo id de paciente (extensão do contrato: ids não se repetem mesmo após NIR) */
   proximoId: number;
+  /** Carga de trabalho do gestor na rodada (extensão do contrato) */
+  carga: CargaGestor;
+}
+
+/** Quanto o grupo precisou decidir e apagar incêndio, e quanto as ferramentas automáticas fizeram. */
+export interface CargaGestor {
+  decisoes: number;
+  produtivas: number;
+  reativas: number;
+  alertas: {
+    deterioracao: number;
+    obito: number;
+    cancelamento: number;
+    deLotado: number;
+    corredor: number;
+    lwbs: number;
+  };
+  automatico: {
+    /** Altas dadas pelo Fluxista */
+    fluxista: number;
+    /** Leitos liberados na hora pelo Discharge Lounge (altas da R2 com preparo zero) */
+    dischargeLounge: number;
+    /** Verdes atendidos no Fast Track */
+    fastTrack: number;
+    /** Cirurgias que só começaram porque havia alta pronta liberando o leito de destino */
+    cirurgiasViabilizadas: number;
+  };
+  /** Emergências cirúrgicas do plantão */
+  emergencias: number;
+  /** Emergências que encontraram a RPA cheia (sem a sala reservada, seriam óbito) */
+  emergenciasSemSala: number;
 }
 
 export type Acao =
   | { tipo: 'mover'; pacienteId: number; destino: Sector }
-  | { tipo: 'confirmarForaDoPerfil'; pacienteId: number }
+  | { tipo: 'confirmarLeitoInadequado'; pacienteId: number }
   | { tipo: 'nir'; pacienteId: number }
   | { tipo: 'fullCapacity'; pacienteId: number };
 
@@ -53,18 +151,18 @@ export type TipoOcorrencia =
   | 'pcr' | 'pcr_fim'
   | 'tomografo' | 'tomografo_fim'
   | 'laboratorio' | 'laboratorio_fim'
-  | 'surto'
+  | 'surto' | 'fora_do_perfil'
   | 'social' | 'bloqueio_social' | 'social_fim'
   | 'emergencia_cirurgica' | 'emergencia_obito' | 'emergencia_espera'
   | 'obs_prolongada' | 'obs_fim'
   | 'fluxista' | 'fluxo_rapido'
-  | 'deterioracao' | 'obito'
-  | 'deterioracao_fora_do_perfil' | 'retorno_de'
+  | 'deterioracao' | 'deterioracao_espera' | 'obito' | 'obito_espera'
+  | 'deterioracao_leito_inadequado' | 'retorno_de' | 'de_lotado'
   | 'dado_real'
   | 'corredor' | 'lwbs'
-  | 'round_enf' | 'round_uti'
-  | 'cirurgia_cancelada' | 'cirurgia_concluida'
-  | 'alta' | 'movimento' | 'fora_do_perfil'
+  | 'round_enf' | 'round_uti' | 'bloqueio_fim'
+  | 'cirurgia_iniciada' | 'cirurgia_cancelada' | 'cirurgia_concluida'
+  | 'alta' | 'movimento' | 'leito_inadequado'
   | 'nir' | 'full_capacity' | 'full_capacity_liberado';
 
 /** Algo que aconteceu num passo ou ação: vira entrada de log, som e eventos_jogo. */
@@ -94,7 +192,7 @@ export type CodigoErroAcao =
   | 'paciente_inexistente'
   | 'destino_invalido'
   | 'lotado'
-  | 'confirmar_fora_do_perfil'
+  | 'confirmar_leito_inadequado'
   | 'ferramenta_indisponivel';
 
 export interface ErroAcao {
@@ -109,7 +207,8 @@ export interface Metricas {
   dth: number;
   cxC: number;
   lw: number;
-  off: number;
+  /** Internações em leito inadequado (antigo `off`) */
+  leitoInadequado: number;
   soc: number;
   bH: number;
   deOcc: number;
@@ -121,10 +220,28 @@ export interface Metricas {
   corredor: number;
   altaHosp: number;
   libDE: number;
+  /** % de pacientes que entraram no DE dentro do tempo-alvo de Manchester */
+  slaPct: number;
+  triagemOcc: number;
+  fastTrackOcc: number;
+  enfExtraOcc: number;
+  /** Fora do perfil esperando transferência */
+  aguardandoTransferencia: number;
+  decisoes: number;
+  decisoesProdutivas: number;
+  decisoesReativas: number;
+  /** Deteriorações + óbitos + cancelamentos + vezes que o DE lotou + idas ao corredor + LWBS */
+  alertas: number;
+  autoFluxista: number;
+  autoDischargeLounge: number;
+  autoFastTrack: number;
+  autoCirurgiasViabilizadas: number;
+  emergencias: number;
+  emergenciasSemSala: number;
 }
 
 export interface OpcoesEstadoInicial {
-  /** Sala 4 reservada para emergências cirúrgicas (hoje só no modo solo). Padrão: falso. */
+  /** Sala 4 reservada para emergências cirúrgicas. Padrão: falso na R1, verdadeiro na R2 (pendente de confirmação). */
   ccBlocked?: boolean;
 }
 

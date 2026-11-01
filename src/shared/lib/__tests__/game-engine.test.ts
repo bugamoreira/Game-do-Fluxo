@@ -88,14 +88,15 @@ describe('calcScore', () => {
     expect(score).toBe(50);
   });
 
-  it('gives R2 perfect bonus', () => {
+  it('has no R2-only bonus', () => {
     const score = calcScore({
       boardHrs: 0, dets: 0, deaths: 0, cxCan: 0,
       lwbs: 0, offS: 0, socB: 0, altaHosp: 10,
       isR2: true,
     });
-    // 1500 + 150 (zero deaths) + 300 (R2 perfect) + 30 (10 discharges) = 1980
-    expect(score).toBe(1980);
+    // 1500 + 150 (zero deaths) + 30 (10 discharges) = 1680, igual à R1
+    expect(score).toBe(1680);
+    expect(calcScore({ boardHrs: 0, dets: 0, deaths: 0, cxCan: 0, lwbs: 0, offS: 0, socB: 0, altaHosp: 10 })).toBe(1680);
   });
 
   it('penalizes deaths heavily', () => {
