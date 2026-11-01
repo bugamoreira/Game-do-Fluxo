@@ -30,4 +30,3 @@ export const TEAM_COLORS = [
   '#f97316', '#a855f7', '#ec4899', '#14b8a6',
 ] as const;
 
-export const CREDENTIALS = { user: 'ed.leaders', pass: 'flame2026' } as const;
