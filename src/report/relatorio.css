@@ -1,0 +1,64 @@
+/* Relatório da turma: ajustes de página e versão para impressão (A4).
+   Fora de camada de propósito: vence o @layer base do index.css, que trava
+   a rolagem e pinta o fundo escuro das telas do jogo. */
+
+html.relatorio,
+html.relatorio body {
+  height: auto;
+  overflow: auto;
+}
+
+html.relatorio body {
+  background: var(--color-fundo-app);
+  color: var(--color-texto-corpo);
+  font-family: var(--font-sora);
+  -webkit-font-smoothing: antialiased;
+}
+
+html.relatorio {
+  scroll-behavior: smooth;
+  scroll-padding-top: 64px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.relatorio { scroll-behavior: auto; }
+}
+
+@page {
+  size: A4;
+  margin: 12mm 12mm 14mm;
+}
+
+@media print {
+  /* Tudo no Tailwind é em rem: reduzir a raiz encolhe a página inteira por igual. */
+  html.relatorio { font-size: 12.5px; }
+  html.relatorio body { background: #fff; }
+
+  /* Duas colunas no papel mesmo abaixo do breakpoint (A4 tem ~720 px úteis). */
+  .impressao-2col { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+  .impressao-2col > .impressao-inteira { grid-column: 1 / -1; }
+
+  /* Cores de marca e de gráfico como na tela (fundo da capa, faixas, barras). */
+  html.relatorio * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .nao-imprimir { display: none !important; }
+
+  /* Sombra não imprime bem: troca por borda. */
+  html.relatorio [class*="shadow"] { box-shadow: none !important; }
+
+  /* Capa ocupa a primeira página inteira. */
+  .capa { min-height: calc(297mm - 26mm); display: flex; align-items: center; border-radius: 6mm; }
+  .capa__miolo { width: 100%; padding-top: 0; padding-bottom: 0; }
+
+  .secao { padding-top: 0; padding-bottom: 6mm; }
+  .quebra-antes { break-before: page; }
+  .sem-quebra, figure, tr { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+
+  .rodape { break-inside: avoid; }
+
+  a[href^="#"] { text-decoration: none; }
+}

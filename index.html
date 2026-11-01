@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Simulador do Plantão — CBMEDE 2026</title>
-<meta name="description" content="Orientações para acessar o Simulador do Plantão do seu computador durante o curso de Gestão de Fluxo do CBMEDE 2026.">
+<meta name="description" content="Orientações para jogar o Simulador do Plantão no curso de Gestão de Fluxo do CBMEDE 2026: como funciona o jogo, o que o grupo precisa ter, passo a passo e teste do computador.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <a class="skip" href="#conteudo">Pular para o conteúdo</a>
@@ -16,26 +16,32 @@
     <div class="wrap topbar__in">
       <span class="brand">Simulador do <strong>Plantão</strong></span>
       <nav aria-label="Seções">
+        <a href="#como-funciona">Como funciona</a>
         <a href="#passo-a-passo">Passo a passo</a>
         <a href="#teste">Testar computador</a>
         <a href="#grupo">Jogar em grupo</a>
         <a href="#problemas">Problemas</a>
       </nav>
-      <a class="btn btn--yellow btn--sm" href="jogar.html">Entrar no jogo</a>
+      <a class="btn btn--green btn--sm" href="jogar.html">Entrar no jogo</a>
     </div>
   </header>
 
   <main id="conteudo">
     <section class="hero">
+      <div class="hero__veu" aria-hidden="true"></div>
       <div class="wrap hero__in">
-        <span class="pill"><span class="dot" aria-hidden="true"></span>CBMEDE 2026 · Curso de Gestão de Fluxo</span>
-        <h1>Simulador do <span class="hl">Plantão</span></h1>
-        <p class="lead">Um computador por grupo. Sete cabeças decidindo juntas para destravar o pronto-socorro antes que o plantão trave.</p>
-        <div class="chips">
-          <span class="chip">25 a 28 de novembro de 2026</span>
-          <span class="chip">Rio de Janeiro</span>
-          <span class="chip">Jogo em grupo · no computador</span>
+        <div class="logos">
+          <img src="/img/brand/abramede.png" alt="ABRAMEDE — Associação Brasileira de Medicina de Emergência" class="logos__abramede" width="147" height="43">
+          <span class="logos__ed">realização <img src="/img/brand/edleaders-escuro.png" alt="ED Leaders" width="160" height="24"></span>
         </div>
+        <p class="pill"><span class="dot" aria-hidden="true"></span>CBMEDE 2026 · Curso de Gestão de Fluxo</p>
+        <h1>Simulador do <span class="hl">Plantão</span></h1>
+        <p class="lead">Um computador por grupo e sete pessoas decidindo juntas para fazer o hospital fluir antes que o plantão trave.</p>
+        <ul class="chips" aria-label="Informações do evento">
+          <li class="chip">25 a 28 de novembro de 2026</li>
+          <li class="chip">Windsor Barra Hotel · Rio de Janeiro</li>
+          <li class="chip">Jogo em grupo, no computador</li>
+        </ul>
         <div class="actions">
           <a class="btn btn--green" href="jogar.html">Entrar no jogo</a>
           <a class="btn btn--ghost" href="#teste">Testar meu computador</a>
@@ -43,35 +49,74 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="como-funciona">
       <div class="wrap">
-        <p class="eyebrow">Antes da aula</p>
-        <h2>O que o grupo precisa ter</h2>
-        <ul class="cards cards--4">
-          <li class="card"><h3>Um computador</h3><p>Notebook ou desktop. Celular e tablet não servem: a tela do jogo é grande e tem muitos setores ao mesmo tempo.</p></li>
-          <li class="card"><h3>Chrome ou Edge</h3><p>Navegador atualizado. Safari e Firefox funcionam, mas são menos testados.</p></li>
-          <li class="card"><h3>Internet</h3><p>Wi-Fi do evento. Se falhar, use o roteador 5G do celular de alguém do grupo.</p></li>
-          <li class="card"><h3>Som e carregador</h3><p>Volume ligado para os alertas do jogo e o notebook na tomada durante toda a dinâmica.</p></li>
+        <p class="eyebrow">Como funciona o jogo</p>
+        <h2>Um dia inteiro de hospital em 12 minutos</h2>
+        <p class="muted">Cada grupo assume a central de operações de um hospital durante um plantão das 7h às 19h, simulado em cerca de 12 minutos. Ninguém precisa decorar regras: o facilitador explica tudo antes de começar.</p>
+
+        <ol class="jornada" aria-label="Etapas da dinâmica">
+          <li class="jornada__etapa jornada__etapa--travado">
+            <span class="jornada__num" aria-hidden="true">1</span>
+            <h3>Plantão Travado</h3>
+            <p>O hospital como costuma ser.</p>
+          </li>
+          <li class="jornada__etapa">
+            <span class="jornada__num" aria-hidden="true">2</span>
+            <h3>Discussão</h3>
+            <p>O facilitador conduz a conversa sobre o que aconteceu.</p>
+          </li>
+          <li class="jornada__etapa jornada__etapa--lean">
+            <span class="jornada__num" aria-hidden="true">3</span>
+            <h3>Plantão Lean</h3>
+            <p>O mesmo dia, com as ferramentas de fluxo funcionando.</p>
+          </li>
+          <li class="jornada__etapa jornada__etapa--resultado">
+            <span class="jornada__num" aria-hidden="true">4</span>
+            <h3>Resultado</h3>
+            <p>Os grupos comparam as duas rodadas.</p>
+          </li>
+        </ol>
+
+        <ul class="cards cards--4 cards--soft">
+          <li class="card card--de"><h3>Pacientes chegam o dia todo</h3><p>Eles chegam ao pronto-socorro ao longo do plantão e precisam de uma decisão: alta, internação na enfermaria ou na UTI, ou transferência.</p></li>
+          <li class="card card--enf"><h3>Os leitos são limitados</h3><p>Enfermaria, UTI, centro cirúrgico e recuperação têm capacidade limitada. Cada decisão afeta o resto do hospital.</p></li>
+          <li class="card card--uti"><h3>Duas rodadas, o mesmo dia</h3><p>No Plantão Lean chegam os mesmos pacientes do Travado. O que muda é a forma de organizar o fluxo.</p></li>
+          <li class="card card--rpa"><h3>No fim, a comparação</h3><p>Os grupos veem os resultados das duas rodadas lado a lado e discutem o que mudou e por quê.</p></li>
         </ul>
       </div>
     </section>
 
-    <section class="section section--tint" id="passo-a-passo">
+    <section class="section section--tint">
+      <div class="wrap">
+        <p class="eyebrow">Antes da aula</p>
+        <h2>O que o grupo precisa ter</h2>
+        <ul class="cards cards--4">
+          <li class="card"><h3>Um computador por grupo</h3><p>Notebook ou desktop. Celular e tablet não servem: a tela do jogo é grande e mostra vários setores ao mesmo tempo.</p></li>
+          <li class="card"><h3>Chrome ou Edge</h3><p>Navegador atualizado. Safari e Firefox funcionam, mas foram menos testados.</p></li>
+          <li class="card"><h3>Internet</h3><p>Wi-Fi do evento. Se falhar, use o roteador 5G do celular de alguém do grupo.</p></li>
+          <li class="card"><h3>Som e carregador</h3><p>Os alertas sonoros tocam no computador do grupo: deixe o volume ligado e o notebook na tomada durante toda a dinâmica.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="passo-a-passo">
       <div class="wrap">
         <p class="eyebrow">Passo a passo</p>
         <h2>Como entrar no jogo</h2>
         <ol class="steps">
           <li><h3>Conecte o computador à internet</h3><p>Wi-Fi do evento ou 5G do celular.</p></li>
-          <li><h3>Abra o endereço</h3><p><span class="url">plantaocbmede.netlify.app</span> no Chrome ou Edge.</p></li>
-          <li><h3>Teste o computador</h3><p>Use o teste logo abaixo. Leva 10 segundos e evita surpresa na hora.</p></li>
-          <li><h3>Clique em “Entrar no jogo” e escolha “Jogador”</h3><p>Só um computador por grupo entra no jogo.</p></li>
-          <li><h3>Digite o nome do grupo</h3><p>Combinem antes. De 2 a 30 caracteres, sem repetir o nome de outro grupo.</p></li>
-          <li><h3>Aguarde o facilitador</h3><p>A tela mostra “Aguardando”. O jogo começa sozinho quando o facilitador iniciar a rodada. Aperte <kbd>F11</kbd> para tela cheia.</p></li>
+          <li><h3>Abra o endereço</h3><p><span class="url">plantaocbmede.netlify.app</span> no Chrome ou no Edge.</p></li>
+          <li><h3>Teste o computador</h3><p>Use o teste logo abaixo. Leva dez segundos e evita surpresas na hora.</p></li>
+          <li><h3>Clique em “Entrar no jogo”</h3><p>Só um computador por grupo entra no jogo. Se o jogo pedir o código da sala, ele aparece no telão.</p></li>
+          <li><h3>Digite o nome do grupo</h3><p>Combinem antes. De 2 a 30 caracteres, diferente do nome dos outros grupos.</p></li>
+          <li><h3>Entre antes do início e aguarde</h3><p>Entre antes de o facilitador iniciar o Plantão Travado: depois disso, a entrada de grupos novos fecha. A tela mostra a sala de espera e o jogo começa sozinho. Aperte <kbd>F11</kbd> para usar a tela cheia.</p></li>
         </ol>
+        <p class="note"><strong>Todos os grupos jogam as duas rodadas</strong>, no mesmo computador e com o mesmo nome. Não é preciso entrar de novo entre o Plantão Travado e o Plantão Lean.</p>
       </div>
     </section>
 
-    <section class="section" id="teste">
+    <section class="section section--tint" id="teste">
       <div class="wrap">
         <p class="eyebrow">Teste rápido</p>
         <h2>Este computador está pronto?</h2>
@@ -86,9 +131,9 @@
           <div class="tester__actions">
             <button type="button" class="btn btn--navy" id="btn-test">Testar agora</button>
             <div class="sound-confirm" id="sound-confirm" hidden>
-              <span>Você ouviu o sinal?</span>
-              <button type="button" class="btn btn--sm btn--green" id="btn-heard">Ouvi</button>
-              <button type="button" class="btn btn--sm btn--outline" id="btn-not-heard">Não ouvi</button>
+              <span>Vocês ouviram o sinal?</span>
+              <button type="button" class="btn btn--sm btn--green" id="btn-heard">Ouvimos</button>
+              <button type="button" class="btn btn--sm btn--outline" id="btn-not-heard">Não ouvimos</button>
             </div>
           </div>
           <p class="tester__summary" id="test-summary" aria-live="polite"></p>
@@ -96,51 +141,69 @@
       </div>
     </section>
 
-    <section class="section section--tint" id="grupo">
+    <section class="section" id="grupo">
       <div class="wrap">
         <p class="eyebrow">Jogar em grupo</p>
         <h2>Sete pessoas, um plantão</h2>
         <p class="muted">O jogo fica melhor quando cada pessoa cuida de uma parte do hospital e o grupo decide junto. Sugestão de papéis:</p>
         <ul class="cards cards--3">
           <li class="card"><h3>Operador</h3><p>Fica no mouse e executa o que o grupo decide. Só ele clica.</p></li>
-          <li class="card"><h3>Vigia da emergência</h3><p>Acompanha quem está esperando e quem já está pronto para subir.</p></li>
-          <li class="card"><h3>Gestor de leitos</h3><p>Olha enfermaria e UTI: onde tem vaga e quem pode ter alta.</p></li>
-          <li class="card"><h3>Centro cirúrgico</h3><p>Acompanha cirurgias e recuperação pós-anestésica para não travar a agenda.</p></li>
-          <li class="card"><h3>Vigia de risco</h3><p>Fica de olho nos eventos e nos pacientes graves.</p></li>
+          <li class="card"><h3>Vigia do pronto-socorro</h3><p>Acompanha quem está esperando e quem já está pronto para subir.</p></li>
+          <li class="card"><h3>Gestor de leitos</h3><p>Olha a enfermaria e a UTI: onde há vaga e quem pode ter alta.</p></li>
+          <li class="card"><h3>Centro cirúrgico</h3><p>Acompanha as cirurgias e a recuperação pós-anestésica para não travar a agenda.</p></li>
+          <li class="card"><h3>Vigia de risco</h3><p>Fica de olho nos eventos, nos alertas e nos pacientes graves.</p></li>
           <li class="card"><h3>Placar e tempo</h3><p>Acompanha a pontuação e o relógio do plantão e avisa o grupo.</p></li>
         </ul>
         <p class="muted small">A sétima pessoa coordena: ouve todo mundo e bate o martelo quando houver dúvida.</p>
       </div>
     </section>
 
-    <section class="section" id="problemas">
+    <section class="section section--tint" id="problemas">
       <div class="wrap">
         <p class="eyebrow">Se algo der errado</p>
         <h2>Problemas comuns</h2>
         <div class="faq">
-          <details><summary>A página não abre ou o teste de conexão falha</summary><p>Troque para o 5G do celular (roteador) e rode o teste de novo. Se continuar, chame o facilitador.</p></details>
-          <details><summary>A tela ficou parada em “Aguardando”</summary><p>Avise o facilitador. Não feche a aba.</p></details>
-          <details><summary>Fechei a aba sem querer</summary><p>Abra o mesmo endereço no mesmo computador e no mesmo navegador. Em até 5 minutos, o jogo retoma de onde parou. Se não retomar, chame o facilitador.</p></details>
-          <details><summary>Aparece “Já existe um time com esse nome”</summary><p>Outro grupo escolheu esse nome. Escolha outro.</p></details>
-          <details><summary>Não ouço nenhum som</summary><p>Confira o volume do computador e se a aba não está silenciada. O som não é obrigatório para jogar.</p></details>
+          <details><summary>A página não abre ou o teste de conexão falha</summary><p>Troque para o 5G do celular (roteador) e rode o teste de novo. Se o problema continuar, chame o facilitador.</p></details>
+          <details><summary>A internet caiu no meio da rodada</summary><p>O jogo continua no computador do grupo e mostra “Reconectando…”. Não feche a aba: quando a conexão voltar, o placar se atualiza sozinho.</p></details>
+          <details><summary>Fechei a aba sem querer</summary><p>Reabra o mesmo endereço <strong>no mesmo computador e no mesmo navegador</strong> e entre com o mesmo nome de grupo: o jogo retoma de onde parou. Em outro computador, só com liberação do facilitador.</p></details>
+          <details><summary>Aparece “Esse grupo já está no jogo”</summary><p>Se o grupo é mesmo o seu e vocês trocaram de computador, peça ao facilitador para liberar a reconexão. Se não é, escolha outro nome.</p></details>
+          <details><summary>Aparece “O jogo já começou”</summary><p>A entrada de grupos novos fecha quando o Plantão Travado começa. Fale com o facilitador: ele pode liberar a entrada do grupo atrasado.</p></details>
+          <details><summary>A tela ficou parada na sala de espera</summary><p>É normal até o facilitador iniciar a rodada. Se os outros grupos já estiverem jogando, avise o facilitador e não feche a aba.</p></details>
+          <details><summary>Não ouço nenhum som</summary><p>Confira o volume do computador e se a aba não está silenciada. Clique uma vez na tela do jogo para liberar o som. Ele ajuda nos alertas, mas não é obrigatório.</p></details>
         </div>
         <div class="dont">
-          <strong>Durante o jogo, não:</strong> recarregue a página, feche a aba, troque de navegador ou entre em outro computador com o mesmo nome de grupo.
+          <strong>Durante o jogo, não</strong> troque de navegador nem abra o jogo em outro computador com o mesmo nome de grupo. Se a página fechar, reabra no mesmo computador.
         </div>
       </div>
     </section>
 
+    <section class="section" id="solo">
+      <div class="wrap solo">
+        <div>
+          <p class="eyebrow">Plano B</p>
+          <h2>Treinar sozinho</h2>
+          <p class="muted">Quer conhecer o jogo antes da aula ou ficou sem internet? O modo “Treinar sozinho” roda inteiro neste computador, sem servidor. Ele não entra no ranking da turma.</p>
+        </div>
+        <a class="btn btn--outline" href="jogar.html?modo=solo">Treinar sozinho</a>
+      </div>
+    </section>
+
     <section class="cta">
+      <div class="cta__veu" aria-hidden="true"></div>
       <div class="wrap cta__in">
         <h2>Tudo pronto?</h2>
-        <a class="btn btn--yellow" href="jogar.html">Entrar no jogo</a>
+        <a class="btn btn--green" href="jogar.html">Entrar no jogo</a>
       </div>
     </section>
   </main>
 
   <footer class="footer">
     <div class="wrap footer__in">
-      <span>Simulador do Plantão · ED Leaders · CBMEDE 2026 · Rio de Janeiro</span>
+      <span class="footer__marca">
+        <img src="/img/brand/abramede.png" alt="ABRAMEDE" width="95" height="28">
+        <img src="/img/brand/edleaders-escuro.png" alt="ED Leaders" class="footer__ed" width="120" height="18">
+        <span>Simulador do Plantão · CBMEDE 2026 · Rio de Janeiro</span>
+      </span>
       <a href="instrutor.html">Acesso do facilitador →</a>
     </div>
   </footer>
