@@ -26,6 +26,7 @@
 Os tokens vão para o `@theme` do Tailwind em `src/index.css` e são a única fonte. A landing passa a consumi-los (ADR 0001).
 
 - **Tipografia (a mesma do site oficial):** Sora para títulos (700) e texto (300–500); Space Mono para rótulos em caixa alta ("— FALE CONOSCO"), relógio do plantão e números do placar. Escala: 12 / 14 / 16 / 20 / 28 / 40 / 64 (telão até 120).
+- **Degradê oficial de destaque (do site):** `linear-gradient(135deg, #0e1840 0%, #1B2A6B 55%, #1f3380 100%)`. Usar em hero, telão e cartão escuro; `#0e1840` é o azul-marinho profundo.
 - **Superfícies:** fundo de app `#F4F5FA`, cartão branco, borda `#E3E5F0`, sombra suave (`0 4px 18px rgba(31,42,107,.06)`).
 - **Raios:** cartão 20, cartão grande 28, pílula 999, chip 10.
 - **Espaçamento:** base 4 (8, 12, 16, 24, 32, 48).
