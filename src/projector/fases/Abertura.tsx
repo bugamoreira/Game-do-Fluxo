@@ -1,4 +1,5 @@
-// P1 — sala aberta: endereço grande, instrução curta e grupos que já entraram.
+// P1 — sala aberta: endereço e código de acesso grandes, instrução curta e grupos que já entraram.
+// O código só aparece com a sessão do facilitador (telão aberto pela janela dele).
 
 import { TeamAvatar } from '../../shared/components/ui';
 import type { EstadoTurma } from '../../shared/schemas';
@@ -7,16 +8,22 @@ import { ENDERECO_JOGO, SALA_PADRAO, plural } from '../derivar';
 const PASSOS = [
   'Abra o endereço no computador do grupo.',
   'Clique em “Entrar no jogo”.',
-  'Digite o nome do grupo e aguarde o início.',
+  'Digite o nome do grupo e o código de acesso.',
 ];
 
-export function Abertura({ turma, sala }: { turma: EstadoTurma; sala: string }) {
+export function Abertura({ turma, sala, codigoAcesso }: { turma: EstadoTurma; sala: string; codigoAcesso: string | null }) {
   const grupos = turma.grupos;
   return (
     <div className="flex h-full flex-col">
       <section className="text-center">
         <p className="font-space-mono text-3xl font-bold tracking-[0.18em] text-white/80 uppercase">Entre no jogo pelo endereço</p>
         <p className="mt-4 font-space-mono text-[104px] leading-none font-bold tracking-tight text-amarelo">{ENDERECO_JOGO}</p>
+        <p className="mt-8 font-space-mono text-3xl font-bold tracking-[0.18em] text-white/80 uppercase">Código de acesso</p>
+        {codigoAcesso ? (
+          <p className="mt-3 font-space-mono text-[120px] leading-none font-bold tracking-[0.3em] text-amarelo">{codigoAcesso}</p>
+        ) : (
+          <p className="mt-3 text-5xl font-semibold">Peça o código ao facilitador.</p>
+        )}
         {sala !== SALA_PADRAO && (
           <p className="mt-6 text-4xl">
             Código da sala: <strong className="font-space-mono text-amarelo">{sala}</strong>

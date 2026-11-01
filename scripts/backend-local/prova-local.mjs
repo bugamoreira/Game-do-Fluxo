@@ -31,13 +31,13 @@ async function post(caminho, corpo, token) {
 }
 
 const sessao = await post('/auth/v1/token?grant_type=password', { email: EMAIL, password: SENHA });
-await post('/rest/v1/rpc/abrir_turma', { p_codigo: CODIGO, p_nome: 'Prova de segurança', p_substituir: true }, sessao.access_token);
+const turma = await post('/rest/v1/rpc/abrir_turma', { p_codigo: CODIGO, p_nome: 'Prova de segurança', p_substituir: true }, sessao.access_token);
 console.log(`Turma ${CODIGO} aberta no backend local.`);
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const prova = path.resolve(aqui, '../../supabase/tests/prova-seguranca.mjs');
 const r = spawnSync(process.execPath, [prova], {
   stdio: 'inherit',
-  env: { ...process.env, SUPABASE_URL: URL_BASE, SUPABASE_ANON_KEY: CHAVE, CODIGO_TESTE: CODIGO },
+  env: { ...process.env, SUPABASE_URL: URL_BASE, SUPABASE_ANON_KEY: CHAVE, CODIGO_TESTE: CODIGO, CODIGO_ACESSO: turma.codigo_acesso },
 });
 process.exit(r.status ?? 1);

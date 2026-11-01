@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Button, Card, Icone, StatTile } from '../../shared/components/ui';
 import type { ItemRanking } from '../../shared/schemas';
 import { ChamadaAula } from '../componentes/ChamadaAula';
+import { CodigoAcesso } from '../componentes/CodigoAcesso';
 import { TabelaMetricas } from '../componentes/TabelaMetricas';
 import { emRodada } from '../logica/fases';
 import { inteiro } from '../logica/formato';
@@ -57,6 +58,7 @@ export function AoVivo({ turma, ranking, proxima, ocupado, acionar }: PropsTela)
 
         <div className="flex flex-col gap-6">
           <ChamadaAula proxima={proxima} onAcao={(tipo) => acionar({ tipo })} ocupado={ocupado === proxima.acao} />
+          {ativa && <CodigoAcesso codigo={turma.codigoAcesso} compacto />}
 
           {ativa && (
             <Card titulo="Controles" espaco="m">

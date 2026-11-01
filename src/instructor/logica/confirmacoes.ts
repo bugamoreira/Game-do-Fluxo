@@ -77,7 +77,7 @@ export function confirmacaoPara(acao: AcaoConfirmavel): Confirmacao | null {
     case 'liberarReconexao':
       return {
         titulo: `Liberar a reconexão de “${acao.nome}”?`,
-        descricao: `Use quando o grupo trocou de computador ou fechou o navegador e perdeu a sessão. O próximo computador que entrar com o nome “${acao.nome}” reassume o time, com o jogo salvo no servidor. A liberação vale para uma única entrada.`,
+        descricao: `Use quando o grupo trocou de computador ou fechou o navegador e perdeu a sessão. O próximo computador que entrar com o nome “${acao.nome}” e o código de acesso reassume o time, com o jogo salvo no servidor. A liberação vale para uma única entrada.`,
         rotuloConfirmar: 'Liberar reconexão',
         destrutiva: false,
       };

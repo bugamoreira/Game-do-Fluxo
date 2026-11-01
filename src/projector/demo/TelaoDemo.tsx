@@ -34,6 +34,7 @@ export function TelaoDemo({ fase, minutoInicial, publico = false }: { fase: Fase
       carregando={false}
       turmaInexistente={false}
       series={series}
+      codigoAcesso={publico ? null : '2026'}
     />
   );
 }

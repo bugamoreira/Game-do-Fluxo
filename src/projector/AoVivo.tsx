@@ -25,6 +25,7 @@ export default function AoVivo({ sala }: { sala: string }) {
       turmaInexistente={turmaInexistente}
       eventosJogo={leituras.eventos}
       series={leituras.series}
+      codigoAcesso={leituras.codigoAcesso}
     />
   );
 }

@@ -157,6 +157,13 @@ describe('proximaAcao', () => {
   });
 });
 
+describe('sala aberta sem grupos', () => {
+  it('orienta a entrar com o nome e o código de acesso', () => {
+    const p = proximaAcao({ ...turma('aberta'), codigoAcesso: '0427' }, null, []);
+    expect(p.texto).toContain('código de acesso 0427');
+  });
+});
+
 describe('espera para iniciar o Lean', () => {
   const seis = Array.from({ length: 6 }, (_, i) => grupo({ id: String(i) }));
   it('nos 30 s depois de encerrar o Travado, mostra a contagem e não oferece o botão', () => {

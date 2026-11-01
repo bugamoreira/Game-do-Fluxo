@@ -7,6 +7,7 @@
 //   SUPABASE_URL=https://xxxx.supabase.co \
 //   SUPABASE_ANON_KEY=eyJ... \
 //   CODIGO_TESTE=PROVA \            # opcional: turma "aberta" só para a prova
+//   CODIGO_ACESSO=1234 \            # código de acesso dessa turma (painel do facilitador)
 //   node supabase/tests/prova-seguranca.mjs
 //
 // Com CODIGO_TESTE, o script cria dois grupos "Prova A/B xxxx" nessa turma para
@@ -22,6 +23,7 @@
 const URL_BASE = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const CHAVE = process.env.SUPABASE_ANON_KEY || '';
 const CODIGO = process.env.CODIGO_TESTE || '';
+const ACESSO = process.env.CODIGO_ACESSO || '';
 
 if (!URL_BASE || !CHAVE) {
   console.error('Defina SUPABASE_URL e SUPABASE_ANON_KEY (chave pública/anon).');
@@ -135,6 +137,7 @@ async function main() {
     remover_grupo: { p_grupo_id: ZERO },
     gerar_relatorio: { p_turma_id: ZERO },
     painel_turma: { p_turma_id: ZERO },
+    codigo_acesso_telao: { p_turma_id: ZERO },
     series_turma: { p_turma_id: ZERO },
     eventos_turma: { p_turma_id: ZERO },
   };
@@ -155,12 +158,22 @@ async function main() {
   await deveFalhar('obter_estado com token inventado',
     rpc('obter_estado', { p_token: tokenFalso }), { esperado: 'TOKEN_INVALIDO' });
 
-  if (!CODIGO) {
-    registrar('Token de outro grupo (precisa de CODIGO_TESTE)', null, 'defina CODIGO_TESTE');
+  if (!CODIGO || !/^[0-9]{4}$/.test(ACESSO)) {
+    registrar('Código de acesso e token de outro grupo (precisa de CODIGO_TESTE e CODIGO_ACESSO)', null, 'defina CODIGO_TESTE e CODIGO_ACESSO');
   } else {
     const sufixo = Math.random().toString(36).slice(2, 6);
-    const a = await rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Prova A ${sufixo}` });
-    const b = await rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Prova B ${sufixo}` });
+    // Código de acesso: grupo novo sem ele ou com ele errado não entra.
+    await deveFalhar('Entrar grupo novo sem código de acesso',
+      rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Sem Codigo ${sufixo}` }), { esperado: 'CODIGO_ACESSO_INVALIDO' });
+    const errado = String((Number(ACESSO) + 1) % 10000).padStart(4, '0');
+    const comErrado = await rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Codigo Errado ${sufixo}`, p_acesso: errado });
+    registrar('Entrar grupo novo com código de acesso errado', comErrado.json?.erro === 'CODIGO_ACESSO_INVALIDO' && !comErrado.json?.token,
+      `${comErrado.status} ${comErrado.json?.erro ?? codigoErro(comErrado)}`);
+    const st0 = await rpc('estado_turma', { p_codigo: CODIGO });
+    registrar('estado_turma não expõe o código de acesso', ok2xx(st0) && !/codigo_acesso/.test(st0.texto), `${st0.status}`);
+
+    const a = await rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Prova A ${sufixo}`, p_acesso: ACESSO });
+    const b = await rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Prova B ${sufixo}`, p_acesso: ACESSO });
     if (!ok2xx(a) || !ok2xx(b)) {
       registrar(`Entrar 2 grupos de teste em ${CODIGO} (deve funcionar)`, false, `${a.status} ${codigoErro(a)} / ${b.status} ${codigoErro(b)}`);
     } else {
@@ -168,9 +181,9 @@ async function main() {
       const tokB = b.json.token;
       registrar('Entrar 2 grupos de teste (deve funcionar)', Boolean(tokA && tokB && tokA !== tokB), 'tokens distintos');
       await deveFalhar('Tomar o grupo A sem token (mesmo nome)',
-        rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Prova A ${sufixo}` }), { esperado: 'GRUPO_JA_ATIVO' });
+        rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Prova A ${sufixo}`, p_acesso: ACESSO }), { esperado: 'GRUPO_JA_ATIVO' });
       await deveFalhar('Tomar o grupo A com o token do grupo B',
-        rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Prova A ${sufixo}`, p_token: tokB }), { esperado: 'GRUPO_JA_ATIVO' });
+        rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: `Prova A ${sufixo}`, p_token: tokB, p_acesso: ACESSO }), { esperado: 'GRUPO_JA_ATIVO' });
       // com o token de B, só se alcança B: o grupo A segue sem estado
       await rpc('enviar_estado', { p_token: tokB, p_rodada: 1, p_minuto: 420, p_versao: 1, p_estado: { invasor: true }, p_pontuacao: 1, p_metricas: {} });
       const estA = await rpc('obter_estado', { p_token: tokA, p_rodada: 1 });

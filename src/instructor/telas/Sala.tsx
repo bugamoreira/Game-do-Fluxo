@@ -2,6 +2,7 @@
 
 import { Button, Card, Icone, TeamAvatar, cx } from '../../shared/components/ui';
 import { ChamadaAula } from '../componentes/ChamadaAula';
+import { CodigoAcesso } from '../componentes/CodigoAcesso';
 import { contarProntos, linkJogo, rotuloProntos, textoPresenca, type GrupoPainel } from '../logica/fases';
 import { plural } from '../logica/formato';
 import { chaveAcao, type AcaoPainel, type PropsTela } from '../tipos';
@@ -35,8 +36,14 @@ export function Sala({ turma, grupos, proxima, ocupado, acionar, origem }: Props
             </span>
             <p className="text-lg font-bold text-texto">Aguardando os grupos</p>
             <p className="max-w-md text-[15px]">
-              Os grupos aparecem aqui assim que entrarem com o código{' '}
-              <strong className="font-space-mono">{turma.codigo}</strong>.
+              Os grupos aparecem aqui assim que entrarem com o nome do grupo e o código de acesso
+              {turma.codigoAcesso ? (
+                <>
+                  {' '}
+                  <strong className="font-space-mono">{turma.codigoAcesso}</strong>
+                </>
+              ) : null}
+              .
             </p>
           </div>
         ) : (
@@ -64,7 +71,7 @@ export function Sala({ turma, grupos, proxima, ocupado, acionar, origem }: Props
           <Icone nome="info" tamanho={16} className="mt-0.5 shrink-0" />
           <span>
             <strong className="text-texto">Liberar reconexão</strong> serve para o grupo que trocou de computador ou
-            perdeu a sessão: o próximo computador que entrar com o mesmo nome reassume o time.{' '}
+            perdeu a sessão: o próximo computador que entrar com o mesmo nome e o código de acesso reassume o time.{' '}
             <strong className="text-texto">Remover</strong> tira o grupo do ranking sem apagar os dados.
           </span>
         </p>
@@ -78,6 +85,8 @@ export function Sala({ turma, grupos, proxima, ocupado, acionar, origem }: Props
           desabilitado={proxima.acao === 'iniciarR1' && total === 0}
           detalheBotao={proxima.acao === 'iniciarR1' ? rotuloProntos(conectados, total) : undefined}
         />
+
+        {!encerrada && <CodigoAcesso codigo={turma.codigoAcesso} />}
 
         <Card rotulo="Como os grupos entram" titulo="Código da sala">
           <p className="font-space-mono text-titulo-m font-bold tracking-[0.12em] text-texto">{turma.codigo}</p>

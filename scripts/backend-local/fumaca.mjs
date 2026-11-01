@@ -78,8 +78,10 @@ await etapa(`abrir_turma ${CODIGO}`, async () => {
     p_substituir: true,
   });
   exigir(t?.status === 'aberta' && t.id, `status ${t?.status}`);
+  exigir(/^[0-9]{4}$/.test(t.codigo_acesso ?? ''), 'abrir_turma sem código de acesso');
   ctx.turmaId = t.id;
-  return t.id;
+  ctx.acesso = t.codigo_acesso;
+  return `${t.id} (código de acesso ${t.codigo_acesso})`;
 });
 
 await etapa('abrir_turma sem login é recusada', async () => {
@@ -87,17 +89,27 @@ await etapa('abrir_turma sem login é recusada', async () => {
   exigir(error && status === 401 && error.code === '42501', `esperava 401/42501, veio ${status} ${error?.code}`);
 });
 
+await etapa('Grupo sem código de acesso, ou com código errado, não entra', async () => {
+  const { error, status } = await publico.rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: 'Sem Codigo' });
+  exigir(error && status === 400 && error.code === 'CB014' && error.message === 'CODIGO_ACESSO_INVALIDO', `veio ${status} ${JSON.stringify(error)}`);
+  const errado = String((Number(ctx.acesso) + 1) % 10000).padStart(4, '0');
+  const r = await rpc(publico, 'entrar_grupo', { p_codigo: CODIGO, p_nome: 'Codigo Errado', p_acesso: errado });
+  exigir(r?.erro === 'CODIGO_ACESSO_INVALIDO' && !r.token, JSON.stringify(r));
+  const s = await rpc(publico, 'estado_turma', { p_codigo: CODIGO });
+  exigir(!('codigo_acesso' in s), 'estado_turma expôs o código de acesso');
+});
+
 await etapa('Dois grupos entram', async () => {
   const sufixo = Date.now().toString(36).slice(-4);
-  const a = await rpc(publico, 'entrar_grupo', { p_codigo: CODIGO, p_nome: `Grupo A ${sufixo}` });
-  const b = await rpc(publico, 'entrar_grupo', { p_codigo: CODIGO, p_nome: `Grupo B ${sufixo}`, p_token: null });
+  const a = await rpc(publico, 'entrar_grupo', { p_codigo: CODIGO, p_nome: `Grupo A ${sufixo}`, p_acesso: ctx.acesso });
+  const b = await rpc(publico, 'entrar_grupo', { p_codigo: CODIGO, p_nome: `Grupo B ${sufixo}`, p_token: null, p_acesso: ctx.acesso });
   exigir(a.token?.length === 43 && b.token?.length === 43 && a.token !== b.token, 'tokens inválidos');
   ctx = { ...ctx, tokA: a.token, tokB: b.token, nomeA: a.grupo.nome };
   return `${a.grupo.nome}, ${b.grupo.nome}`;
 });
 
 await etapa('Erro de negócio no formato do PostgREST (GRUPO_JA_ATIVO)', async () => {
-  const { error, status } = await publico.rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: ctx.nomeA });
+  const { error, status } = await publico.rpc('entrar_grupo', { p_codigo: CODIGO, p_nome: ctx.nomeA, p_acesso: ctx.acesso });
   exigir(error, 'deveria recusar');
   exigir(
     status === 400 && error.code === 'CB003' && error.message === 'GRUPO_JA_ATIVO' && error.hint === 'GRUPO_JA_ATIVO' && error.details,
@@ -113,11 +125,11 @@ await etapa('Iniciar rodada 1', async () => {
 
 await etapa('enviar_estado (rodada 1)', async () => {
   const ra = await rpc(publico, 'enviar_estado', {
-    p_token: ctx.tokA, p_rodada: 1, p_minuto: 430, p_versao: 1,
+    p_token: ctx.tokA, p_rodada: 1, p_minuto: 421, p_versao: 1,
     p_estado: { pacientes: [] }, p_pontuacao: 10, p_metricas: { obitos: 0 },
   });
   const rb = await rpc(publico, 'enviar_estado', {
-    p_token: ctx.tokB, p_rodada: 1, p_minuto: 430, p_versao: 1,
+    p_token: ctx.tokB, p_rodada: 1, p_minuto: 421, p_versao: 1,
     p_estado: { pacientes: [1] }, p_pontuacao: 25.5, p_metricas: {},
   });
   exigir(String(ra.versao) === '1' && String(rb.versao) === '1', 'versão não confere');
@@ -175,6 +187,13 @@ await etapa('Encerrar rodada 1 (debrief)', async () => {
   exigir(t.status === 'debrief', t.status);
 });
 
+await etapa('Iniciar o Lean nos 30 s de tolerância do Travado é recusado', async () => {
+  const { error } = await facilitador.rpc('mudar_status', { p_turma_id: ctx.turmaId, p_status: 'rodada2' });
+  exigir(error && error.message === 'TRANSICAO_INVALIDA', JSON.stringify(error));
+  await new Promise((r) => setTimeout(r, 31_000));
+  return error.details;
+});
+
 await etapa('Iniciar rodada 2 (Lean)', async () => {
   const t = await rpc(facilitador, 'mudar_status', { p_turma_id: ctx.turmaId, p_status: 'rodada2' });
   exigir(t.status === 'rodada2' && t.rodada === 2, t.status);
@@ -183,7 +202,7 @@ await etapa('Iniciar rodada 2 (Lean)', async () => {
 await etapa('enviar_estado (rodada 2)', async () => {
   for (const [tok, pts] of [[ctx.tokA, 40], [ctx.tokB, 30]]) {
     const r = await rpc(publico, 'enviar_estado', {
-      p_token: tok, p_rodada: 2, p_minuto: 500, p_versao: 2,
+      p_token: tok, p_rodada: 2, p_minuto: 421, p_versao: 2,
       p_estado: { lean: true }, p_pontuacao: pts, p_metricas: {},
     });
     exigir(String(r.versao) === '2', JSON.stringify(r));

@@ -197,7 +197,7 @@ export const MINUTO_SUGERIDO_PCP = 660;
 
 export function proximaAcao(
   turma: Pick<EstadoTurma, 'status' | 'pausada' | 'fullCapacityLiberado' | 'codigo'> &
-    Partial<Pick<EstadoTurma, 'rodadaFim' | 'horaServidor'>>,
+    Partial<Pick<EstadoTurma, 'rodadaFim' | 'horaServidor' | 'codigoAcesso'>>,
   minuto: number | null,
   grupos: GrupoPainel[],
   relatorioGerado = false,
@@ -212,7 +212,7 @@ export function proximaAcao(
       if (total === 0)
         return {
           titulo: 'Aguardar os grupos',
-          texto: `Peça a cada grupo que abra o jogo e entre com o código ${turma.codigo}. Os nomes aparecem aqui assim que entrarem.`,
+          texto: `Peça a cada grupo que abra o jogo e entre com o nome do grupo e o código de acesso${turma.codigoAcesso ? ` ${turma.codigoAcesso}` : ''} (está no telão). Os nomes aparecem aqui assim que entrarem.`,
           acao: null,
         };
       return {

@@ -73,6 +73,7 @@ A sala tem um único estado no banco: `waiting → round1 → debrief → round2
 ```
 
 Regras de acesso à sala:
+- **Código de acesso de 4 dígitos** (gerado ao abrir a turma): a J1 pede o nome do grupo e o código. O painel do facilitador mostra o código grande na Sala (F1) e no Ao vivo; o telão aberto pela janela do facilitador mostra o código grande na P1 e discreto durante as rodadas; sem a sessão do facilitador, o telão diz “Peça o código ao facilitador”. Reconexão no mesmo computador não pede o código; reconexão liberada pelo facilitador pede (só quem está na sala vê o código).
 - **A sala abre quando o facilitador abre a turma (F1).** Grupos podem entrar desde então, em qualquer ordem, sem precisar entrar juntos.
 - **O facilitador vê quem já entrou** (nome, cor, conexão ativa) e o botão "Iniciar Plantão Travado" mostra quantos grupos estão prontos ("6 grupos prontos"). Ele inicia quando todos estiverem lá.
 - **Depois do início, a entrada de grupos novos fecha** (todos jogam o plantão inteiro). O facilitador pode abrir uma exceção ("Liberar entrada") para um grupo que se atrasou.

@@ -36,6 +36,8 @@ export interface DadosTelao {
   eventosJogo?: EventoTurma[] | null;
   /** Séries da turma (`series_turma`); só com sessão de facilitador. */
   series?: PontoSerieTurma[] | null;
+  /** Código de acesso (`codigo_acesso_telao`); só com sessão de facilitador. Sem ele: "Peça o código ao facilitador". */
+  codigoAcesso?: string | null;
 }
 
 export function Telao(d: DadosTelao) {
@@ -90,12 +92,12 @@ export function Telao(d: DadosTelao) {
     <Palco>
       {fase === 'aberta' && (
         <Moldura rotulo="— Sala aberta · CBMEDE 2026" fundo="/img/rio/rio-aereo.jpg" veu={0.86} conexao={conexao} som={som}>
-          <Abertura turma={turma} sala={d.sala} />
+          <Abertura turma={turma} sala={d.sala} codigoAcesso={d.codigoAcesso ?? null} />
         </Moldura>
       )}
       {fase === 'rodada' && (
         <Moldura
-          rotulo={`— Rodada ${rodada} · ${rodada === 2 ? 'Plantão Lean' : 'Plantão Travado'}${turma.pausada ? ' · Pausada' : ''}`}
+          rotulo={`— Rodada ${rodada} · ${rodada === 2 ? 'Plantão Lean' : 'Plantão Travado'}${turma.pausada ? ' · Pausada' : ''}${d.codigoAcesso ? ` · Código de acesso ${d.codigoAcesso}` : ''}`}
           veu={0.93}
           conexao={conexao}
           som={som}

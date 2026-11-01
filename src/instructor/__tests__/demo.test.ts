@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CodigoEmUso, TransicaoInvalida } from '../../shared/services/erros';
-import { criarServicoDemo } from '../demo/servicoDemo';
+import { CODIGO_ACESSO_DEMO, criarServicoDemo } from '../demo/servicoDemo';
 import { PresencaGrupos } from '../useTurmaFacilitador';
 
 function relogio(inicio = Date.parse('2026-11-25T10:00:00Z')) {
@@ -33,6 +33,14 @@ describe('serviço de demonstração', () => {
     const s = criarServicoDemo({ fase: 'sala' });
     const t = await s.estado('CBMEDE');
     await expect(s.mudarStatus(t.id, 'debrief')).rejects.toBeInstanceOf(TransicaoInvalida);
+  });
+
+  it('código de acesso fictício só na visão do facilitador (painel e telão), nunca na leitura pública', async () => {
+    const s = criarServicoDemo({ fase: 'sala' });
+    const t = await s.estado('CBMEDE');
+    expect(t.codigoAcesso).toBeUndefined();
+    expect((await s.painelTurma(t.id)).codigoAcesso).toBe(CODIGO_ACESSO_DEMO);
+    expect(await s.codigoAcessoTelao(t.id)).toBe(CODIGO_ACESSO_DEMO);
   });
 
   it('recusa código em uso e aceita com substituir', async () => {
