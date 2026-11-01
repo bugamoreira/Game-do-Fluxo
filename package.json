@@ -12,7 +12,8 @@
     "backend:local": "bash scripts/backend-local/iniciar.sh",
     "dev:local": "VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_KEY=chave-local-ensaio vite",
     "fumaca:local": "node scripts/backend-local/fumaca.mjs",
-    "prova:local": "node scripts/backend-local/prova-local.mjs"
+    "prova:local": "node scripts/backend-local/prova-local.mjs",
+    "ensaio": "node e2e/ensaio.mjs"
   },
   "repository": {
     "type": "git",
