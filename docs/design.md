@@ -1,0 +1,81 @@
+# Design — Simulador do Plantão · CBMEDE 2026
+
+> Regras de marca, sistema visual e mapa de telas. Referências: padrão visual do site cbmede2026.com.br e 4 referências de dashboard trazidas pelo Gustavo (timeline de medicação, Overview cripto, Pay, Wallet).
+
+## 1. Princípios
+
+1. **Clareza clínica antes de estética.** O jogo é uma sala de situação: o grupo precisa ler o hospital em 2 segundos.
+2. **Uma cor, um significado.** Cor nunca é decoração quando também carrega informação clínica.
+3. **Cada tela tem uma ação principal.** Ela é o único botão verde da tela.
+4. **Mesma linguagem nas quatro superfícies** (orientações, jogo, facilitador, telão), com densidade diferente em cada uma.
+
+## 2. Regras de marca
+
+| Regra | Detalhe |
+|---|---|
+| Moldura CBMEDE | Azul-marinho `#1F2A6B` (estrutura, títulos, barra lateral), amarelo `#F5C518` (destaque, foco, "você está aqui") e verde `#3DB54A` (ação principal). |
+| Manchester é sagrado | Vermelho, laranja, amarelo e verde de gravidade (`--sev-*`) só aparecem em paciente e risco. Nenhum botão ou enfeite usa essas cores. O amarelo da marca e o amarelo Manchester ficam visualmente distintos: o da marca vai em fundo e preenchimento, o Manchester vai em ponto ou borda do paciente. |
+| Setores em tons pastel | Cada setor tem um tom de fundo fixo, como os cartões de ativos das referências: DE lavanda, ENF menta, UTI pêssego, RPA/CC creme, corredor e triagem cinza. O tom identifica o setor; a lotação aparece por barra e número, não por troca de cor do cartão. |
+| Cartão escuro = momento | O cartão azul-marinho profundo (como o "Earn free crypto" e o "Sell Order" das referências) é reservado para o que exige atenção agora: evento ativo no jogo, próxima ação do facilitador, chamada no telão. No máximo um por tela. |
+| Times | Cada grupo tem uma cor de identificação (8 cores fixas, nenhuma igual às de Manchester) usada em avatar, linha do ranking e gráficos. |
+| Assinaturas | "Simulador do Plantão" é a marca do jogo. ED Leaders aparece como realização; CBMEDE/ABRAMEDE só com autorização e arquivo oficial do logo (pendente). Sem autorização, o evento aparece só em texto ("CBMEDE 2026"). |
+| Tom de voz | Português claro, linguagem de plantão ("boarding", "alta", "RPA lotada"), frases curtas, verbo no imperativo nos botões ("Iniciar rodada", "Autorizar"). |
+
+## 3. Sistema visual (tokens)
+
+Os tokens vão para o `@theme` do Tailwind em `src/index.css` e são a única fonte. A landing passa a consumi-los (ADR 0001).
+
+- **Tipografia:** Sora. Títulos 700–800, texto 400, números `tabular-nums`. Escala: 12 / 14 / 16 / 20 / 28 / 40 / 64 (telão até 120).
+- **Superfícies:** fundo de app `#F4F5FA`, cartão branco, borda `#E3E5F0`, sombra suave (`0 4px 18px rgba(31,42,107,.06)`).
+- **Raios:** cartão 20, cartão grande 28, pílula 999, chip 10.
+- **Espaçamento:** base 4 (8, 12, 16, 24, 32, 48).
+- **Tons pastel de setor:** DE `#ECEBFB`, ENF `#E3F5EA`, UTI `#FDEBE3`, RPA/CC `#FBF3D9`, triagem e corredor `#EEF0F4`.
+- **Gravidade (Manchester):** `--sev-red #E53935`, `--sev-orange #F57C00`, `--sev-yellow #FBC02D`, `--sev-green #43A047`.
+- **Tema:** claro em orientações, jogo e facilitador; escuro azul-marinho no telão (projeção em auditório).
+- **Acessibilidade (cap. 14):** contraste AA, foco visível em amarelo, alvos de pelo menos 40 px, nada comunicado só por cor (gravidade também por letra ou ícone).
+
+## 4. Componentes base (`src/shared/components/ui/`)
+
+Button (verde, azul-marinho, amarelo, contorno, fantasma) · Card · SectorTile (tom pastel + título + barra de lotação + conteúdo) · PatientChip (ponto Manchester, nome, tempo, ícone de estado) · StatTile (número grande + rótulo + variação) · DarkCallout (cartão de momento) · Timeline (horário à esquerda e cartões, como na referência de medicação, usada para os eventos do plantão) · RankingTable · TeamAvatar · ClockBar (relógio 07:00→19:00 com progresso) · Modal · Toast · ConnectionBanner ("Reconectando…") · Sidebar (facilitador).
+
+## 5. Mapa de telas e como se conectam
+
+A sala tem um único estado no banco: `waiting → round1 → debrief → round2 → finished`. **Todas as telas derivam desse estado**, consultado a cada 1 s. Nenhuma tela "manda" a outra mudar; o facilitador muda o estado e as demais acompanham.
+
+```
+                        ┌──────────── Orientações (/) ────────────┐
+                        │ passo a passo · teste do computador     │
+                        └───────┬───────────────────────┬─────────┘
+                                │ Entrar no jogo        │ Acesso do facilitador
+                                ▼                       ▼
+ JOGO (/jogar.html)                         FACILITADOR (/instrutor.html)        TELÃO (/projetor.html)
+ ──────────────────                         ─────────────────────────────        ──────────────────────
+ J1 Nome do grupo                           F0 Login
+ J2 Sala de espera     ◄── waiting ──►      F1 Sala: grupos conectados,          P1 Endereço grande +
+    (grupos já dentro)                         saúde da conexão, "Iniciar R1"       grupos que entraram
+ J3 Plantão Travado    ◄── round1 ───►      F2 Ao vivo: ranking, métricas,       P2 Relógio, ranking,
+                                               pausar/encerrar, música              eventos ao vivo
+ J4 Fim da rodada 1    ◄── debrief ──►      F3 Debrief: dados da R1 por grupo    P3 Gráficos do debrief
+    (seu resumo)                               para discussão, "Iniciar R2"
+ J5 Plantão Lean       ◄── round2 ───►      F4 Ao vivo R2 + "Autorizar Full      P2 (modo Lean)
+                                               Capacity"
+ J6 Resultado final    ◄── finished ─►      F5 Resultado: comparativo R1×R2,     P4 Pódio
+    (R1×R2 e posição)                          "Nova turma"
+```
+
+Regras de transição:
+- Entrar é possível em qualquer estado, exceto `finished`. Quem chega durante uma rodada entra direto nela.
+- Perdeu a conexão: a simulação continua no computador do grupo e aparece "Reconectando…". Ao voltar, o placar sincroniza.
+- Fechou a aba: reabrir no mesmo computador retoma a sessão; entrar com o mesmo nome reassume o time em vez de dar erro.
+- "Nova turma" (F5) é a única ação que limpa grupos, e pede confirmação.
+- O modo solo ("Treinar sozinho") fica acessível pelas orientações, totalmente local, como plano B.
+
+## 6. Como cada superfície aparece (aplicação das referências)
+
+**Jogo — computador do grupo (densidade alta, tema claro).** Topo: nome e cor do grupo, ClockBar do plantão, pontuação em pílula, estado da conexão. Centro: grade de SectorTiles (DE maior à esquerda; ENF, UTI, RPA/CC à direita), com os pacientes como PatientChips. Clicar no paciente destaca os destinos possíveis; clicar no destino move. Coluna direita: Timeline de eventos do plantão (referência de medicação) com o DarkCallout do evento ativo no topo (ex.: "Surto: 3 pacientes chegando"). Rodada 2: barra de ferramentas Lean (NIR, Full Capacity) com contadores de uso.
+
+**Facilitador — painel (referências Overview, Pay e Wallet).** Barra lateral azul-marinho com as fases (Sala, Ao vivo, Debrief, Resultado). Topo: turma e relógio. Linha de StatTiles por grupo (cor do time, pontuação, mini-tendência). Corpo: RankingTable com as métricas que importam para a discussão (boarding, deteriorações, óbitos, cancelamentos, altas). Direita: DarkCallout com a próxima ação da aula ("Iniciar Plantão Lean", "Autorizar Full Capacity") e controles (pausar, música).
+
+**Telão — projeção (tema escuro, densidade baixa).** Letras enormes, legível do fundo do auditório. Relógio do plantão, ranking em barras com as cores dos times, faixa de eventos marcantes e pódio final animado.
+
+**Orientações.** Já feita no padrão CBMEDE; migra para os tokens comuns.
