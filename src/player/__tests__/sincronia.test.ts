@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avancarAte, criarEstadoInicial, type Ocorrencia } from '../../shared/lib/simulation';
+import { avancarAte, criarEstadoInicial, metricas, type Ocorrencia } from '../../shared/lib/simulation';
 import { EventoJogoSchema } from '../../shared/schemas/sync.schema';
 import {
   MENSAGEM_SEM_ESTADO,
@@ -67,7 +67,7 @@ describe('marcoDaSerie', () => {
 describe('eventosRelevantes', () => {
   const oc = (tipo: Ocorrencia['tipo'], extra: Partial<Ocorrencia> = {}): Ocorrencia => ({ minuto: 600, tipo, msg: `msg ${tipo}`, nivel: 'danger', ...extra });
 
-  it('envia só óbito, deterioração, cancelamento, surto, NIR e PCP, com chave válida e única', () => {
+  it('envia só óbito, deterioração, cancelamento, surto, DE lotado, corredor, NIR e PCP, com chave válida e única', () => {
     const eventos = eventosRelevantes(1, [
       oc('obito', { pacienteId: 3 }),
       oc('movimento'),
@@ -78,8 +78,13 @@ describe('eventosRelevantes', () => {
       oc('nir', { pacienteId: 7 }),
       oc('full_capacity', { pacienteId: 8 }),
       oc('deterioracao', { pacienteId: 3 }),
+      oc('de_lotado'),
+      oc('corredor', { pacienteId: 9 }),
+      oc('round_enf'),
     ]);
-    expect(eventos.map(e => e.tipo)).toEqual(['obito', 'surto', 'cirurgia_cancelada', 'cirurgia_cancelada', 'nir', 'full_capacity', 'deterioracao']);
+    expect(eventos.map(e => e.tipo)).toEqual([
+      'obito', 'surto', 'cirurgia_cancelada', 'cirurgia_cancelada', 'nir', 'full_capacity', 'deterioracao', 'de_lotado', 'corredor',
+    ]);
     const chaves = eventos.map(e => e.chave);
     expect(new Set(chaves).size).toBe(chaves.length);
     for (const e of eventos) expect(EventoJogoSchema.safeParse(e).success).toBe(true);
@@ -144,5 +149,13 @@ describe('tensaoDoPlantao', () => {
     expect(inicio).toBeGreaterThanOrEqual(0);
     expect(meio).toBeLessThanOrEqual(1);
     expect(meio).toBeGreaterThanOrEqual(inicio);
+  });
+});
+
+describe('série enviada', () => {
+  it('as métricas do motor têm deOcc e boarding (curvas do relatório, do painel e do telão)', () => {
+    const m = metricas(criarEstadoInicial(1, 42));
+    expect(typeof m.deOcc).toBe('number');
+    expect(typeof m.boarding).toBe('number');
   });
 });

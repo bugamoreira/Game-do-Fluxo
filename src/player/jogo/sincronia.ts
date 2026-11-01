@@ -71,11 +71,15 @@ export function marcoDaSerie(minuto: number): number {
   return MINUTO_INICIO + Math.floor((minuto - MINUTO_INICIO) / INTERVALO_SERIE_MIN) * INTERVALO_SERIE_MIN;
 }
 
-/** Ocorrências que viram `eventos_jogo` (facilitador e relatório). */
+/**
+ * Ocorrências que viram `eventos_jogo` (facilitador, telão e relatório). Os
+ * nomes são os do motor (`TipoOcorrencia`); o relatório conta `de_lotado` e
+ * `corredor` como alertas e o telão os mostra em "Agora no plantão".
+ */
 export const TIPOS_EVENTO_RELEVANTE: ReadonlySet<TipoOcorrencia> = new Set<TipoOcorrencia>([
   'obito', 'obito_espera', 'emergencia_obito',
   'deterioracao', 'deterioracao_espera', 'deterioracao_leito_inadequado', 'retorno_de',
-  'cirurgia_cancelada', 'surto', 'lwbs',
+  'cirurgia_cancelada', 'surto', 'lwbs', 'de_lotado', 'corredor',
   'nir', 'nir_concluido', 'full_capacity', 'full_capacity_liberado',
   'leito_inadequado',
 ]);
