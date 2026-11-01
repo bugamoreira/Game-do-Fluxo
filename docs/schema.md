@@ -80,7 +80,17 @@ Todas são `security definer` com `search_path = ''` e nomes qualificados. Parâ
 | `registrar_serie(p_token, p_rodada, p_minuto, p_metricas)` | Um ponto por (grupo, rodada, minuto); reenvio não altera (`{registrado: false}`). |
 | `registrar_eventos(p_token, p_rodada, p_eventos)` | Lista de `{minuto, tipo, mensagem?, chave?}`; até 50 por chamada e 3000 por grupo e rodada. `chave` torna o reenvio idempotente. |
 
-**Do facilitador (só authenticated; cada uma confere `auth.uid()` em `facilitadores`):** `abrir_turma(p_codigo, p_nome, p_evento?, p_data?, p_substituir?)`, `mudar_status(p_turma_id, p_status)`, `pausar(p_turma_id)`, `retomar(p_turma_id)`, `liberar_entrada(p_turma_id, p_liberada?)`, `liberar_reconexao(p_grupo_id, p_liberada?)`, `liberar_full_capacity(p_turma_id, p_liberado?)`, `alternar_musica(p_turma_id, p_mudo?)` (sem `p_mudo`, inverte), `remover_grupo(p_grupo_id)`, `gerar_relatorio(p_turma_id, p_versao_regras?)`. Devolvem o estado da turma com, por grupo, também `visto_em`, `reconexao_liberada` e `removido`. Pausar já pausada e retomar não pausada não fazem nada (clique duplo não dá erro). `remover_grupo` é lógico: o token deixa de valer, o nome fica livre e os dados ficam guardados, fora do ranking e do relatório. `gerar_relatorio` só depois de `encerrada`; congela grupos, ranking R1/R2, placar, séries e eventos em `relatorios.dados`, cria `slug` aleatório de 24 caracteres (144 bits), passa a turma para `arquivada`; chamar de novo devolve o mesmo slug.
+**Do facilitador (só authenticated; cada uma confere `auth.uid()` em `facilitadores`):** `abrir_turma(p_codigo, p_nome, p_evento?, p_data?, p_substituir?)`, `mudar_status(p_turma_id, p_status)`, `pausar(p_turma_id)`, `retomar(p_turma_id)`, `liberar_entrada(p_turma_id, p_liberada?)`, `liberar_reconexao(p_grupo_id, p_liberada?)`, `liberar_full_capacity(p_turma_id, p_liberado?)`, `alternar_musica(p_turma_id, p_mudo?)` (sem `p_mudo`, inverte), `remover_grupo(p_grupo_id)`, `gerar_relatorio(p_turma_id, p_versao_regras?, p_local?)`. Devolvem o estado da turma com, por grupo, também `visto_em`, `reconexao_liberada` e `removido`. Pausar já pausada e retomar não pausada não fazem nada (clique duplo não dá erro). `remover_grupo` é lógico: o token deixa de valer, o nome fica livre e os dados ficam guardados, fora do ranking e do relatório. `gerar_relatorio` só depois de `encerrada`; congela grupos, ranking R1/R2, placar, séries e eventos em `relatorios.dados`, cria `slug` aleatório de 24 caracteres (144 bits), passa a turma para `arquivada`; chamar de novo devolve o mesmo slug. Grava também `dados.facilitador` (o `nome` em `facilitadores` de quem gerou) e `dados.local` (`p_local`, até 120 caracteres; padrão `Windsor Barra Hotel, Rio de Janeiro`). Devolve `{slug, turma}`.
+
+**Leituras do facilitador (só authenticated, mesma checagem; migração `20261101200000`):**
+
+| RPC | Devolve |
+|---|---|
+| `painel_turma(p_turma_id)` | O estado da turma na visão do facilitador (o mesmo formato das ações, com `visto_em`, `reconexao_liberada` e `removido` por grupo). É a consulta periódica do painel. |
+| `series_turma(p_turma_id, p_rodada?)` | `[{grupo_id, nome, cor, rodada, minuto, metricas}]` dos grupos ativos, por grupo, rodada e minuto. |
+| `eventos_turma(p_turma_id, p_desde_minuto?, p_rodada?, p_limite? = 100)` | `[{id, grupo_id, nome, cor, rodada, minuto, tipo, mensagem, criado_em}]` dos grupos ativos, mais recentes primeiro; `p_limite` de 1 a 500. Alimenta o painel e o telão aberto pela janela logada do facilitador. |
+
+Turma inexistente: `TURMA_NAO_ENCONTRADA`; rodada fora de 1–2 ou limite fora da faixa: `DADOS_INVALIDOS`.
 
 ## Erros
 
@@ -120,4 +130,4 @@ Sem permissão de EXECUTE (anon chamando RPC de facilitador) o PostgREST respond
 Script que, com a chave pública, tenta: escrever direto em cada tabela, ler `estado_jogo` e `token_hash`, mudar o status da turma, enviar estado com token de outro grupo e ler relatório sem o slug. Todas as tentativas precisam falhar, e o resultado vai para `docs/`.
 
 - `supabase/tests/prova-seguranca.mjs`: o script acima, contra o projeto real, depois de aplicado (`supabase/README.md`, seção 5). Ainda não foi rodado.
-- `supabase/tests/rodar-local.sh`: o mesmo raciocínio dentro do banco, num Postgres local, com os papéis `anon` e `authenticated` de verdade (110+ verificações, incluindo catálogo: RLS em todas as tabelas, nenhuma política de escrita, `search_path` fixo em toda `security definer`).
+- `supabase/tests/rodar-local.sh`: o mesmo raciocínio dentro do banco, num Postgres local, com os papéis `anon` e `authenticated` de verdade (130+ verificações, incluindo catálogo: RLS em todas as tabelas, nenhuma política de escrita, `search_path` fixo em toda `security definer`).

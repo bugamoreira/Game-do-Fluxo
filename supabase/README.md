@@ -11,10 +11,11 @@ As tabelas do FLAME (`rooms`, `teams`, `game_state`, `game_logs`) não são toca
 |---|---|
 | `migrations/20261101190000_cbmede_schema.sql` | pgcrypto, schema `interno`, 8 tabelas, índices, RLS, privilégios e views públicas |
 | `migrations/20261101190100_cbmede_rpcs.sql` | 18 RPCs `security definer` e os `grant execute` |
+| `migrations/20261101200000_cbmede_leituras_facilitador.sql` | Leituras do facilitador (`painel_turma`, `series_turma`, `eventos_turma`) e `gerar_relatorio` com facilitador e local |
 | `rollback/cbmede_rollback.sql` | Apaga só os objetos acima (fora de `migrations/` para o CLI não aplicar) |
 | `tests/rodar-local.sh` | Sobe um Postgres temporário, aplica as migrações, roda o teste ponta a ponta, o rollback e reaplica |
 | `tests/local/00_stubs_supabase.sql` | Stubs de `auth.uid()`, `auth.users`, `anon`, `authenticated` (só para o Postgres local) |
-| `tests/local/10_ponta_a_ponta.sql` | 110+ verificações: entrada, reconexão, versões, transições, pausa, relógio, relatório, privilégios |
+| `tests/local/10_ponta_a_ponta.sql` | 130+ verificações: entrada, reconexão, versões, transições, pausa, relógio, relatório, privilégios |
 | `tests/prova-seguranca.mjs` | Ataque com a chave pública contra o projeto real, depois de aplicado |
 
 ## 1. Validar localmente (antes de aplicar)
@@ -28,9 +29,9 @@ bash supabase/tests/rodar-local.sh
 
 ## 2. Aplicar (com autorização)
 
-Ordem obrigatória: `20261101190000_cbmede_schema.sql`, depois `20261101190100_cbmede_rpcs.sql`.
+Ordem obrigatória: `20261101190000_cbmede_schema.sql`, `20261101190100_cbmede_rpcs.sql` e `20261101200000_cbmede_leituras_facilitador.sql`.
 
-**Opção A — painel (mais simples):** Supabase → SQL Editor → New query → escrever `begin;`, colar o conteúdo do primeiro arquivo, terminar com `commit;` → Run. Repetir com o segundo. Com o `begin/commit`, um erro no meio desfaz o arquivo inteiro. Se algo der errado depois do primeiro arquivo, rode o rollback (seção 6) e recomece.
+**Opção A — painel (mais simples):** Supabase → SQL Editor → New query → escrever `begin;`, colar o conteúdo do primeiro arquivo, terminar com `commit;` → Run. Repetir com o segundo e com o terceiro. Com o `begin/commit`, um erro no meio desfaz o arquivo inteiro. Se algo der errado depois do primeiro arquivo, rode o rollback (seção 6) e recomece.
 
 **Opção B — CLI:**
 
@@ -53,11 +54,11 @@ Depois de aplicar, no painel: **Advisors → Security Advisor** deve ficar sem e
    ```
 
 4. **Authentication → Sign In / Providers**: desligar *Allow new users to sign up*. O facilitador é criado à mão; ninguém precisa se cadastrar sozinho. (Mesmo com cadastro aberto, uma conta nova não comanda turma, porque não está em `facilitadores`; mas cadastro fechado elimina a conta-robô.)
-5. Trocar a senha antiga do FLAME que está em `src/shared/lib/constants.ts` (pós-mortem): ela não deve ser reaproveitada.
+5. A senha antiga do FLAME já saiu do código (pós-mortem) e não deve ser reaproveitada.
 
 ## 4. Criar a turma do evento
 
-Pelo painel do facilitador (quando C2 estiver pronto), ou à mão no SQL Editor fingindo ser o facilitador:
+Pelo painel do facilitador (`/instrutor.html`), ou à mão no SQL Editor fingindo ser o facilitador:
 
 ```sql
 begin;
@@ -92,7 +93,7 @@ Imprime a tabela PASSOU/FALHOU e sai com código 1 se alguma tentativa indevida 
 psql "$DATABASE_URL" -1 -f supabase/rollback/cbmede_rollback.sql
 ```
 
-Apaga as 18 RPCs, o schema `interno`, as 3 views e as 8 tabelas novas, **com os dados do CBMEDE**. Exporte antes o que importar (ex.: `relatorios`). Não toca no FLAME, no pgcrypto nem no Auth. Se aplicou pelo CLI, apague também as duas linhas de `supabase_migrations.schema_migrations` (versões `20261101190000` e `20261101190100`) para o CLI aceitar reaplicar.
+Apaga as 21 RPCs, o schema `interno`, as 3 views e as 8 tabelas novas, **com os dados do CBMEDE**. Exporte antes o que importar (ex.: `relatorios`). Não toca no FLAME, no pgcrypto nem no Auth. Se aplicou pelo CLI, apague também as linhas de `supabase_migrations.schema_migrations` (versões `20261101190000`, `20261101190100` e `20261101200000`) para o CLI aceitar reaplicar.
 
 ## Como o app chama
 

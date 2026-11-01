@@ -128,6 +128,9 @@ async function main() {
     alternar_musica: { p_turma_id: ZERO },
     remover_grupo: { p_grupo_id: ZERO },
     gerar_relatorio: { p_turma_id: ZERO },
+    painel_turma: { p_turma_id: ZERO },
+    series_turma: { p_turma_id: ZERO },
+    eventos_turma: { p_turma_id: ZERO },
   };
   for (const [nome, args] of Object.entries(rpcsFacilitador)) {
     await deveFalhar(`RPC ${nome} sem login`, rpc(nome, args));

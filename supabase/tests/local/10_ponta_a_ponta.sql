@@ -41,6 +41,12 @@ select tst.ok(tst.erro_de($q$select public.mudar_status(gen_random_uuid(),'rodad
               'anon não executa mudar_status');
 select tst.ok(tst.erro_de($q$select public.gerar_relatorio(gen_random_uuid())$q$) like '42501:%',
               'anon não executa gerar_relatorio');
+select tst.ok(tst.erro_de($q$select public.painel_turma(gen_random_uuid())$q$) like '42501:%',
+              'anon não executa painel_turma');
+select tst.ok(tst.erro_de($q$select public.series_turma(gen_random_uuid())$q$) like '42501:%',
+              'anon não executa series_turma');
+select tst.ok(tst.erro_de($q$select public.eventos_turma(gen_random_uuid())$q$) like '42501:%',
+              'anon não executa eventos_turma');
 select tst.ok(tst.erro_de($q$select public.estado_turma('NAOEXISTE')$q$) like 'CB001:TURMA_NAO_ENCONTRADA%',
               'estado_turma de código inexistente -> TURMA_NAO_ENCONTRADA');
 select tst.ok(tst.erro_de($q$select interno.hash_token('x')$q$) like '42501:%',
@@ -52,6 +58,12 @@ set role authenticated;
 set request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
 select tst.ok(tst.erro_de($q$select public.abrir_turma('CBMEDE','x')$q$) like 'CB006:NAO_AUTORIZADO%',
               'logado sem cadastro em facilitadores -> NAO_AUTORIZADO');
+select tst.ok(tst.erro_de($q$select public.painel_turma(gen_random_uuid())$q$) like 'CB006:NAO_AUTORIZADO%',
+              'logado sem cadastro não lê painel_turma');
+select tst.ok(tst.erro_de($q$select public.series_turma(gen_random_uuid())$q$) like 'CB006:%',
+              'logado sem cadastro não lê series_turma');
+select tst.ok(tst.erro_de($q$select public.eventos_turma(gen_random_uuid())$q$) like 'CB006:%',
+              'logado sem cadastro não lê eventos_turma');
 select tst.ok((select count(*) from public.estado_jogo) = 0, 'logado comum não vê estado_jogo (RLS)');
 reset role;
 
@@ -216,6 +228,30 @@ select tst.ok(tst.erro_de(format($q$select public.obter_estado(%L)$q$, :'tok_c')
 select tst.ok(jsonb_array_length(public.estado_turma('CBMEDE') -> 'grupos') = 2, 'grupo removido some do estado público');
 reset role;
 
+-- ---------------------------------------------------------------- leituras do facilitador
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+select public.painel_turma(:'turma_id') as painel \gset
+select tst.ok(jsonb_array_length(:'painel'::jsonb -> 'grupos') = 3
+              and (select bool_or((g ->> 'removido')::boolean) from jsonb_array_elements(:'painel'::jsonb -> 'grupos') g)
+              and (select bool_and(g ? 'visto_em' and g ? 'reconexao_liberada') from jsonb_array_elements(:'painel'::jsonb -> 'grupos') g),
+              'painel_turma: visão do facilitador com removido, visto_em e reconexao_liberada');
+select tst.ok(tst.erro_de($q$select public.painel_turma(gen_random_uuid())$q$) like 'CB001:TURMA_NAO_ENCONTRADA%',
+              'painel_turma de turma inexistente -> TURMA_NAO_ENCONTRADA');
+select tst.ok(jsonb_array_length(public.series_turma(:'turma_id')) = 1
+              and (public.series_turma(:'turma_id') -> 0 ->> 'nome') = 'Grupo A'
+              and (public.series_turma(:'turma_id') -> 0 -> 'metricas' ->> 'ocupacao') = '0.8',
+              'series_turma devolve os pontos com nome do grupo');
+select tst.ok(jsonb_array_length(public.series_turma(:'turma_id', 2)) = 0, 'series_turma filtra por rodada');
+select tst.ok(tst.erro_de(format($q$select public.series_turma(%L, 3)$q$, :'turma_id')) like 'CB008:%', 'series_turma com rodada 3 -> DADOS_INVALIDOS');
+select tst.ok(jsonb_array_length(public.eventos_turma(:'turma_id')) = 2
+              and (public.eventos_turma(:'turma_id') -> 0 ->> 'tipo') = 'surto',
+              'eventos_turma devolve os mais recentes primeiro');
+select tst.ok(jsonb_array_length(public.eventos_turma(:'turma_id', 458)) = 1, 'eventos_turma filtra desde o minuto');
+select tst.ok(jsonb_array_length(public.eventos_turma(:'turma_id', null, 1, 1)) = 1, 'eventos_turma respeita o limite');
+select tst.ok(tst.erro_de(format($q$select public.eventos_turma(%L, null, null, 501)$q$, :'turma_id')) like 'CB008:%', 'eventos_turma com limite 501 -> DADOS_INVALIDOS');
+reset role;
+
 -- ---------------------------------------------------------------- encerrar R1, tolerância, R2
 set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
@@ -271,6 +307,9 @@ select tst.ok(jsonb_array_length(:'rel'::jsonb -> 'dados' -> 'ranking' -> 'rodad
               and jsonb_array_length(:'rel'::jsonb -> 'dados' -> 'eventos') = 2
               and (:'rel'::jsonb -> 'dados' -> 'ranking' -> 'rodada1' -> 0 ->> 'nome') = 'Grupo B',
               'relatório congela ranking R1/R2, séries e eventos (sem o grupo removido)');
+select tst.ok((:'rel'::jsonb -> 'dados' ->> 'facilitador') = 'Facilitador Teste'
+              and (:'rel'::jsonb -> 'dados' ->> 'local') = 'Windsor Barra Hotel, Rio de Janeiro',
+              'relatório grava o nome do facilitador e o local padrão');
 select tst.ok(position('token' in :'rel') = 0, 'relatório não contém token nem hash');
 select tst.ok(tst.erro_de($q$select public.obter_relatorio('abc')$q$) like 'CB012:RELATORIO_NAO_ENCONTRADO%', 'slug inválido -> RELATORIO_NAO_ENCONTRADO');
 select tst.ok(tst.erro_de(format($q$select public.obter_relatorio(%L)$q$, left(:'slug', 23) || 'x')) like 'CB012:%', 'slug quase certo -> RELATORIO_NAO_ENCONTRADO');
@@ -301,7 +340,7 @@ select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.p
                   and not ('search_path=""' = any(coalesce(p.proconfig, '{}')))) = 0,
               'toda função security definer de public tem search_path vazio');
 select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                where n.nspname = 'public' and p.prosecdef) = 18, '18 RPCs security definer');
+                where n.nspname = 'public' and p.prosecdef) = 21, '21 RPCs security definer');
 select tst.ok((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
                 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity) = 0,
               'RLS ligado em todas as tabelas de public');
@@ -311,5 +350,14 @@ select tst.ok(not has_function_privilege('anon', 'public.pausar(uuid)', 'execute
               and has_function_privilege('authenticated', 'public.pausar(uuid)', 'execute')
               and has_function_privilege('anon', 'public.entrar_grupo(text,text,text)', 'execute'),
               'EXECUTE só para os papéis certos');
+select tst.ok(not has_function_privilege('anon', 'public.painel_turma(uuid)', 'execute')
+              and not has_function_privilege('anon', 'public.series_turma(uuid,integer)', 'execute')
+              and not has_function_privilege('anon', 'public.eventos_turma(uuid,integer,integer,integer)', 'execute')
+              and not has_function_privilege('anon', 'public.gerar_relatorio(uuid,text,text)', 'execute')
+              and has_function_privilege('authenticated', 'public.eventos_turma(uuid,integer,integer,integer)', 'execute'),
+              'leituras do facilitador: EXECUTE só para authenticated');
+select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                where n.nspname = 'public' and p.proname = 'gerar_relatorio') = 1,
+              'uma única gerar_relatorio (sem sobrecarga ambígua)');
 
 select 'TODOS OS TESTES PASSARAM';

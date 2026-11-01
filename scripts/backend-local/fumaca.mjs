@@ -140,6 +140,36 @@ await etapa('ranking', async () => {
   return r.map((x) => `${x.nome}:${x.pontuacao}`).join(' > ');
 });
 
+await etapa('registrar_serie e registrar_eventos (grupo)', async () => {
+  const s = await rpc(publico, 'registrar_serie', {
+    p_token: ctx.tokA, p_rodada: 1, p_minuto: 450, p_metricas: { deOcc: 9, boarding: 2 },
+  });
+  const e = await rpc(publico, 'registrar_eventos', {
+    p_token: ctx.tokA, p_rodada: 1,
+    p_eventos: [{ minuto: 455, tipo: 'surto', mensagem: 'Surto de chegadas', chave: 'f1' }],
+  });
+  exigir(s.registrado === true && e.inseridos === 1, JSON.stringify({ s, e }));
+});
+
+await etapa('painel_turma (facilitador)', async () => {
+  const t = await rpc(facilitador, 'painel_turma', { p_turma_id: ctx.turmaId });
+  exigir(t.status === 'rodada1' && t.grupos.every((g) => 'visto_em' in g && 'removido' in g), JSON.stringify(t).slice(0, 120));
+  return `${t.grupos.length} grupos`;
+});
+
+await etapa('series_turma e eventos_turma (facilitador)', async () => {
+  const s = await rpc(facilitador, 'series_turma', { p_turma_id: ctx.turmaId, p_rodada: null });
+  const e = await rpc(facilitador, 'eventos_turma', { p_turma_id: ctx.turmaId, p_desde_minuto: null, p_rodada: 1, p_limite: 20 });
+  exigir(s.length === 1 && s[0].metricas.deOcc === 9 && e.length === 1 && e[0].tipo === 'surto', JSON.stringify({ s, e }).slice(0, 160));
+});
+
+await etapa('Leituras do facilitador sem login são recusadas', async () => {
+  for (const fn of ['painel_turma', 'series_turma', 'eventos_turma']) {
+    const { error, status } = await publico.rpc(fn, { p_turma_id: ctx.turmaId });
+    exigir(error && status === 401 && error.code === '42501', `${fn}: esperava 401/42501, veio ${status} ${error?.code}`);
+  }
+});
+
 await etapa('Encerrar rodada 1 (debrief)', async () => {
   const t = await rpc(facilitador, 'mudar_status', { p_turma_id: ctx.turmaId, p_status: 'debrief' });
   exigir(t.status === 'debrief', t.status);
@@ -175,6 +205,7 @@ await etapa('gerar_relatorio', async () => {
 await etapa('obter_relatorio (público, pelo slug)', async () => {
   const r = await rpc(publico, 'obter_relatorio', { p_slug: ctx.slug });
   exigir(r.slug === ctx.slug && r.dados, 'relatório sem dados');
+  exigir(typeof r.dados.facilitador === 'string' && typeof r.dados.local === 'string', 'relatório sem facilitador ou local');
   return Object.keys(r.dados).join(', ');
 });
 

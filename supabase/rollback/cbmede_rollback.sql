@@ -1,6 +1,7 @@
 -- =============================================================================
 -- ROLLBACK do schema CBMEDE 2026.
--- Apaga SÓ os objetos criados pelas migrações 20261101190000 e 20261101190100.
+-- Apaga SÓ os objetos criados pelas migrações 20261101190000, 20261101190100
+-- e 20261101200000.
 -- NÃO toca nas tabelas do FLAME (rooms, teams, game_state, game_logs),
 -- nem no pgcrypto, nem no schema auth.
 --
@@ -28,6 +29,10 @@ drop function if exists public.liberar_full_capacity(uuid, boolean);
 drop function if exists public.alternar_musica(uuid, boolean);
 drop function if exists public.remover_grupo(uuid);
 drop function if exists public.gerar_relatorio(uuid, text);
+drop function if exists public.gerar_relatorio(uuid, text, text);
+drop function if exists public.painel_turma(uuid);
+drop function if exists public.series_turma(uuid, integer);
+drop function if exists public.eventos_turma(uuid, integer, integer, integer);
 
 -- schema interno inteiro (só contém as auxiliares do CBMEDE)
 drop schema if exists interno cascade;
