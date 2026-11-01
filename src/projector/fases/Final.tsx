@@ -94,18 +94,18 @@ export function Final({ itens, series = null }: { itens: ItemRanking[]; series?:
 
         {comCurva ? (
           <>
-            <h3 className="mt-6 flex items-baseline justify-between gap-6 text-3xl font-bold">
-              Pacientes no DE ao longo do plantão
+            <h3 className="mt-5 flex items-baseline justify-between gap-6 text-[28px] leading-tight font-bold">
+              Pacientes no DE
               <LegendaEvolucao tema="escuro" className="shrink-0 text-lg font-normal text-white/85" />
             </h3>
             <GraficoEvolucao
               titulo="Pacientes no DE, média dos grupos, Plantão Travado e Plantão Lean"
               pontos={curvaDe}
               tema="escuro"
-              fonte={15}
-              altura={190}
+              fonte={13}
+              altura={130}
               minimoEixo={5}
-              className="mt-2"
+              className="mt-1"
             />
           </>
         ) : (

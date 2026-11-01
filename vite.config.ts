@@ -19,6 +19,9 @@ function proxySupabase(url: string | undefined): Record<string, ProxyOptions> | 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const proxy = proxySupabase(env.VITE_SUPABASE_URL);
+  // Abre o navegador só quando há um: em CI, contêiner ou com BROWSER=none,
+  // tentar abrir derruba o servidor de desenvolvimento.
+  const semNavegador = process.env.BROWSER === 'none' || Boolean(process.env.CI) || !process.stdout.isTTY;
 
   return {
     plugins: [react(), tailwindcss()],
@@ -35,7 +38,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
-      open: '/',
+      open: semNavegador ? false : '/',
       proxy,
     },
     preview: {

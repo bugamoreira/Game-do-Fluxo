@@ -119,7 +119,7 @@ export function GraficoEvolucao({
             <g key={t}>
               <line x1={M.esq} x2={M.esq + LI} y1={y(t)} y2={y(t)} stroke={cor.grade} strokeWidth="1" />
               <text x={M.esq - 6} y={y(t) + fonte / 3} textAnchor="end">
-                {numero(t, max < 5 && t % 1 !== 0 ? 1 : 0)}
+                {numero(t, ticks.some((x) => x % 1 !== 0) ? 1 : 0)}
               </text>
             </g>
           ))}
@@ -195,7 +195,16 @@ export function GraficoEvolucao({
 }
 
 /** Legenda das duas linhas (traço e cor), para acompanhar o gráfico. */
-export function LegendaEvolucao({ tema = 'claro', className }: { tema?: 'claro' | 'escuro'; className?: string }) {
+export function LegendaEvolucao({
+  tema = 'claro',
+  apenasR1 = false,
+  className,
+}: {
+  tema?: 'claro' | 'escuro';
+  /** Debrief: só a rodada 1 foi jogada. */
+  apenasR1?: boolean;
+  className?: string;
+}) {
   const cor = PALETAS[tema];
   return (
     <div className={className} aria-hidden="true">
@@ -205,12 +214,14 @@ export function LegendaEvolucao({ tema = 'claro', className }: { tema?: 'claro' 
         </svg>
         Plantão Travado (R1)
       </span>
-      <span className="ml-5 inline-flex items-center gap-2">
-        <svg width="28" height="8">
-          <line x1="0" y1="4" x2="28" y2="4" stroke={cor.r2} strokeWidth="3" />
-        </svg>
-        Plantão Lean (R2)
-      </span>
+      {!apenasR1 && (
+        <span className="ml-5 inline-flex items-center gap-2">
+          <svg width="28" height="8">
+            <line x1="0" y1="4" x2="28" y2="4" stroke={cor.r2} strokeWidth="3" />
+          </svg>
+          Plantão Lean (R2)
+        </span>
+      )}
     </div>
   );
 }

@@ -68,8 +68,10 @@ function Painel({ indicador, itens, compacto = false }: { indicador: IndicadorDe
   return (
     <section aria-label={indicador.titulo} className="flex min-h-0 flex-col rounded-cartao-g bg-white/8 px-7 py-5 ring-1 ring-white/15">
       <h2 className="mb-3 flex items-baseline justify-between gap-4">
-        <span className="text-3xl font-bold">{indicador.titulo}</span>
-        <span className="font-space-mono text-lg tracking-[0.12em] text-amarelo uppercase">
+        <span className={compacto ? 'text-[26px] leading-tight font-bold' : 'text-3xl font-bold'}>{indicador.titulo}</span>
+        <span
+          className={`shrink-0 font-space-mono text-amarelo uppercase ${compacto ? 'text-sm tracking-[0.08em]' : 'text-lg tracking-[0.12em]'}`}
+        >
           {indicador.menorMelhor ? 'Menos é melhor' : 'Mais é melhor'}
         </span>
       </h2>
@@ -78,12 +80,14 @@ function Painel({ indicador, itens, compacto = false }: { indicador: IndicadorDe
           const v = valores[k] ?? 0;
           const largura = maior > 0 ? Math.max(1.5, (v / maior) * 100) : 1.5;
           return (
-            <li key={i.grupoId} className={`grid items-center ${compacto ? 'grid-cols-[170px_1fr_110px] gap-4' : 'grid-cols-[230px_1fr_120px] gap-5'}`}>
-              <span className="truncate text-2xl font-semibold">{i.nome}</span>
+            <li key={i.grupoId} className={`grid items-center ${compacto ? 'grid-cols-[160px_1fr_118px] gap-3' : 'grid-cols-[230px_1fr_120px] gap-5'}`}>
+              <span className={`truncate font-semibold ${compacto ? 'text-[22px]' : 'text-2xl'}`}>{i.nome}</span>
               <span aria-hidden="true" className="h-6 overflow-hidden rounded-pilula bg-white/10">
                 <span className="telao-barra block h-full rounded-pilula" style={{ width: `${largura}%`, background: i.cor }} />
               </span>
-              <span className="text-right font-space-mono text-3xl font-bold tabular-nums">{indicador.formatar(v)}</span>
+              <span className={`text-right font-space-mono font-bold whitespace-nowrap tabular-nums ${compacto ? 'text-[26px]' : 'text-3xl'}`}>
+                {indicador.formatar(v)}
+              </span>
             </li>
           );
         })}

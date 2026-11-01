@@ -40,19 +40,17 @@ export function EvolucaoTurma({ series, eventos, rodadas }: Props) {
   return (
     <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
       {temSeries && (
-        <Card
-          rotulo="Evolução"
-          titulo="O plantão hora a hora"
-          extra={<LegendaEvolucao className="text-sm text-texto-corpo" />}
-          espaco="m"
-        >
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <Card rotulo="Evolução" titulo="O plantão hora a hora" espaco="m">
+          <LegendaEvolucao apenasR1={so1} className="mb-3 text-sm text-texto-corpo" />
+          <div className="grid grid-cols-1 gap-5">
             <div>
               <p className="text-sm font-bold text-texto">Pacientes no DE (média por grupo)</p>
               <GraficoEvolucao
                 titulo="Pacientes no DE, média por grupo, hora a hora"
                 pontos={pontosDe}
                 minimoEixo={5}
+                fonte={15}
+                altura={200}
               />
             </div>
             <div>
@@ -61,6 +59,8 @@ export function EvolucaoTurma({ series, eventos, rodadas }: Props) {
                 titulo="Pacientes em boarding, média por grupo, hora a hora"
                 pontos={pontosBoarding}
                 minimoEixo={4}
+                fonte={15}
+                altura={200}
               />
             </div>
           </div>
