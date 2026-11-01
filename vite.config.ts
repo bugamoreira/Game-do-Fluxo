@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
           player: resolve(__dirname, 'jogar.html'),
           instructor: resolve(__dirname, 'instrutor.html'),
           projector: resolve(__dirname, 'projetor.html'),
+          relatorio: resolve(__dirname, 'relatorio.html'),
         },
       },
     },
