@@ -37,7 +37,7 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 - Transições validadas no servidor; qualquer outra é recusada.
 - `rodada_inicio` é gravado ao iniciar cada rodada; pausar e retomar acumulam `pausa_acumulada_ms`.
 - **Minuto do plantão** = 420 + ⌊(agora − rodada_inicio − pausa_acumulada) / 1000 ms⌋, limitado a 1140 (7h → 19h): 1 segundo real = 1 minuto simulado, rodada de 12 minutos. Durante a pausa, "agora" é o início da pausa; depois de encerrar, é `rodada_fim`. `estado_turma` já devolve o `minuto` calculado e a `hora_servidor`.
-- **Encerrar** grava `rodada_fim` e fecha a pausa em curso. Por 30 s depois disso o servidor ainda aceita envios da rodada que acabou, para o último placar (minuto 1140) não se perder na corrida com o clique do facilitador.
+- **Encerrar** grava `rodada_fim` e fecha a pausa em curso. Por 30 s depois disso o servidor ainda aceita envios da rodada que acabou, para o último placar (minuto 1140) não se perder na corrida com o clique do facilitador. Por isso `debrief → rodada2` antes de `rodada_fim + 30 s` é recusado com `TRANSICAO_INVALIDA` e a espera na frase (migração `20261102100400`); o painel mostra a contagem e sempre pede confirmação para iniciar o Lean.
 - **Nova turma com o mesmo código:** `abrir_turma` arquiva sozinho a anterior se ela estiver `encerrada` ou `aberta` sem grupos; em qualquer outro caso recusa com `CODIGO_EM_USO` e só arquiva com `p_substituir = true`. Nada é apagado (lição 2 do pós-mortem).
 - Qualquer facilitador cadastrado comanda qualquer turma (equipe pequena, um evento por vez).
 

@@ -293,6 +293,8 @@ update public.estado_jogo set atualizado_em = now() - interval '5 seconds';
 set role authenticated;
 set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 select tst.ok((public.mudar_status(:'turma_id', 'debrief') ->> 'status') = 'debrief', 'rodada1 -> debrief');
+select tst.ok(tst.erro_de(format($q$select public.mudar_status(%L, 'rodada2')$q$, :'turma_id')) like 'CB007:TRANSICAO_INVALIDA%',
+              'debrief -> rodada2 antes dos 30 s de tolerância -> TRANSICAO_INVALIDA com a espera');
 reset role;
 set role anon;
 set request.jwt.claims = '{"role":"anon"}';

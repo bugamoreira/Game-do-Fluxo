@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { GrupoDaTurma, StatusTurma } from '../../shared/schemas';
 import {
   contarProntos,
+  esperaParaLeanS,
   faseDoStatus,
   fasesAlcancadas,
   linkRelatorio,
@@ -23,11 +24,16 @@ const grupo = (parcial: Partial<GrupoPainel> & { id: string }): GrupoPainel => (
   ...parcial,
 });
 
-const turma = (status: StatusTurma, extra: { pausada?: boolean; fullCapacityLiberado?: boolean } = {}) => ({
+const turma = (
+  status: StatusTurma,
+  extra: { pausada?: boolean; fullCapacityLiberado?: boolean; rodadaFim?: string; horaServidor?: string } = {},
+) => ({
   status,
   codigo: 'CBMEDE',
   pausada: extra.pausada ?? false,
   fullCapacityLiberado: extra.fullCapacityLiberado ?? false,
+  ...(extra.rodadaFim ? { rodadaFim: extra.rodadaFim } : {}),
+  ...(extra.horaServidor ? { horaServidor: extra.horaServidor } : {}),
 });
 
 describe('faseDoStatus', () => {
@@ -148,6 +154,23 @@ describe('proximaAcao', () => {
     expect(proximaAcao(turma('encerrada'), null, seis).acao).toBe('gerarRelatorio');
     expect(proximaAcao(turma('arquivada'), null, seis, false).acao).toBe('gerarRelatorio');
     expect(proximaAcao(turma('arquivada'), null, seis, true).acao).toBe('novaTurma');
+  });
+});
+
+describe('espera para iniciar o Lean', () => {
+  const seis = Array.from({ length: 6 }, (_, i) => grupo({ id: String(i) }));
+  it('nos 30 s depois de encerrar o Travado, mostra a contagem e não oferece o botão', () => {
+    const t = turma('debrief', { rodadaFim: '2026-11-25T14:00:00.000Z', horaServidor: '2026-11-25T14:00:12.200Z' });
+    expect(esperaParaLeanS(t)).toBe(18);
+    const p = proximaAcao(t, null, seis);
+    expect(p.acao).toBeNull();
+    expect(p.texto).toContain('Aguarde 18 s');
+  });
+
+  it('passados os 30 s, oferece Iniciar Plantão Lean', () => {
+    const t = turma('debrief', { rodadaFim: '2026-11-25T14:00:00.000Z', horaServidor: '2026-11-25T14:00:31.000Z' });
+    expect(esperaParaLeanS(t)).toBe(0);
+    expect(proximaAcao(t, null, seis).acao).toBe('iniciarR2');
   });
 });
 

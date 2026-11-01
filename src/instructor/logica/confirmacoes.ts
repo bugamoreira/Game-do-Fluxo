@@ -1,7 +1,8 @@
 // ============================================================
 // Quais ações pedem confirmação e com que texto. Puro e testado.
 // Regra: ação que não se desfaz (encerrar, remover, nova turma, substituir)
-// sempre confirma; iniciar só confirma se algum grupo estiver sem conexão.
+// sempre confirma; iniciar o Lean sempre confirma; iniciar o Travado só
+// confirma se algum grupo estiver sem conexão.
 // ============================================================
 
 import { horaDoPlantao } from '../../shared/components/ui/cx';
@@ -33,7 +34,17 @@ export function confirmacaoPara(acao: AcaoConfirmavel): Confirmacao | null {
     case 'iniciar': {
       const nome = acao.rodada === 1 ? 'Plantão Travado' : 'Plantão Lean';
       const { desconectados } = contarProntos(acao.grupos);
-      if (desconectados.length === 0) return null;
+      if (desconectados.length === 0) {
+        // O Lean sempre confirma: um clique por engano encerra o debrief para a turma inteira.
+        if (acao.rodada === 1) return null;
+        return {
+          titulo: 'Iniciar o Plantão Lean?',
+          descricao:
+            'O debrief termina e o relógio do Plantão Lean começa a correr em todos os computadores. Não é possível voltar ao debrief.',
+          rotuloConfirmar: 'Iniciar Plantão Lean',
+          destrutiva: false,
+        };
+      }
       const nomes = listaNatural(desconectados.map((g) => g.nome));
       return {
         titulo: `Iniciar o ${nome} com ${plural(desconectados.length, 'grupo', 'grupos')} sem conexão?`,

@@ -17,6 +17,13 @@ describe('confirmacaoPara', () => {
     expect(confirmacaoPara({ tipo: 'iniciar', rodada: 1, grupos: [grupo('A'), grupo('B')] })).toBeNull();
   });
 
+  it('iniciar o Lean sempre confirma, mesmo com todos conectados', () => {
+    const c = confirmacaoPara({ tipo: 'iniciar', rodada: 2, grupos: [grupo('A'), grupo('B')] });
+    expect(c).not.toBeNull();
+    expect(c!.titulo).toBe('Iniciar o Plantão Lean?');
+    expect(c!.rotuloConfirmar).toBe('Iniciar Plantão Lean');
+  });
+
   it('iniciar ignora grupos removidos', () => {
     expect(confirmacaoPara({ tipo: 'iniciar', rodada: 1, grupos: [grupo('A'), grupo('X', false, true)] })).toBeNull();
   });

@@ -4,7 +4,7 @@
 // Sem React e sem rede: testada em __tests__/fases.test.ts.
 // ============================================================
 
-import type { EstadoTurma, GrupoDaTurma, StatusTurma } from '../../shared/schemas';
+import { instanteEmMs, type EstadoTurma, type GrupoDaTurma, type StatusTurma } from '../../shared/schemas';
 import { MINUTO_FIM, MINUTO_INICIO } from '../../shared/hooks/relogio';
 import { duracaoCurta, horaDoPlantao } from '../../shared/components/ui/cx';
 import { plural, tempoDecorrido } from './formato';
@@ -176,11 +176,28 @@ export interface ProximaAcao {
   rotuloAcao?: string;
 }
 
+/** Tolerância depois de "Encerrar": o servidor ainda aceita o último placar da rodada (docs/schema.md). */
+export const TOLERANCIA_ENCERRAR_S = 30;
+
+/**
+ * Segundos que faltam para poder iniciar o Plantão Lean (o servidor recusa
+ * debrief → rodada2 antes de `rodada_fim + 30 s`). Usa a hora do servidor da
+ * última leitura, que chega a cada consulta.
+ */
+export function esperaParaLeanS(turma: Partial<Pick<EstadoTurma, 'rodadaFim' | 'horaServidor'>>): number {
+  if (!turma.rodadaFim || !turma.horaServidor) return 0;
+  const fim = instanteEmMs(turma.rodadaFim);
+  const agora = instanteEmMs(turma.horaServidor);
+  if (!Number.isFinite(fim) || !Number.isFinite(agora)) return 0;
+  return Math.max(0, Math.ceil((fim + TOLERANCIA_ENCERRAR_S * 1000 - agora) / 1000));
+}
+
 /** A partir das 11h os grupos sentem o pico: momento sugerido para liberar o PCP. */
 export const MINUTO_SUGERIDO_PCP = 660;
 
 export function proximaAcao(
-  turma: Pick<EstadoTurma, 'status' | 'pausada' | 'fullCapacityLiberado' | 'codigo'>,
+  turma: Pick<EstadoTurma, 'status' | 'pausada' | 'fullCapacityLiberado' | 'codigo'> &
+    Partial<Pick<EstadoTurma, 'rodadaFim' | 'horaServidor'>>,
   minuto: number | null,
   grupos: GrupoPainel[],
   relatorioGerado = false,
@@ -246,7 +263,14 @@ export function proximaAcao(
       };
     }
 
-    case 'debrief':
+    case 'debrief': {
+      const espera = esperaParaLeanS(turma);
+      if (espera > 0)
+        return {
+          titulo: 'Iniciar o Plantão Lean',
+          texto: `Aguarde ${espera} s: os últimos placares do Plantão Travado ainda estão chegando. Enquanto isso, abra a discussão dos números da rodada 1.`,
+          acao: null,
+        };
       return {
         titulo: 'Iniciar o Plantão Lean',
         texto:
@@ -254,6 +278,7 @@ export function proximaAcao(
         acao: 'iniciarR2',
         rotuloAcao: 'Iniciar Plantão Lean',
       };
+    }
 
     case 'encerrada':
       return {
