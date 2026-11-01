@@ -187,6 +187,28 @@ describe('ControladorEstadoTurma: pausa não deixa ninguém à frente (ensaio E2
     c.parar();
   });
 
+  it('sem rede (consulta falhou), o teto sai e o motor segue o relógio extrapolado', async () => {
+    let rede = true;
+    const buscar = vi.fn(async (): Promise<EstadoTurma> => {
+      if (!rede) throw new SemConexao();
+      return { ...turmaBase(), horaServidor: new Date(Date.now()).toISOString() };
+    });
+    const c = new ControladorEstadoTurma('CBMEDE', 1000, { buscar });
+    c.iniciar();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.instantaneo().minutoTeto).toBe(450);
+    rede = false;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(c.instantaneo().conexao).not.toBe('online');
+    expect(c.instantaneo().minutoTeto).toBeNull();
+    expect(c.instantaneo().minutoServidor).toBe(460);
+    rede = true;
+    c.tentarAgora();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(c.instantaneo().minutoTeto).not.toBeNull();
+    c.parar();
+  });
+
   it('nova rodada zera o relógio monotônico', async () => {
     let turma = turmaBase({ rodadaInicio: new Date(INICIO - 600_000).toISOString() });
     const buscar = vi.fn(async (): Promise<EstadoTurma> => ({ ...turma, horaServidor: new Date(Date.now()).toISOString() }));

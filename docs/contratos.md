@@ -84,7 +84,8 @@ useEstadoTurma(codigo, intervaloMs = 1000): {
 // as consultas e nunca volta dentro da rodada (segura até o servidor alcançar).
 // `minutoTeto` = minuto da última leitura + no máximo 1 s (MARGEM_EXTRAPOLACAO_MS):
 // o motor do grupo (`minutoAlvo`) nunca passa dele, então uma pausa vista com
-// atraso deixa o grupo no máximo um minuto à frente, e só sem rede ele para.
+// atraso deixa o grupo no máximo um minuto à frente. Sem rede (consulta falhou,
+// `conexao` ≠ 'online') o teto sai e o jogo segue o relógio local, como antes.
 useRanking(codigo): { itens: ItemRanking[]; conexao }
 useSincronizarJogo(token, estado): { conexao; ultimaSincronizacao: Date | null }
 // envia a cada 2 s, guarda cópia local a cada passo, backoff 1→2→4→8→15 s, nunca expulsa o grupo

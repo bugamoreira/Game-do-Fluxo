@@ -33,7 +33,9 @@ export interface InstantaneoTurma {
   minutoServidor: number | null;
   /**
    * Até onde o motor do grupo pode avançar agora: o minuto da última leitura do
-   * servidor mais no máximo `MARGEM_EXTRAPOLACAO_MS`. `null` sem leitura ou fora de rodada.
+   * servidor mais no máximo `MARGEM_EXTRAPOLACAO_MS`. `null` sem leitura, fora de
+   * rodada ou sem rede (`conexao` diferente de `online`): sem rede o jogo segue o
+   * relógio extrapolado, como sempre (docs/design.md §5).
    */
   minutoTeto?: number | null;
   erro: ErroExposto;
@@ -117,7 +119,9 @@ export class ControladorEstadoTurma extends LojaObservavel<InstantaneoTurma> {
     if (agoraServidor === null) return;
     const leitura = this.leitura;
     const extrapolado = leitura ? Math.min(MARGEM_EXTRAPOLACAO_MS, Math.max(0, agoraLocal - leitura.localMs)) : 0;
-    const minutoTeto = leitura ? minutoDaTurma(turma, leitura.servidorMs + extrapolado) : null;
+    // Sem rede (a consulta falhou): o teto sai e o jogo continua andando com o relógio local.
+    const online = this.instantaneo().conexao === 'online';
+    const minutoTeto = leitura && online ? minutoDaTurma(turma, leitura.servidorMs + extrapolado) : null;
     // Pausada sem `pausadaEm`: congela no último minuto conhecido.
     if (turma.pausada && !turma.pausadaEm && anterior !== null) {
       this.atualizar({ minutoTeto: minutoTeto === null ? null : Math.min(minutoTeto, anterior) });
