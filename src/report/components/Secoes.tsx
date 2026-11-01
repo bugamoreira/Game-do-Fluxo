@@ -151,7 +151,7 @@ export function SecaoRanking({ numero, vista }: { numero: number; vista: Relator
       numero={numero}
       rotulo="Resultado"
       titulo="Ranking final e pódio"
-      intro="O ranking final segue a pontuação do Plantão Lean (rodada 2); em caso de empate, vale a soma das duas rodadas. A evolução mostra quanto cada grupo ganhou de uma rodada para a outra."
+      intro="O ranking final premia a evolução: quanto cada grupo melhorou do Plantão Travado para o Plantão Lean. Em caso de empate, vale a pontuação do Plantão Lean."
     >
       {grupos.length === 0 ? (
         <p className="text-texto-suave">Nenhum grupo tem pontuação registrada.</p>

@@ -65,7 +65,7 @@ export function Final({ itens, series = null }: { itens: ItemRanking[]; series?:
                 <span className="font-space-mono font-bold text-white/75">{i + 4}º</span>
                 <span aria-hidden="true" className="size-4 rounded-full" style={{ background: g.cor }} />
                 <span className="font-semibold">{g.nome}</span>
-                <span className="font-space-mono text-white/85 tabular-nums">{formatarInteiro(g.final)}</span>
+                <span className="font-space-mono text-white/85 tabular-nums">{Number.isFinite(g.final) ? `${g.final > 0 ? "+" : ""}${formatarInteiro(g.final)}` : "—"}</span>
               </li>
             ))}
           </ul>
@@ -141,7 +141,7 @@ function Vencedor({ g, posicao, atraso }: { g: ColocacaoFinal; posicao: number; 
     <div className="telao-surgir mb-5 flex flex-col items-center text-center" style={{ animationDelay: `${atraso + 900}ms` }}>
       <Medalhao nome={g.nome} cor={g.cor} tamanho={primeiro ? 120 : 92} />
       <p className={cx('mt-3 max-w-[280px] truncate font-bold', primeiro ? 'text-[40px]' : 'text-[32px]')}>{g.nome}</p>
-      <p className={cx('font-space-mono font-bold tabular-nums', primeiro ? 'text-6xl text-amarelo' : 'text-5xl')}>{formatarInteiro(g.final)}</p>
+      <p className={cx('font-space-mono font-bold tabular-nums', primeiro ? 'text-6xl text-amarelo' : 'text-5xl')}>{Number.isFinite(g.final) ? `${g.final > 0 ? "+" : ""}${formatarInteiro(g.final)}` : "—"}</p>
     </div>
   );
 }

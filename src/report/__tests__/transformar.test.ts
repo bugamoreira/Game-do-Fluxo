@@ -94,14 +94,16 @@ describe('ranking final', () => {
     expect(grupos[2]!.evolucao).toBeNull();
   });
 
-  it('desempata pela soma das duas rodadas e depois pelo nome', () => {
+  it('ordena pela melhora R2 − R1, desempata pelo Lean e depois pelo nome', () => {
     const r = (p: number) => ({ pontuacao: p, metricas: {} });
     const ordem = ordenarRankingFinal([
-      { nome: 'B', r1: r(500), r2: r(1000) },
-      { nome: 'A', r1: r(800), r2: r(1000) },
-      { nome: 'C', r1: r(500), r2: r(1000) },
+      { nome: 'B', r1: r(500), r2: r(1000) },  // +500
+      { nome: 'A', r1: r(800), r2: r(1000) },  // +200
+      { nome: 'C', r1: r(500), r2: r(1000) },  // +500, empata com B
+      { nome: 'D', r1: r(700), r2: r(1200) },  // +500, Lean maior
+      { nome: 'E', r1: r(1400), r2: null },    // sem Lean: por último
     ]);
-    expect(ordem.map(g => g.nome)).toEqual(['A', 'B', 'C']);
+    expect(ordem.map(g => g.nome)).toEqual(['D', 'B', 'C', 'A', 'E']);
   });
 
   it('usa o placar quando o ranking congelado não tem o grupo', () => {

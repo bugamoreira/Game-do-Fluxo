@@ -35,9 +35,15 @@ describe('ranking', () => {
     expect(lista.map((i) => i.grupoId)).toEqual(['b', 'a']);
   });
 
-  it('pódio usa a rodada 2 e, se faltar, a 1', () => {
-    const c = classificacaoFinal([item('a', 1, 900), item('a', 2, 1200), item('b', 1, 1100)]);
-    expect(c.map((g) => [g.grupoId, g.final])).toEqual([['a', 1200], ['b', 1100]]);
+  it('pódio premia a melhora do Travado para o Lean; empate pela pontuação do Lean', () => {
+    const c = classificacaoFinal([
+      item('a', 1, 900), item('a', 2, 1200),   // +300
+      item('b', 1, 400), item('b', 2, 1000),   // +600
+      item('c', 1, 700), item('c', 2, 1300),   // +600, Lean maior que b
+      item('d', 1, 1100),                      // sem Lean: fica por último
+    ]);
+    expect(c.map((g) => g.grupoId)).toEqual(['c', 'b', 'a', 'd']);
+    expect(c[0]!.final).toBe(600);
   });
 });
 

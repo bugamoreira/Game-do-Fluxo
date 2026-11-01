@@ -131,10 +131,11 @@ export function comparativo(ranking: ItemRanking[]): LinhaComparativa[] {
     ...l,
     ganho: l.r1 && l.r2 ? l.r2.pontuacao - l.r1.pontuacao : null,
   }));
+  // Ranking final: melhora do Travado para o Lean; empate pela pontuação do Lean.
   return linhas.sort(
     (a, b) =>
-      (b.r2?.pontuacao ?? -Infinity) - (a.r2?.pontuacao ?? -Infinity) ||
-      (b.r1?.pontuacao ?? 0) - (a.r1?.pontuacao ?? 0),
+      (b.ganho ?? -Infinity) - (a.ganho ?? -Infinity) ||
+      (b.r2?.pontuacao ?? -Infinity) - (a.r2?.pontuacao ?? -Infinity),
   );
 }
 

@@ -345,7 +345,7 @@ export interface ColocacaoFinal {
   cor: string;
   r1: number | null;
   r2: number | null;
-  /** Placar que decide o pódio: o da rodada 2 (Lean) ou, se faltar, o da 1. */
+  /** O que decide o pódio: a melhora do Travado para o Lean (R2 − R1). */
   final: number;
 }
 
@@ -358,8 +358,8 @@ export function classificacaoFinal(itens: ItemRanking[]): ColocacaoFinal[] {
     porGrupo.set(i.grupoId, c);
   }
   return [...porGrupo.values()]
-    .map((c) => ({ ...c, final: c.r2 ?? c.r1 ?? 0 }))
-    .sort((a, b) => b.final - a.final || a.nome.localeCompare(b.nome, 'pt-BR'));
+    .map((c) => ({ ...c, final: c.r1 !== null && c.r2 !== null ? c.r2 - c.r1 : Number.NEGATIVE_INFINITY }))
+    .sort((a, b) => b.final - a.final || (b.r2 ?? 0) - (a.r2 ?? 0) || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 /** "1 grupo", "6 grupos". */

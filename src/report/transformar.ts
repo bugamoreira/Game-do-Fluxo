@@ -137,11 +137,12 @@ function resultados(dados: DadosRelatorio): Map<string, Partial<Record<Rodada, R
 }
 
 /**
- * Critério do ranking final: pontuação do Plantão Lean (R2); empate pela soma
- * das duas rodadas. Grupo sem R2 fica depois, pela R1.
+ * Critério do ranking final (decisão do Gustavo): a melhora do Plantão Travado
+ * para o Plantão Lean (R2 − R1); empate pela pontuação do Lean. Grupo sem as
+ * duas rodadas fica depois, pela pontuação que tiver.
  */
 export function ordenarRankingFinal<T extends { r1: Resultado | null; r2: Resultado | null; nome: string }>(grupos: T[]): T[] {
-  const chave = (g: T) => [g.r2 ? 1 : 0, g.r2?.pontuacao ?? g.r1?.pontuacao ?? 0, (g.r1?.pontuacao ?? 0) + (g.r2?.pontuacao ?? 0)];
+  const chave = (g: T) => [g.r1 && g.r2 ? 1 : 0, g.r1 && g.r2 ? g.r2.pontuacao - g.r1.pontuacao : 0, g.r2?.pontuacao ?? g.r1?.pontuacao ?? 0];
   return [...grupos].sort((a, b) => {
     const ca = chave(a);
     const cb = chave(b);
