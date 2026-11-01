@@ -31,7 +31,7 @@ Jogo educacional de gestão de fluxo na emergência para o curso pré-congresso 
 | `supabase/` | Migrações, rollback e testes SQL locais |
 | `scripts/backend-local/` | Postgres temporário + servidor que imita o Supabase, para o ensaio |
 
-Toda escrita passa por RPC `security definer` que valida quem chama; o navegador fala só com o próprio domínio (proxy `/rest` e `/auth` no `netlify.toml` e no `vite.config.ts`). Jogo, painel, telão e relatório têm modo demonstração (`?demo=1`). `src/shared/types/` e `src/shared/lib/game-engine.ts` ainda fornecem tipos e a fórmula de pontos ao motor; `src/shared/stores/game-store.ts` e os componentes soltos em `src/shared/components/` (`Podium`, `TeamRow`, `ScoreBar`, `PSvg`) são legado do FLAME e não devem ser usados em código novo.
+Toda escrita passa por RPC `security definer` que valida quem chama; o navegador fala só com o próprio domínio (proxy `/rest` e `/auth` no `netlify.toml` e no `vite.config.ts`). Jogo, painel, telão e relatório têm modo demonstração (`?demo=1`). `src/shared/types/` e `src/shared/lib/game-engine.ts` ainda fornecem tipos e a fórmula de pontos ao motor; os componentes soltos em `src/shared/components/` (`Podium`, `TeamRow`, `ScoreBar`, `PSvg`) são legado do FLAME e não devem ser usados em código novo.
 
 ## Regras de trabalho
 

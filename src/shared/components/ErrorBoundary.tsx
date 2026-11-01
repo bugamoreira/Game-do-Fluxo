@@ -1,55 +1,54 @@
+// Barreira de erro na raiz de cada página (playbook cap. 04, regra 5): um erro
+// em qualquer componente mostra uma tela amigável, com o design system do
+// CBMEDE, em vez de derrubar a página. O erro vai para o Sentry (quando
+// configurado) e, em desenvolvimento, para o console.
+
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Sentry } from '../lib/sentry';
+import { Button, Card } from './ui';
 
 interface Props {
   children: ReactNode;
 }
 
 interface State {
-  hasError: boolean;
-  error: Error | null;
+  temErro: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { temErro: false };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+  static getDerivedStateFromError(): State {
+    return { temErro: true };
   }
 
-  componentDidCatch(err: Error, info: ErrorInfo): void {
-    console.error('[FLAME ErrorBoundary]', err, info?.componentStack);
+  componentDidCatch(erro: Error, info: ErrorInfo): void {
+    Sentry.captureException(erro, { extra: { componentStack: info.componentStack } });
+    if (import.meta.env.DEV) console.error('Erro capturado pela barreira de erro:', erro, info.componentStack);
   }
 
   render() {
-    if (!this.state.hasError) return this.props.children;
+    if (!this.state.temErro) return this.props.children;
 
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#060a13', padding: 20 }}>
-        <div style={{ textAlign: 'center', maxWidth: 440 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>&#x26A0;&#xFE0F;</div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#FF3B3B', marginBottom: 8 }}>Algo deu errado</div>
-          <div style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
-            O jogo encontrou um erro inesperado. Seus dados estão salvos — basta recarregar.
-          </div>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              background: 'linear-gradient(135deg,#FF3B3B,#dc2626)',
-              padding: '14px 32px', fontSize: 16, fontWeight: 800, borderRadius: 10,
-              boxShadow: '0 4px 24px rgba(255,59,59,.3)', cursor: 'pointer',
-              border: 'none', color: '#fff',
-            }}
-          >
-            Recarregar
-          </button>
-          <div style={{ color: '#475569', fontSize: 11, marginTop: 16 }}>
-            {this.state.error?.message || 'Erro desconhecido'}
-          </div>
+      <main className="grid min-h-screen place-items-center bg-fundo-app p-6 font-sora text-texto">
+        <div role="alert" className="w-full max-w-md">
+          <Card grande rotulo="Erro inesperado" titulo="Algo não saiu como esperado">
+            <p className="text-[15px] leading-relaxed text-texto-corpo">
+              A página encontrou um erro e precisou parar. O jogo do grupo fica salvo neste computador: recarregue a
+              página para continuar de onde parou.
+            </p>
+            <div className="mt-6">
+              <Button variante="verde" tamanho="g" larguraTotal onClick={() => window.location.reload()}>
+                Recarregar a página
+              </Button>
+            </div>
+          </Card>
         </div>
-      </div>
+      </main>
     );
   }
 }
