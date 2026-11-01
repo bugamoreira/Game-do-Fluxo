@@ -186,6 +186,7 @@ function rodadaDoStatus(status: EstadoTurma['status'] | undefined): Rodada | nul
 function SalaDoGrupo({ porta, sala, grupo, onSair }: SalaDoGrupoProps) {
   const consulta = porta.useEstadoTurma(sala, 1000, grupo.token);
   const { conexao, minutoServidor } = consulta;
+  const minutoTeto = consulta.minutoTeto ?? null;
   const estado = useJogo(s => s.estado);
   const resumos = useJogo(s => s.resumos);
   /** Respostas do servidor sobre o jogo salvo de cada rodada (entrada ou `obter_estado`). */
@@ -198,6 +199,7 @@ function SalaDoGrupo({ porta, sala, grupo, onSair }: SalaDoGrupoProps) {
   const statusAnterior = useRef<EstadoTurma['status'] | null>(null);
   const viuInicio = useRef<Record<Rodada, boolean>>({ 1: false, 2: false });
   const minutoRef = useRef(minutoServidor);
+  const tetoRef = useRef(minutoTeto);
   const [ultimaDaTurma, setUltimaDaTurma] = useState<EstadoTurma | null>(null);
 
   // A sala pode abrir outra turma com o mesmo código: a tela final da turma do grupo fica parada.
@@ -214,6 +216,9 @@ function SalaDoGrupo({ porta, sala, grupo, onSair }: SalaDoGrupoProps) {
   useEffect(() => {
     minutoRef.current = minutoServidor;
   }, [minutoServidor]);
+  useEffect(() => {
+    tetoRef.current = minutoTeto;
+  }, [minutoTeto]);
 
   useEffect(() => {
     if (daTurma) setUltimaDaTurma(daTurma);
@@ -286,7 +291,9 @@ function SalaDoGrupo({ porta, sala, grupo, onSair }: SalaDoGrupoProps) {
       }
       setBloqueio(null);
       // Começar do zero ou restaurar: o motor avança até o minuto da sala.
-      loja.carregar(retomada.estado, minutoRef.current);
+      const teto = tetoRef.current;
+      const minutoSala = minutoRef.current;
+      loja.carregar(retomada.estado, minutoSala !== null && teto !== null ? Math.min(minutoSala, teto) : minutoSala);
     } else if (turma.status !== 'aberta' && !loja.estado) {
       // Depois de recarregar a página no debrief ou no fim: o resumo vem da cópia local.
       const copia = comoEstadoSimulacao(porta.lerCopia(grupo.token)) ?? comoEstadoSimulacao(grupo.servidor?.estado);
@@ -306,7 +313,7 @@ function SalaDoGrupo({ porta, sala, grupo, onSair }: SalaDoGrupoProps) {
   }, [rodada]);
 
   // Relógio: segue o minuto do servidor; pausa do facilitador congela.
-  const obterAlvo = useCallback((local: number) => minutoAlvo(local, minutoRef.current, pausada), [pausada]);
+  const obterAlvo = useCallback((local: number) => minutoAlvo(local, minutoRef.current, pausada, tetoRef.current), [pausada]);
   useRelogioDoJogo(jogando, obterAlvo);
 
   // Facilitador liberou ou revogou o PCP (Full Capacity).

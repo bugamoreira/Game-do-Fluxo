@@ -7,7 +7,8 @@
 import type { EstadoBaseSync, EstadoTurma, EventoJogo, ItemRanking, Rodada } from '../schemas';
 import { RodadaInvalida, SemConexao, TurmaNaoEncontrada, VersaoAntiga, type ErroSimulador } from '../services/erros';
 import { CicloPeriodico, LojaObservavel, type Conexao } from './cicloPeriodico';
-import { RelogioServidor, minutoDaTurma } from './relogio';
+import { MARGEM_EXTRAPOLACAO_MS, RelogioServidor, minutoDaTurma } from './relogio';
+import { instanteEmMs } from '../schemas';
 
 /** Erro exposto às telas: o tipado, quando houver; senão o genérico. */
 export type ErroExposto = ErroSimulador | Error | null;
@@ -24,8 +25,17 @@ export const TIQUE_RELOGIO_MS = 250;
 export interface InstantaneoTurma {
   turma: EstadoTurma | null;
   conexao: Conexao;
-  /** Minuto do plantão (420..1140) corrigido pela hora do servidor; `null` fora de rodada. */
+  /**
+   * Minuto do plantão (420..1140) corrigido pela hora do servidor; `null` fora de rodada.
+   * Anda sozinho entre as consultas e nunca volta dentro da rodada: se o servidor
+   * disser um minuto menor (pausa vista com atraso), segura até alcançar.
+   */
   minutoServidor: number | null;
+  /**
+   * Até onde o motor do grupo pode avançar agora: o minuto da última leitura do
+   * servidor mais no máximo `MARGEM_EXTRAPOLACAO_MS`. `null` sem leitura ou fora de rodada.
+   */
+  minutoTeto?: number | null;
   erro: ErroExposto;
 }
 
@@ -41,6 +51,10 @@ export class ControladorEstadoTurma extends LojaObservavel<InstantaneoTurma> {
   private readonly relogio = new RelogioServidor();
   private tique: ReturnType<typeof setInterval> | null = null;
   private readonly agora: () => number;
+  /** Última leitura: hora do servidor e hora local em que a resposta chegou. */
+  private leitura: { servidorMs: number; localMs: number } | null = null;
+  /** Rodada do relógio monotônico (turma + status). */
+  private rodadaDoRelogio: string | null = null;
 
   constructor(
     private readonly codigo: string,
@@ -78,15 +92,19 @@ export class ControladorEstadoTurma extends LojaObservavel<InstantaneoTurma> {
   }
 
   private async consultar(): Promise<void> {
+    const envio = this.agora();
     const turma = await this.deps.buscar(this.codigo, this.deps.token ?? null);
-    this.relogio.registrar(turma.horaServidor, this.agora());
+    const chegada = this.agora();
+    this.relogio.registrar(turma.horaServidor, chegada, envio);
+    const servidorMs = instanteEmMs(turma.horaServidor);
+    this.leitura = Number.isFinite(servidorMs) ? { servidorMs, localMs: chegada } : null;
     this.atualizar({ turma, erro: null });
     this.recalcularMinuto();
   }
 
   private aoErro(e: unknown): void {
     // Falha de rede nunca apaga a turma conhecida: a tela segue com o último estado.
-    if (e instanceof TurmaNaoEncontrada) this.atualizar({ turma: null, erro: e, minutoServidor: null });
+    if (e instanceof TurmaNaoEncontrada) this.atualizar({ turma: null, erro: e, minutoServidor: null, minutoTeto: null });
     else this.atualizar({ erro: comoErro(e) });
   }
 
@@ -94,11 +112,23 @@ export class ControladorEstadoTurma extends LojaObservavel<InstantaneoTurma> {
   private recalcularMinuto(): void {
     const { turma, minutoServidor: anterior } = this.instantaneo();
     if (!turma) return;
-    const agoraServidor = this.relogio.agora(this.agora());
+    const agoraLocal = this.agora();
+    const agoraServidor = this.relogio.agora(agoraLocal);
     if (agoraServidor === null) return;
+    const leitura = this.leitura;
+    const extrapolado = leitura ? Math.min(MARGEM_EXTRAPOLACAO_MS, Math.max(0, agoraLocal - leitura.localMs)) : 0;
+    const minutoTeto = leitura ? minutoDaTurma(turma, leitura.servidorMs + extrapolado) : null;
     // Pausada sem `pausadaEm`: congela no último minuto conhecido.
-    if (turma.pausada && !turma.pausadaEm && anterior !== null) return;
-    this.atualizar({ minutoServidor: minutoDaTurma(turma, agoraServidor) });
+    if (turma.pausada && !turma.pausadaEm && anterior !== null) {
+      this.atualizar({ minutoTeto: minutoTeto === null ? null : Math.min(minutoTeto, anterior) });
+      return;
+    }
+    let minuto = minutoDaTurma(turma, agoraServidor);
+    const rodada = minuto === null ? null : `${turma.id}:${turma.status}`;
+    // Monotônico dentro da rodada: o relógio exibido segura em vez de voltar.
+    if (minuto !== null && anterior !== null && rodada === this.rodadaDoRelogio && minuto < anterior) minuto = anterior;
+    this.rodadaDoRelogio = rodada;
+    this.atualizar({ minutoServidor: minuto, minutoTeto });
   }
 }
 

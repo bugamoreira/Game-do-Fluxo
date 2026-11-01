@@ -77,7 +77,14 @@ useEstadoTurma(codigo, intervaloMs = 1000): {
   turma: EstadoTurma | null;
   conexao: 'online' | 'reconectando' | 'offline';
   minutoServidor: number | null;     // relógio do plantão já corrigido pela hora do servidor
+  minutoTeto?: number | null;        // até onde o motor do grupo pode avançar agora
 }
+// Relógio (ensaio E2): o desvio local desconta metade da ida e volta da consulta e
+// vale a medição recente de menor ida e volta. `minutoServidor` anda sozinho entre
+// as consultas e nunca volta dentro da rodada (segura até o servidor alcançar).
+// `minutoTeto` = minuto da última leitura + no máximo 1 s (MARGEM_EXTRAPOLACAO_MS):
+// o motor do grupo (`minutoAlvo`) nunca passa dele, então uma pausa vista com
+// atraso deixa o grupo no máximo um minuto à frente, e só sem rede ele para.
 useRanking(codigo): { itens: ItemRanking[]; conexao }
 useSincronizarJogo(token, estado): { conexao; ultimaSincronizacao: Date | null }
 // envia a cada 2 s, guarda cópia local a cada passo, backoff 1→2→4→8→15 s, nunca expulsa o grupo

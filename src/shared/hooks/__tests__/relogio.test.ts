@@ -38,6 +38,23 @@ describe('RelogioServidor', () => {
     expect(r.desvioMs).toBe(-3_600_000);
     expect(r.agora(INICIO + 3_605_000)).toBe(INICIO + 5000);
   });
+
+  it('desconta metade do tempo de ida e volta da consulta', () => {
+    const r = new RelogioServidor();
+    // Enviada em local 0, respondida em local 800: o servidor leu a hora no meio (400).
+    r.registrar(new Date(INICIO).toISOString(), 800, 0);
+    expect(r.desvioMs).toBe(INICIO - 400);
+  });
+
+  it('prefere a medição recente com menor ida e volta', () => {
+    const r = new RelogioServidor();
+    r.registrar(new Date(INICIO + 1000).toISOString(), 1100, 900); // RTT 200: desvio INICIO
+    r.registrar(new Date(INICIO + 5000).toISOString(), 7000, 3000); // RTT 4000: desvio INICIO
+    expect(r.desvioMs).toBe(INICIO);
+    // Uma resposta lenta e assimétrica não desloca o relógio.
+    r.registrar(new Date(INICIO + 9000).toISOString(), 11_000, 8000); // RTT 3000, estimativa INICIO - 500
+    expect(r.desvioMs).toBe(INICIO);
+  });
 });
 
 // ── Controlador: relógio corrigido, pausa e queda de rede ──────
@@ -111,6 +128,76 @@ describe.each([
     await vi.advanceTimersByTimeAsync(10_000);
     expect(c.instantaneo().minutoServidor).toBe(475);
 
+    c.parar();
+  });
+});
+
+describe('ControladorEstadoTurma: pausa não deixa ninguém à frente (ensaio E2)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(INICIO + 30_000);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('teto do motor = última leitura + no máximo 1 s; relógio exibido não volta', async () => {
+    let turma = turmaBase();
+    let segurar = false;
+    let liberar: (() => void) | null = null;
+    const buscar = vi.fn(async (): Promise<EstadoTurma> => {
+      const resposta = { ...turma, horaServidor: new Date(Date.now()).toISOString() };
+      if (segurar) await new Promise<void>((r) => { liberar = r; });
+      return resposta;
+    });
+    const c = new ControladorEstadoTurma('CBMEDE', 1000, { buscar });
+    c.iniciar();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.instantaneo().minutoServidor).toBe(450);
+    expect(c.instantaneo().minutoTeto).toBe(450);
+
+    await vi.advanceTimersByTimeAsync(900);
+    // Extrapolado: ainda 450 (0,9 s). Teto = leitura (+30 s) + 0,9 s = 450.
+    expect(c.instantaneo().minutoTeto).toBe(450);
+
+    // O facilitador pausa em +31,5 s; a próxima consulta demora (servidor lento).
+    await vi.advanceTimersByTimeAsync(100); // +31 s: leitura ainda sem pausa
+    turma = turmaBase({ pausada: true, pausadaEm: new Date(INICIO + 31_500).toISOString() });
+    segurar = true; // a consulta de +32 s lê a pausa e fica presa
+    await vi.advanceTimersByTimeAsync(1000); // +32 s, leitura presa
+    await vi.advanceTimersByTimeAsync(3000); // +35 s
+    // O relógio exibido extrapolou até 455, mas o teto do motor parou em +31 s + 1 s.
+    expect(c.instantaneo().minutoServidor).toBeGreaterThan(452);
+    expect(c.instantaneo().minutoTeto).toBeLessThanOrEqual(452);
+
+    // A resposta chega: servidor diz pausado em 451. O motor nunca passou de 452
+    // (no máximo 1 tique à frente) e o relógio exibido segura, sem voltar.
+    const exibidoAntes = c.instantaneo().minutoServidor!;
+    segurar = false;
+    (liberar as (() => void) | null)?.();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(c.instantaneo().minutoServidor).toBe(exibidoAntes);
+    expect(c.instantaneo().minutoTeto).toBe(451);
+
+    // Retoma com 5 s de pausa acumulada: o relógio exibido só volta a andar quando alcança.
+    turma = turmaBase({ pausaAcumuladaMs: 5_000 });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(c.instantaneo().minutoServidor).toBe(exibidoAntes);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(c.instantaneo().minutoServidor).toBeGreaterThan(exibidoAntes);
+    c.parar();
+  });
+
+  it('nova rodada zera o relógio monotônico', async () => {
+    let turma = turmaBase({ rodadaInicio: new Date(INICIO - 600_000).toISOString() });
+    const buscar = vi.fn(async (): Promise<EstadoTurma> => ({ ...turma, horaServidor: new Date(Date.now()).toISOString() }));
+    const c = new ControladorEstadoTurma('CBMEDE', 1000, { buscar });
+    c.iniciar();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.instantaneo().minutoServidor).toBe(1050);
+    turma = turmaBase({ status: 'rodada2', rodada: 2, rodadaInicio: new Date(Date.now()).toISOString() });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(c.instantaneo().minutoServidor).toBeLessThan(425);
     c.parar();
   });
 });

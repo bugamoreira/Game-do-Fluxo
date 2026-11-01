@@ -29,11 +29,18 @@ export const PASSOS_LOTE = 3;
 
 /**
  * Minuto até onde o motor local deve avançar agora, ou `null` para ficar parado.
- * O local nunca passa do servidor; pausa do facilitador congela.
+ * O local nunca passa do servidor nem do `teto` (última leitura confirmada mais
+ * no máximo um tique: uma pausa vista com atraso não deixa o grupo à frente);
+ * pausa do facilitador congela.
  */
-export function minutoAlvo(minutoLocal: number, minutoServidor: number | null, pausada: boolean): number | null {
+export function minutoAlvo(
+  minutoLocal: number,
+  minutoServidor: number | null,
+  pausada: boolean,
+  teto: number | null = null,
+): number | null {
   if (pausada || minutoServidor === null) return null;
-  const alvo = Math.min(MINUTO_FIM, minutoServidor);
+  const alvo = Math.min(MINUTO_FIM, minutoServidor, teto ?? MINUTO_FIM);
   return alvo > minutoLocal ? alvo : null;
 }
 

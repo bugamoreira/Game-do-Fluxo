@@ -32,6 +32,14 @@ describe('minutoAlvo (relógio do servidor manda)', () => {
   it('limita às 19h', () => {
     expect(minutoAlvo(1139, 1500, false)).toBe(1140);
   });
+
+  it('nunca passa do teto confirmado pelo servidor (extrapolação local limitada)', () => {
+    // O relógio extrapolado diz 505, mas a última leitura só garante até 502.
+    expect(minutoAlvo(500, 505, false, 502)).toBe(502);
+    expect(minutoAlvo(502, 505, false, 502)).toBeNull();
+    // Sem teto conhecido, segue o minuto do servidor.
+    expect(minutoAlvo(500, 505, false, null)).toBe(505);
+  });
 });
 
 describe('minutoLocal (modo solo)', () => {

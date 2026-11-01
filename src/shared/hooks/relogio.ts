@@ -5,14 +5,26 @@
 // limitado a 420..1140 (7h → 19h). 1 s real = 1 minuto de plantão.
 //
 // O relógio local de cada computador pode estar adiantado ou atrasado.
-// A cada resposta, mede-se o desvio = horaServidor − hora local no momento da
-// resposta; a hora do servidor "agora" é então hora local + desvio.
+// A cada resposta, mede-se o desvio = horaServidor − hora local no meio da
+// consulta (envio + metade do tempo de ida e volta); entre as medições
+// recentes vale a de menor ida e volta (a mais confiável). A hora do servidor
+// "agora" é então hora local + desvio.
 // ============================================================
 
 import { instanteEmMs, type EstadoTurma } from '../schemas';
 
 export const MINUTO_INICIO = 420;
 export const MINUTO_FIM = 1140;
+
+/**
+ * Quanto o motor do grupo pode andar além da última leitura confirmada pelo
+ * servidor: no máximo um tique (1 s = 1 min de plantão). Assim uma pausa vista
+ * com atraso nunca deixa o grupo mais de um minuto à frente (ensaio E2).
+ */
+export const MARGEM_EXTRAPOLACAO_MS = 1000;
+
+/** Medições guardadas para escolher a de menor ida e volta. */
+const AMOSTRAS_RELOGIO = 5;
 
 export interface ParametrosMinuto {
   rodadaInicioMs: number;
@@ -47,11 +59,22 @@ export function minutoDaTurma(turma: EstadoTurma, agoraServidorMs: number): numb
 /** Correção do relógio local pela hora do servidor. */
 export class RelogioServidor {
   private desvio: number | null = null;
+  private amostras: { desvio: number; idaVolta: number }[] = [];
 
-  /** Registra a hora do servidor medida numa resposta que chegou em `horaLocalMs`. */
-  registrar(horaServidor: string, horaLocalMs: number): void {
+  /**
+   * Registra a hora do servidor medida numa resposta que chegou em `horaLocalMs`.
+   * Com `envioLocalMs` (quando a consulta saiu), desconta metade da ida e volta.
+   */
+  registrar(horaServidor: string, horaLocalMs: number, envioLocalMs?: number): void {
     const servidorMs = instanteEmMs(horaServidor);
-    if (Number.isFinite(servidorMs)) this.desvio = servidorMs - horaLocalMs;
+    if (!Number.isFinite(servidorMs) || !Number.isFinite(horaLocalMs)) return;
+    const idaVolta =
+      envioLocalMs !== undefined && Number.isFinite(envioLocalMs) ? Math.max(0, horaLocalMs - envioLocalMs) : 0;
+    this.amostras.push({ desvio: servidorMs - (horaLocalMs - idaVolta / 2), idaVolta });
+    if (this.amostras.length > AMOSTRAS_RELOGIO) this.amostras.shift();
+    let melhor = this.amostras[0]!;
+    for (const a of this.amostras) if (a.idaVolta < melhor.idaVolta) melhor = a;
+    this.desvio = melhor.desvio;
   }
 
   /** Desvio atual (servidor − local), ou `null` antes da primeira resposta. */
