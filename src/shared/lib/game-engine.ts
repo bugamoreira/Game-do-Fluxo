@@ -6,12 +6,23 @@
 
 import type { Patient, Surgery, Destination, Severity, RollDestResult, ScoreInput } from '../types/game';
 import { SH, HOSP_BEDS, NAMES, SUR } from './constants';
-import { rnd, pick } from './format';
+
+/** Fonte de números em [0, 1). Padrão: Math.random; o motor determinístico injeta o próprio gerador. */
+export type Aleatorio = () => number;
 
 let _id = 0;
 
-function mkN(): string {
-  return `${pick(NAMES)} ${pick(SUR)}.`;
+function rndCom(al: Aleatorio, a: number, b: number): number {
+  return a + Math.floor(al() * (b - a + 1));
+}
+
+function pickCom<T>(al: Aleatorio, a: readonly T[]): T {
+  return a[Math.floor(al() * a.length)]!;
+}
+
+/** Nome fictício do paciente ("Ana S.") */
+export function nomeAleatorio(al: Aleatorio = Math.random): string {
+  return `${pickCom(al, NAMES)} ${pickCom(al, SUR)}.`;
 }
 
 /** Reset ID counter (call before mkInit) */
@@ -46,7 +57,10 @@ export function mkSxR2(): Surgery[] {
 }
 
 // ── Criar paciente ─────────────────────────────────────────
-export function mkPt(
+/** Versão pura de mkPt: id e nome vêm de fora. */
+export function criarPaciente(
+  id: number,
+  name: string,
   sector: Patient['sector'],
   dest: Destination,
   sev: Severity,
@@ -54,7 +68,7 @@ export function mkPt(
   deT = 120,
 ): Patient {
   return {
-    id: ++_id, name: mkN(), sector, dest, sev, ready,
+    id, name, sector, dest, sev, ready,
     dischReady: false, prep: 0, deNeed: deT, deSpent: ready ? deT : 0,
     bStart: null, bMin: 0, det: false, dead: false, postOp: false,
     blocked: false, offSvc: false, social: false, socialDelay: 0,
@@ -62,12 +76,26 @@ export function mkPt(
   };
 }
 
+export function mkPt(
+  sector: Patient['sector'],
+  dest: Destination,
+  sev: Severity,
+  ready = false,
+  deT = 120,
+): Patient {
+  return criarPaciente(++_id, nomeAleatorio(), sector, dest, sev, ready, deT);
+}
+
 // ── Estado inicial ─────────────────────────────────────────
 // DE   8/15  (53%) — pressão desde o início
 // ENF 71/85 (84%) — quase sem folga → ocupação (71+13)/100 = 84%
 // UTI 13/15 (87%) — gargalo imediato
-export function mkInit(): Patient[] {
-  _id = 0;
+export function mkInit(al: Aleatorio = Math.random, novoId?: () => number): Patient[] {
+  if (!novoId) _id = 0;
+  const gerarId = novoId ?? (() => ++_id);
+  const novo = (sector: Patient['sector'], dest: Destination, sev: Severity, ready = false, deT = 120): Patient =>
+    criarPaciente(gerarId(), nomeAleatorio(al), sector, dest, sev, ready, deT);
+  const rnd = (a: number, b: number): number => rndCom(al, a, b);
   const P: Patient[] = [];
 
   const dePatients: Array<{ dest: Destination; sev: Severity; r: boolean }> = [
@@ -82,7 +110,7 @@ export function mkInit(): Patient[] {
   ];
 
   dePatients.forEach(c => {
-    const p = mkPt('de', c.dest, c.sev, c.r, c.r ? 120 : 120 + rnd(0, 60));
+    const p = novo('de', c.dest, c.sev, c.r, c.r ? 120 : 120 + rnd(0, 60));
     if (!c.r) p.deSpent = rnd(40, 90);
     if (c.r && c.dest !== 'alta_de') {
       p.bStart = SH * 60 - rnd(60, 120);
@@ -92,10 +120,10 @@ export function mkInit(): Patient[] {
   });
 
   for (let i = 0; i < 71; i++) {
-    P.push(mkPt('enf', 'alta_enf', Math.random() < 0.6 ? 'green' : 'yellow'));
+    P.push(novo('enf', 'alta_enf', al() < 0.6 ? 'green' : 'yellow'));
   }
   for (let i = 0; i < 13; i++) {
-    P.push(mkPt('uti', 'step_down', 'red'));
+    P.push(novo('uti', 'step_down', 'red'));
   }
 
   return P;
@@ -112,15 +140,16 @@ export function arrRate(h: number, isR2: boolean): number {
 }
 
 // ── Destino do paciente novo ───────────────────────────────
-export function rollDest(isR2 = false): RollDestResult {
-  const r = Math.random();
+export function rollDest(isR2 = false, al: Aleatorio = Math.random): RollDestResult {
+  const rnd = (a: number, b: number): number => rndCom(al, a, b);
+  const r = al();
   if (isR2) {
-    if (r < 0.50) return { dest: 'alta_de', sev: Math.random() < 0.7 ? 'green' : 'yellow', de: rnd(30,  60)  };
-    if (r < 0.85) return { dest: 'enf',     sev: Math.random() < 0.5 ? 'yellow' : 'orange', de: rnd(80,  120) };
+    if (r < 0.50) return { dest: 'alta_de', sev: al() < 0.7 ? 'green' : 'yellow', de: rnd(30,  60)  };
+    if (r < 0.85) return { dest: 'enf',     sev: al() < 0.5 ? 'yellow' : 'orange', de: rnd(80,  120) };
     return             { dest: 'uti',     sev: 'red',                                        de: rnd(60,  100) };
   }
-  if (r < 0.50) return { dest: 'alta_de', sev: Math.random() < 0.7 ? 'green' : 'yellow', de: rnd(60,  120) };
-  if (r < 0.85) return { dest: 'enf',     sev: Math.random() < 0.5 ? 'yellow' : 'orange', de: rnd(120, 180) };
+  if (r < 0.50) return { dest: 'alta_de', sev: al() < 0.7 ? 'green' : 'yellow', de: rnd(60,  120) };
+  if (r < 0.85) return { dest: 'enf',     sev: al() < 0.5 ? 'yellow' : 'orange', de: rnd(120, 180) };
   return             { dest: 'uti',     sev: 'red',                                        de: rnd(90,  150) };
 }
 

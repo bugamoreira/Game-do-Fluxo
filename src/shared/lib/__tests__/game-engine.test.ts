@@ -3,7 +3,6 @@ import {
   mkInit, mkSx, mkSxR2, mkPt, arrRate, rollDest,
   hospMult, hospOcc, calcScore, resetId,
 } from '../game-engine';
-import { CAP } from '../constants';
 
 beforeEach(() => {
   resetId();
