@@ -101,6 +101,21 @@ export function textoPresenca(g: GrupoPainel): string {
   return `Visto há ${tempoDecorrido(g.vistoHaS)}`;
 }
 
+/** Conexão na tela Ao vivo: "Conectado", "Sem sinal há 12 s" ou "Sem sinal". */
+export function textoConexao(g: GrupoPainel): string {
+  if (g.conectado) return 'Conectado';
+  if (g.vistoHaS === null) return 'Sem sinal';
+  return `Sem sinal há ${tempoDecorrido(g.vistoHaS)}`;
+}
+
+/** "Todos conectados" ou "4 de 6 conectados" (só grupos ativos). */
+export function rotuloConexao(grupos: GrupoPainel[]): string {
+  const { conectados, total } = contarProntos(grupos);
+  if (total === 0) return 'Nenhum grupo na sala';
+  if (conectados === total) return 'Todos conectados';
+  return `${conectados} de ${total} conectados`;
+}
+
 /**
  * Junta o estado público (consulta periódica) com a visão do facilitador
  * (resposta da última ação) e com a última vez que este painel viu cada grupo

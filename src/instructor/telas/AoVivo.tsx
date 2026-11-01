@@ -6,6 +6,7 @@ import { Button, Card, Icone, StatTile } from '../../shared/components/ui';
 import type { ItemRanking } from '../../shared/schemas';
 import { ChamadaAula } from '../componentes/ChamadaAula';
 import { CodigoAcesso } from '../componentes/CodigoAcesso';
+import { ConexaoGrupos } from '../componentes/ConexaoGrupos';
 import { TabelaMetricas } from '../componentes/TabelaMetricas';
 import { emRodada } from '../logica/fases';
 import { inteiro } from '../logica/formato';
@@ -15,7 +16,7 @@ import type { PropsTela } from '../tipos';
 
 const VAZIO: Historico = new Map();
 
-export function AoVivo({ turma, ranking, proxima, ocupado, acionar }: PropsTela) {
+export function AoVivo({ turma, grupos, ranking, proxima, ocupado, acionar }: PropsTela) {
   // Em rodada, mostra a rodada atual; consultando depois (debrief/resultado), a última jogada.
   const rodada: 1 | 2 = turma.rodada ?? 1;
   const itens = itensDaRodada(ranking, rodada);
@@ -59,6 +60,7 @@ export function AoVivo({ turma, ranking, proxima, ocupado, acionar }: PropsTela)
         <div className="flex flex-col gap-6">
           <ChamadaAula proxima={proxima} onAcao={(tipo) => acionar({ tipo })} ocupado={ocupado === proxima.acao} />
           {ativa && <CodigoAcesso codigo={turma.codigoAcesso} compacto />}
+          {ativa && <ConexaoGrupos grupos={grupos} />}
 
           {ativa && (
             <Card titulo="Controles" espaco="m">
