@@ -242,19 +242,24 @@ export class ControladorSincronizacao extends LojaObservavel<InstantaneoSync> {
 
   private async sincronizar(): Promise<boolean> {
     let fez = false;
+    /** Recusa do servidor no envio do estado: a fila de série e eventos sai mesmo assim. */
+    let erroEnvio: unknown = null;
     const alvo = this.estado;
     if (alvo && this.resumir && this.precisaEnviar(alvo)) {
       try {
         await this.deps.enviarEstado(this.token, alvo, this.resumir(alvo));
+        this.marcarEnviado(alvo);
+        this.atualizar({ ultimaSincronizacao: new Date(this.agora()), erro: null });
+        fez = true;
       } catch (e) {
+        // Sem rede: a fila também falharia; tenta tudo de novo no próximo ciclo.
+        if (e instanceof SemConexao) throw e;
         // O servidor já tem versão igual ou mais nova, ou a rodada acabou (passados os 30 s
         // de tolerância): reenviar esta mesma versão não adianta; segue com as próximas.
         if (e instanceof VersaoAntiga || e instanceof RodadaInvalida) this.marcarEnviado(alvo);
-        throw e;
+        erroEnvio = e;
+        this.atualizar({ erro: comoErro(e) });
       }
-      this.marcarEnviado(alvo);
-      this.atualizar({ ultimaSincronizacao: new Date(this.agora()), erro: null });
-      fez = true;
     }
     while (this.fila.length > 0) {
       const op = this.fila[0]!;
@@ -272,6 +277,8 @@ export class ControladorSincronizacao extends LojaObservavel<InstantaneoSync> {
       this.atualizar({ pendentes: this.fila.length });
       fez = true;
     }
+    // A recusa do estado continua exposta e conta para o ritmo do ciclo.
+    if (erroEnvio !== null) throw erroEnvio;
     return fez;
   }
 

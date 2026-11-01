@@ -139,6 +139,33 @@ describe('ControladorSincronizacao', () => {
     c.parar();
   });
 
+  it('erro de negócio persistente no envio do estado não trava a fila de série e eventos', async () => {
+    const enviarEstado = vi.fn().mockRejectedValue(new ErroServico('Envios muito próximos.', undefined, 'LIMITE_EXCEDIDO'));
+    const { c, deps } = montar({ enviarEstado });
+    c.iniciar();
+    c.definirEstado(est(1));
+    c.registrarSerie(1, 450, { dth: 0 });
+    c.registrarEventos(1, [{ minuto: 451, tipo: 'surto' }]);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(deps.registrarSerie).toHaveBeenCalledTimes(1);
+    expect(deps.registrarEventos).toHaveBeenCalledTimes(1);
+    expect(c.instantaneo().pendentes).toBe(0);
+    expect(c.instantaneo().erro).toBeInstanceOf(ErroServico);
+    c.parar();
+  });
+
+  it('sem rede no envio do estado, a fila espera (não adianta tentar)', async () => {
+    const enviarEstado = vi.fn().mockRejectedValue(new SemConexao());
+    const { c, deps } = montar({ enviarEstado });
+    c.iniciar();
+    c.definirEstado(est(1));
+    c.registrarSerie(1, 450, { dth: 0 });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(deps.registrarSerie).not.toHaveBeenCalled();
+    expect(c.instantaneo().pendentes).toBe(1);
+    c.parar();
+  });
+
   it('fila de série e eventos sobrevive à queda de rede e sai em ordem', async () => {
     let rede = false;
     const registrarSerie = vi.fn(async () => {
