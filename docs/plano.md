@@ -48,6 +48,7 @@ Com o motor do B1, simulo estratégias típicas ("segura no PS", "puxa fluxo", "
 |---|---|
 | **C1 Jogo** | J1–J6 de `docs/design.md`, quebrando o `App.tsx` de 1190 linhas em componentes; só consome motor, services e componentes base. |
 | **C2 Facilitador** | F0–F5: painel com barra lateral, ranking, debrief com dados da R1, controles, "Nova turma". |
+| **C4 Relatório da turma** | Página de relatório por turma (link para compartilhar + versão para imprimir/PDF): regras do jogo, ranking, desempenho de cada grupo na R1 e na R2, evolução ao longo do plantão e comparação entre os grupos. |
 | **C3 Telão e música** | P1–P4 em tema escuro, abertos a partir do facilitador (segunda janela ou modo telão); música ligando no primeiro clique em cada computador, mudo pelo facilitador e trilha definida para cada rodada. |
 
 ## Fase D — Integração e ensaio local
@@ -71,6 +72,6 @@ Merge no `main`, site `plantaocbmede` ligado ao GitHub, variáveis de ambiente n
 ## Pendências de decisão (Gustavo)
 
 1. ~~Logo CBMEDE/ABRAMEDE~~ autorizado; falta enviar os arquivos oficiais (SVG ou PNG): CBMEDE 2026, ABRAMEDE e ED Leaders em versão para fundo claro e escuro.
-2. Uma turma só no congresso, ou várias sessões (precisa de "Nova turma" e histórico por turma)?
-3. Música: mesma trilha adaptativa nas duas rodadas, ou trilha própria para o Lean?
+2. ~~Turmas~~ uma turma por evento (curso pré-congresso), comparação só dentro da turma. Regra geral para outros eventos: cada turma fica guardada com seus resultados e relatório.
+3. ~~Música~~ trilha própria para cada rodada: Travado tenso e irregular, Lean fluido e eficiente (ver `docs/design.md` §7).
 4. Validar `docs/fluxo.md` e os 6 pontos de lógica (podem ficar para o Portão 2).

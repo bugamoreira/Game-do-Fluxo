@@ -96,3 +96,24 @@ Regras de transição:
 **Telão — projeção (tema escuro, densidade baixa).** Faz parte da tela do facilitador: o botão "Abrir telão" abre a visão de projeção numa segunda janela, para arrastar para o projetor (tela estendida), e também há o modo telão na própria janela, para quem usa uma tela só. `/projetor.html` continua existindo como endereço dessa visão. Letras enormes, legível do fundo do auditório. Relógio do plantão, ranking em barras com as cores dos times, faixa de eventos marcantes e pódio final animado.
 
 **Orientações.** Já feita no padrão CBMEDE; migra para os tokens comuns.
+
+## 7. Música
+
+Cada rodada tem identidade sonora própria, reforçando a virada pedagógica:
+
+- **Plantão Travado:** tensão que cresce. Ritmo irregular, harmonia menor e dissonante, e mais camadas e andamento conforme o boarding sobe. Óbito leva ao modo crise. Alertas secos.
+- **Plantão Lean:** fluxo. Pulso constante e estável (a "esteira" bem regulada), tom maior e timbres mais claros. Quando o fluxo melhora (altas, Fluxista), a música ganha camadas em vez de acelerar. Eventos positivos têm som próprio (alta, Fluxista, NIR). Problemas soam, mas sem o modo crise.
+- Toca no computador de cada grupo (liga no primeiro clique) e no telão; o facilitador controla o mudo de todos.
+
+## 8. Relatório da turma
+
+Gerado ao fim da sessão, guardado no banco e compartilhável por link (só leitura) e em versão para imprimir ou salvar em PDF:
+
+1. Capa: evento, data, turma, facilitador, logos.
+2. Regras do jogo em linguagem simples (resumo de `docs/fluxo.md`).
+3. Ranking final e pódio.
+4. Por grupo: pontuação e métricas da R1 e da R2 (boarding, deteriorações, óbitos, cancelamentos, LWBS, altas) e a variação entre as rodadas.
+5. Evolução ao longo do plantão: curvas de ocupação do DE e boarding por hora simulada, R1 × R2.
+6. Mensagens-chave para o debrief (o que mudou do Travado para o Lean).
+
+Dados guardados: só nomes de grupo e métricas do jogo, sem dado pessoal dos participantes.
