@@ -74,6 +74,8 @@ export interface ResumoRodada {
 export interface RelatorioVista {
   turma: { codigo: string; nome: string; evento: string | null; data: string | null };
   facilitador: string | null;
+  /** Local do evento; relatórios antigos, sem o campo, usam `LOCAL_PADRAO`. */
+  local: string;
   geradoEm: string | null;
   versaoRegras: string | null;
   /** Grupos na ordem do ranking final. */
@@ -86,6 +88,9 @@ export interface RelatorioVista {
   temSeries: boolean;
   mensagens: string[];
 }
+
+/** Local do CBMEDE 2026: vale para relatórios gerados antes de o banco gravar `dados.local`. */
+export const LOCAL_PADRAO = 'Windsor Barra Hotel, Rio de Janeiro';
 
 /** Duração de uma rodada em horas simuladas (7h → 19h). */
 export const HORAS_PLANTAO = 12;
@@ -343,7 +348,8 @@ export function montarRelatorio(dados: DadosRelatorio): RelatorioVista {
       evento: dados.turma.evento ?? null,
       data: dados.turma.data ?? null,
     },
-    facilitador: dados.facilitador ?? null,
+    facilitador: dados.facilitador?.trim() || null,
+    local: dados.local?.trim() || LOCAL_PADRAO,
     geradoEm: dados.gerado_em ?? null,
     versaoRegras: dados.versao_regras ?? null,
     grupos,

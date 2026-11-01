@@ -88,8 +88,10 @@ function listaTolerante<T extends z.ZodType>(item: T) {
 
 export const DadosRelatorioSchema = z.object({
   turma: TurmaSchema,
-  /** Não é gravado hoje por `gerar_relatorio` (ver relatório do C4); aceito se vier. */
+  /** Nome do facilitador (`facilitadores.nome`), gravado por `gerar_relatorio`. */
   facilitador: z.string().nullish(),
+  /** Local do evento, gravado por `gerar_relatorio` (`p_local`). */
+  local: z.string().nullish(),
   gerado_em: z.string().nullish(),
   versao_regras: z.string().nullish(),
   grupos: listaTolerante(GrupoSchema),

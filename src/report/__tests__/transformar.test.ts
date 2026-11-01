@@ -4,6 +4,7 @@ import { DadosRelatorioInvalidos, lerDadosRelatorio } from '../dados';
 import { gerarDadosDemo } from '../demo/gerarDemo';
 import { BONUS_SEM_OBITO, PONTUACAO, PONTUACAO_INICIAL, PONTUACAO_MINIMA } from '../regras';
 import {
+  LOCAL_PADRAO,
   alertasHorarios,
   dataPorExtenso,
   montarGrupos,
@@ -66,6 +67,20 @@ describe('lerDadosRelatorio', () => {
   it('recusa quando falta a estrutura mínima', () => {
     expect(() => lerDadosRelatorio({ grupos: [] })).toThrow(DadosRelatorioInvalidos);
     expect(() => lerDadosRelatorio(null)).toThrow(DadosRelatorioInvalidos);
+  });
+});
+
+describe('facilitador e local', () => {
+  it('mostra o facilitador e o local gravados pelo banco', () => {
+    const v = montarRelatorio(lerDadosRelatorio(dadosBase({ facilitador: 'Gustavo', local: 'Centro de Convenções' })));
+    expect(v.facilitador).toBe('Gustavo');
+    expect(v.local).toBe('Centro de Convenções');
+  });
+
+  it('relatório antigo, sem os campos: sem facilitador e com o local padrão', () => {
+    const v = montarRelatorio(lerDadosRelatorio(dadosBase()));
+    expect(v.facilitador).toBeNull();
+    expect(v.local).toBe(LOCAL_PADRAO);
   });
 });
 

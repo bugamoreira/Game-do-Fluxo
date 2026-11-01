@@ -130,6 +130,7 @@ export function gerarDadosDemo(): Record<string, unknown> {
       data: '2026-11-25',
     },
     facilitador: 'Dr. Gustavo Moreira',
+    local: 'Windsor Barra Hotel, Rio de Janeiro',
     gerado_em: '2026-11-25T18:42:00.000Z',
     versao_regras: 'portao-2',
     grupos: GRUPOS.map((g, i) => ({ id: idGrupo(i), nome: g.nome, cor: g.cor, rodada_entrada: 1 })),

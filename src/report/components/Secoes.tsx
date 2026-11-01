@@ -26,6 +26,7 @@ export function Capa({ vista }: { vista: RelatorioVista }) {
   if (vista.turma.evento) linhas.push(['Evento', vista.turma.evento]);
   if (data) linhas.push(['Data', data]);
   if (vista.facilitador) linhas.push(['Facilitador', vista.facilitador]);
+  linhas.push(['Local', vista.local]);
   linhas.push(['Grupos', String(vista.grupos.length)]);
   if (vista.turma.codigo) linhas.push(['Código da sala', vista.turma.codigo]);
 
@@ -55,7 +56,7 @@ export function Capa({ vista }: { vista: RelatorioVista }) {
             </div>
           ))}
         </dl>
-        <p className="text-sm text-white/70">Plantão Travado × Plantão Lean · Windsor Barra Hotel, Rio de Janeiro</p>
+        <p className="text-sm text-white/70">Plantão Travado × Plantão Lean</p>
       </div>
     </header>
   );
