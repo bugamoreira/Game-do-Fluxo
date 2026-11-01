@@ -164,6 +164,31 @@ async function rpc(fn, args) {
   return corpo;
 }
 const estadoTurma = () => rpc('estado_turma', { p_codigo: SALA });
+
+/**
+ * Código de acesso de 4 dígitos da turma (migração 9), lido como o telão do
+ * facilitador lê: login e `codigo_acesso_telao`. Sem turma ainda, '0000' (o
+ * servidor responde TURMA_NAO_ENCONTRADA antes de conferir o código).
+ */
+const acessoCache = { turmaId: null, codigo: null };
+async function codigoAcesso() {
+  const turma = await estadoTurma().catch(() => null);
+  if (!turma?.id) return '0000';
+  if (acessoCache.turmaId === turma.id && acessoCache.codigo) return acessoCache.codigo;
+  const login = await fetch(`${BACKEND}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', apikey: CHAVE },
+    body: JSON.stringify({ email: EMAIL, password: SENHA }),
+  }).then((r) => r.json());
+  const r = await fetch(`${BACKEND}/rest/v1/rpc/codigo_acesso_telao`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', apikey: CHAVE, authorization: `Bearer ${login.access_token}` },
+    body: JSON.stringify({ p_turma_id: turma.id }),
+  }).then((x) => x.json());
+  const codigo = (Array.isArray(r) ? r[0] : r)?.codigo_acesso ?? '0000';
+  Object.assign(acessoCache, { turmaId: turma.id, codigo });
+  return codigo;
+}
 const ranking = () => rpc('ranking', { p_codigo: SALA });
 
 // ── Instrumentação das páginas ────────────────────────────────
@@ -261,6 +286,8 @@ function novoGrupo(i) {
 async function entrarPelaTela(g, { navegar = true } = {}) {
   if (navegar) await g.page.goto(`${APP}/jogar.html?sala=${SALA}`);
   await g.page.getByLabel('Nome do grupo').fill(g.nome);
+  const campoAcesso = g.page.getByLabel('Código de acesso');
+  if ((await campoAcesso.count()) > 0) await campoAcesso.fill(await codigoAcesso());
   await g.page.getByRole('button', { name: 'Entrar na sala' }).click();
   return resultadoEntrada(g.page);
 }
