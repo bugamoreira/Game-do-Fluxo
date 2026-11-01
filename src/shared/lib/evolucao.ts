@@ -109,6 +109,7 @@ const DESCRICOES: Readonly<Record<string, DescricaoEvento>> = {
   nir_concluido: { rotulo: 'Transferência pelo NIR', problema: false },
   full_capacity: { rotulo: 'PCP (Full Capacity)', problema: false },
   full_capacity_liberado: { rotulo: 'PCP liberado', problema: false },
+  full_capacity_revogado: { rotulo: 'PCP suspenso', problema: false },
 };
 
 export function descreverEvento(tipo: string): DescricaoEvento | null {

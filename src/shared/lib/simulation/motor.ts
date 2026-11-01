@@ -762,6 +762,17 @@ export function liberarFullCapacity(estado: EstadoSimulacao): ResultadoPasso {
   ]);
 }
 
+/**
+ * Facilitador revoga o PCP/Full Capacity. Os pacientes já internados no corredor
+ * da enfermaria ficam onde estão; só novas internações pelo PCP deixam de valer.
+ */
+export function revogarFullCapacity(estado: EstadoSimulacao): ResultadoPasso {
+  if (estado.rodada !== 2 || !estado.ferramentas.fcLiberado) return { estado, ocorrencias: [] };
+  return concluirAcao(estado, { ferramentas: { ...estado.ferramentas, fcLiberado: false } }, [
+    oc(estado, 'full_capacity_revogado', 'A DIRETORIA SUSPENDEU o PCP (Full Capacity): os pacientes já no corredor da enfermaria continuam internados, mas não há novas vagas.', 'warning'),
+  ]);
+}
+
 // ── Leituras ────────────────────────────────────────────────
 
 export function atendidosNoAlvo(estado: EstadoSimulacao): number {

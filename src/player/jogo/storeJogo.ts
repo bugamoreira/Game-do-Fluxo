@@ -14,6 +14,7 @@ import {
   encerrado,
   liberarFullCapacity,
   metricas,
+  revogarFullCapacity,
   pontuacao,
   type Acao,
   type EstadoSimulacao,
@@ -65,6 +66,8 @@ export interface AcoesStoreJogo {
   usarFullCapacity: () => void;
   /** Facilitador autorizou o PCP (Full Capacity). */
   liberarFullCapacity: () => void;
+  /** Facilitador revogou o PCP: quem já está no corredor da enfermaria fica. */
+  revogarFullCapacity: () => void;
   limparAviso: () => void;
   descartar: () => void;
   assinarOcorrencias: (ouvinte: OuvinteOcorrencias) => () => void;
@@ -197,6 +200,12 @@ export function criarStoreJogo() {
         const { estado } = get();
         if (!estado || estado.ferramentas.fcLiberado || estado.rodada !== 2) return;
         aplicarResultado(liberarFullCapacity(estado));
+      },
+
+      revogarFullCapacity() {
+        const { estado } = get();
+        if (!estado || !estado.ferramentas.fcLiberado || estado.rodada !== 2) return;
+        aplicarResultado(revogarFullCapacity(estado));
       },
 
       limparAviso() {

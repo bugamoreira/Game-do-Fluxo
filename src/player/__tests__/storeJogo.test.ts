@@ -142,6 +142,17 @@ describe('store do jogo: decisões', () => {
     expect(store.getState().estado!.versao).toBe(versao);
   });
 
+  it('PCP revogado pelo facilitador chega ao jogo', () => {
+    const store = criarStoreJogo();
+    store.getState().carregar(avancarAte(criarEstadoInicial(2, SEMENTE), 500).estado);
+    store.getState().liberarFullCapacity();
+    store.getState().revogarFullCapacity();
+    expect(store.getState().estado!.ferramentas.fcLiberado).toBe(false);
+    const versao = store.getState().estado!.versao;
+    store.getState().revogarFullCapacity();
+    expect(store.getState().estado!.versao).toBe(versao);
+  });
+
   it('a seleção some quando o paciente sai do hospital', () => {
     const { estado, paciente } = ateAchar(1, (p, e) => destinosPossiveis(e, p.id).includes('alta') && p.sector === 'de');
     const store = criarStoreJogo();

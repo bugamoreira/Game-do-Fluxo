@@ -80,7 +80,7 @@ export const TIPOS_EVENTO_RELEVANTE: ReadonlySet<TipoOcorrencia> = new Set<TipoO
   'obito', 'obito_espera', 'emergencia_obito',
   'deterioracao', 'deterioracao_espera', 'deterioracao_leito_inadequado', 'retorno_de',
   'cirurgia_cancelada', 'surto', 'lwbs', 'de_lotado', 'corredor',
-  'nir', 'nir_concluido', 'full_capacity', 'full_capacity_liberado',
+  'nir', 'nir_concluido', 'full_capacity', 'full_capacity_liberado', 'full_capacity_revogado',
   'leito_inadequado',
 ]);
 

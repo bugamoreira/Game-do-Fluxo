@@ -168,10 +168,12 @@ function SalaDoGrupo({ porta, sala, grupo, onReentrar, onSair }: SalaDoGrupoProp
   const obterAlvo = useCallback((local: number) => minutoAlvo(local, minutoRef.current, pausada), [pausada]);
   useRelogioDoJogo(jogando, obterAlvo);
 
-  // Facilitador liberou o PCP (Full Capacity).
+  // Facilitador liberou ou revogou o PCP (Full Capacity).
   useEffect(() => {
-    if (turma?.fullCapacityLiberado && estado?.rodada === 2 && !estado.ferramentas.fcLiberado) storeJogo.getState().liberarFullCapacity();
-  }, [turma?.fullCapacityLiberado, estado]);
+    if (!turma || estado?.rodada !== 2) return;
+    if (turma.fullCapacityLiberado && !estado.ferramentas.fcLiberado) storeJogo.getState().liberarFullCapacity();
+    else if (!turma.fullCapacityLiberado && estado.ferramentas.fcLiberado) storeJogo.getState().revogarFullCapacity();
+  }, [turma, estado]);
 
   // Sincronização com o servidor: estado completo, série a cada 30 min simulados e eventos marcantes.
   const sync = porta.useSincronizarJogo(grupo.token, estado, resumoDe);

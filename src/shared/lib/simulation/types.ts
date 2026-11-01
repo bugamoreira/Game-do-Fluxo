@@ -167,7 +167,7 @@ export type TipoOcorrencia =
   | 'round_enf' | 'round_uti' | 'bloqueio_fim'
   | 'cirurgia_iniciada' | 'cirurgia_cancelada' | 'cirurgia_concluida'
   | 'alta' | 'movimento' | 'leito_inadequado'
-  | 'nir' | 'nir_concluido' | 'full_capacity' | 'full_capacity_liberado';
+  | 'nir' | 'nir_concluido' | 'full_capacity' | 'full_capacity_liberado' | 'full_capacity_revogado';
 
 /** Algo que aconteceu num passo ou ação: vira entrada de log, som e eventos_jogo. */
 export interface Ocorrencia {

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { calcScore, mkSx } from '../../game-engine';
 import { CAP } from '../../constants';
 import {
-  aplicarAcao, avancarAte, calcularRisco, criarEstadoInicial, destinosPossiveis, ehErro, liberarFullCapacity,
+  aplicarAcao, avancarAte, calcularRisco, criarEstadoInicial, destinosPossiveis, ehErro, liberarFullCapacity, revogarFullCapacity,
   metricas, passo, pontuacao, slaPct, MINUTO_FIM, MINUTO_INICIO,
 } from '../motor';
 import {
@@ -469,6 +469,19 @@ describe('ferramentas e eventos', () => {
     const depois = passo(e).estado;
     expect(depois.pacientes.find(p => p.id === 1)!.sector).toBe('enf_extra');
     expect(falha(aplicarAcao(comPacientes(base(1), pts), pcp(1))).codigo).toBe('ferramenta_indisponivel');
+  });
+
+  it('PCP revogado: quem já está no corredor da enfermaria fica, mas não entra mais ninguém', () => {
+    const pts = [1, 2].map(id => paciente(id, { sector: 'de', dest: 'enf', ready: true, bStart: 460 }));
+    let e = liberarFullCapacity(comPacientes(base(2), pts)).estado;
+    e = ok(aplicarAcao(e, { tipo: 'fullCapacity', pacienteId: 1 })).estado;
+    const r = revogarFullCapacity(e);
+    expect(r.ocorrencias.map(o => o.tipo)).toEqual(['full_capacity_revogado']);
+    expect(r.estado.ferramentas.fcLiberado).toBe(false);
+    expect(r.estado.versao).toBe(e.versao + 1);
+    expect(r.estado.pacientes.find(p => p.id === 1)!.sector).toBe('enf_extra');
+    expect(falha(aplicarAcao(r.estado, { tipo: 'fullCapacity', pacienteId: 2 })).codigo).toBe('ferramenta_indisponivel');
+    expect(revogarFullCapacity(r.estado).estado).toBe(r.estado);
   });
 
   it('leito inadequado: exige confirmação e penaliza', () => {
