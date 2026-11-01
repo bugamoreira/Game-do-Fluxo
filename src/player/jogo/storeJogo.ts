@@ -16,14 +16,16 @@ import {
   metricas,
   revogarFullCapacity,
   pontuacao,
+  MINUTO_FIM,
   type Acao,
   type EstadoSimulacao,
+  type Metricas,
   type Ocorrencia,
   type ResultadoPasso,
   type Rodada,
 } from '../../shared/lib/simulation';
 import type { Sector } from '../../shared/types/game';
-import { PASSOS_LOTE, type ResumoRodada } from './sincronia';
+import { INTERVALO_SERIE_MIN, PASSOS_LOTE, marcoDaSerie, type ResumoRodada } from './sincronia';
 
 export interface AvisoJogo {
   id: number;
@@ -43,6 +45,36 @@ export interface LoteOcorrencias {
 }
 
 export type OuvinteOcorrencias = (lote: LoteOcorrencias) => void;
+
+/** Ponto da série de métricas (um a cada 30 min simulados), com as métricas daquele minuto. */
+export interface PontoSerie {
+  rodada: Rodada;
+  minuto: number;
+  metricas: Metricas;
+}
+
+export type OuvinteSerie = (ponto: PontoSerie) => void;
+
+/**
+ * Avança o motor até `alvo` parando em cada marco da série (múltiplo de 30 min):
+ * mesmo numa recuperação de muitos minutos, cada marco sai com as métricas do
+ * próprio minuto (o motor é determinístico: avançar em trechos dá o mesmo estado).
+ */
+export function avancarComMarcos(estado: EstadoSimulacao, alvo: number): ResultadoPasso & { pontos: PontoSerie[] } {
+  const fim = Math.min(alvo, MINUTO_FIM);
+  let atual = estado;
+  const ocorrencias: Ocorrencia[] = [];
+  const pontos: PontoSerie[] = [];
+  while (atual.minuto < fim) {
+    const proximoMarco = marcoDaSerie(atual.minuto) + INTERVALO_SERIE_MIN;
+    const r = avancarAte(atual, Math.min(fim, proximoMarco));
+    if (r.estado.minuto === atual.minuto) break;
+    atual = r.estado;
+    ocorrencias.push(...r.ocorrencias);
+    if (atual.minuto === proximoMarco) pontos.push({ rodada: atual.rodada, minuto: atual.minuto, metricas: metricas(atual) });
+  }
+  return { estado: atual, ocorrencias, pontos };
+}
 
 export interface EstadoStoreJogo {
   estado: EstadoSimulacao | null;
@@ -71,6 +103,8 @@ export interface AcoesStoreJogo {
   limparAviso: () => void;
   descartar: () => void;
   assinarOcorrencias: (ouvinte: OuvinteOcorrencias) => () => void;
+  /** Pontos da série de métricas, inclusive os marcos atravessados numa recuperação. */
+  assinarSerie: (ouvinte: OuvinteSerie) => () => void;
 }
 
 export type StoreJogo = ReturnType<typeof criarStoreJogo>;
@@ -88,12 +122,17 @@ function selecaoValida(estado: EstadoSimulacao, id: number | null): number | nul
 
 export function criarStoreJogo() {
   const ouvintes = new Set<OuvinteOcorrencias>();
+  const ouvintesSerie = new Set<OuvinteSerie>();
   let proximoAviso = 1;
 
   return createStore<EstadoStoreJogo & AcoesStoreJogo>()((set, get) => {
     function emitir(ocorrencias: Ocorrencia[], emLote: boolean, rodada: Rodada): void {
       if (ocorrencias.length === 0) return;
       for (const o of ouvintes) o({ ocorrencias, emLote, rodada });
+    }
+
+    function emitirSerie(pontos: PontoSerie[]): void {
+      for (const p of pontos) for (const o of ouvintesSerie) o(p);
     }
 
     function guardarResumoSeAcabou(estado: EstadoSimulacao): Partial<Record<Rodada, ResumoRodada>> {
@@ -140,20 +179,25 @@ export function criarStoreJogo() {
         if (anterior && anterior.rodada !== estado.rodada) resumos = { ...resumos, [anterior.rodada]: resumoDe(anterior) };
         let atual = estado;
         let ocorrencias: Ocorrencia[] = [];
+        // O marco em que o estado já está (ex.: 7h de um jogo novo); reenvio não duplica no servidor.
+        const pontos: PontoSerie[] =
+          estado.minuto === marcoDaSerie(estado.minuto) ? [{ rodada: estado.rodada, minuto: estado.minuto, metricas: metricas(estado) }] : [];
         if (minutoSala != null && minutoSala > estado.minuto) {
-          const r = avancarAte(estado, minutoSala);
+          const r = avancarComMarcos(estado, minutoSala);
           atual = r.estado;
           ocorrencias = r.ocorrencias;
+          pontos.push(...r.pontos);
         }
         set({ estado: atual, selecionadoId: null, confirmacao: null, aviso: null, resumos });
         set({ resumos: guardarResumoSeAcabou(atual) });
         emitir(ocorrencias, true, atual.rodada);
+        emitirSerie(pontos);
       },
 
       avancarPara(minuto) {
         const { estado } = get();
         if (!estado || minuto <= estado.minuto) return 0;
-        const r = avancarAte(estado, minuto);
+        const r = avancarComMarcos(estado, minuto);
         const passos = r.estado.minuto - estado.minuto;
         if (passos === 0) return 0;
         set({
@@ -162,6 +206,7 @@ export function criarStoreJogo() {
           resumos: guardarResumoSeAcabou(r.estado),
         });
         emitir(r.ocorrencias, passos > PASSOS_LOTE, r.estado.rodada);
+        emitirSerie(r.pontos);
         return passos;
       },
 
@@ -214,6 +259,13 @@ export function criarStoreJogo() {
 
       descartar() {
         set({ estado: null, selecionadoId: null, aviso: null, confirmacao: null });
+      },
+
+      assinarSerie(ouvinte) {
+        ouvintesSerie.add(ouvinte);
+        return () => {
+          ouvintesSerie.delete(ouvinte);
+        };
       },
 
       assinarOcorrencias(ouvinte) {

@@ -7,7 +7,8 @@ import {
   type EstadoSimulacao,
   type PacienteSim,
 } from '../../shared/lib/simulation';
-import { criarStoreJogo, type LoteOcorrencias } from '../jogo/storeJogo';
+import { avancarComMarcos, criarStoreJogo, type LoteOcorrencias, type PontoSerie } from '../jogo/storeJogo';
+import { metricas } from '../../shared/lib/simulation';
 
 const SEMENTE = 2026;
 
@@ -162,5 +163,32 @@ describe('store do jogo: decisões', () => {
     expect(store.getState().estado!.pacientes.find(x => x.id === paciente.id)!.sector).toBe('alta');
     store.getState().selecionar(paciente.id);
     expect(store.getState().selecionadoId).toBeNull();
+  });
+});
+
+describe('série de métricas na recuperação', () => {
+  it('ao voltar depois de 2 h fora, registra cada marco de 30 min com as métricas daquele minuto', () => {
+    const store = criarStoreJogo();
+    const pontos: PontoSerie[] = [];
+    store.getState().assinarSerie(p => pontos.push(p));
+    const inicio = avancarAte(criarEstadoInicial(1, SEMENTE), 455).estado;
+    store.getState().carregar(inicio, 575);
+    expect(pontos.map(p => p.minuto)).toEqual([480, 510, 540, 570]);
+    expect(pontos[1]!.metricas).toEqual(metricas(avancarAte(inicio, 510).estado));
+    expect(store.getState().estado!.minuto).toBe(575);
+  });
+
+  it('jogo novo registra as 7h e o relógio normal registra cada marco uma vez', () => {
+    const store = criarStoreJogo();
+    const pontos: PontoSerie[] = [];
+    store.getState().assinarSerie(p => pontos.push(p));
+    store.getState().carregar(criarEstadoInicial(2, SEMENTE));
+    for (let m = 421; m <= 481; m++) store.getState().avancarPara(m);
+    expect(pontos.map(p => [p.rodada, p.minuto])).toEqual([[2, 420], [2, 450], [2, 480]]);
+  });
+
+  it('avançar em trechos pelos marcos dá o mesmo estado que avançar direto', () => {
+    const e = criarEstadoInicial(1, SEMENTE);
+    expect(avancarComMarcos(e, 700).estado).toEqual(avancarAte(e, 700).estado);
   });
 });

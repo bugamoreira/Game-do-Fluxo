@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../shared/components/ui';
-import { metricas, type EstadoSimulacao, type Metricas, type Rodada } from '../shared/lib/simulation';
+import type { EstadoSimulacao, Metricas, Rodada } from '../shared/lib/simulation';
 import type { EstadoTurma } from '../shared/schemas';
 import { SemConexao } from '../shared/services/erros';
 import {
@@ -14,7 +14,6 @@ import {
   comoEstadoSimulacao,
   decidirRetomada,
   eventosRelevantes,
-  marcoDaSerie,
   minutoAlvo,
   sementeDaTurma,
   tensaoDoPlantao,
@@ -206,6 +205,25 @@ function SalaDoGrupo({ porta, sala, grupo, onSair }: SalaDoGrupoProps) {
     if (daTurma?.tokenValido === false && !ehStatusFinal(daTurma.status)) onSair(MENSAGEM_ACESSO_PERDIDO);
   }, [turmaNova, finalCongelado, daTurma, onSair]);
 
+  // Sincronização com o servidor: estado completo, série a cada 30 min simulados e eventos marcantes.
+  // As assinaturas vêm antes da retomada: a recuperação (carregar) já emite marcos e eventos.
+  const sync = porta.useSincronizarJogo(grupo.token, estado, resumoDe);
+  const { registrarSerie, registrarEventos } = sync;
+  useEffect(
+    () =>
+      storeJogo.getState().assinarSerie(({ rodada: r, minuto, metricas }) => {
+        registrarSerie<Metricas>(r, minuto, metricas);
+      }),
+    [registrarSerie],
+  );
+  useEffect(
+    () =>
+      storeJogo.getState().assinarOcorrencias(({ ocorrencias, rodada: r }) => {
+        registrarEventos(r, eventosRelevantes(r, ocorrencias));
+      }),
+    [registrarEventos],
+  );
+
   // Início ou retomada da rodada (docs/design.md §5, reconexão só com o estado completo).
   useEffect(() => {
     if (!turma) return;
@@ -273,26 +291,6 @@ function SalaDoGrupo({ porta, sala, grupo, onSair }: SalaDoGrupoProps) {
     if (turma.fullCapacityLiberado && !estado.ferramentas.fcLiberado) storeJogo.getState().liberarFullCapacity();
     else if (!turma.fullCapacityLiberado && estado.ferramentas.fcLiberado) storeJogo.getState().revogarFullCapacity();
   }, [turma, estado]);
-
-  // Sincronização com o servidor: estado completo, série a cada 30 min simulados e eventos marcantes.
-  const sync = porta.useSincronizarJogo(grupo.token, estado, resumoDe);
-  const { registrarSerie, registrarEventos } = sync;
-  const ultimoMarco = useRef<{ rodada: Rodada; minuto: number } | null>(null);
-  useEffect(() => {
-    if (!estado || !jogando) return;
-    const marco = marcoDaSerie(estado.minuto);
-    const u = ultimoMarco.current;
-    if (u && u.rodada === estado.rodada && u.minuto >= marco) return;
-    ultimoMarco.current = { rodada: estado.rodada, minuto: marco };
-    registrarSerie<Metricas>(estado.rodada, marco, metricas(estado));
-  }, [estado, jogando, registrarSerie]);
-  useEffect(
-    () =>
-      storeJogo.getState().assinarOcorrencias(({ ocorrencias, rodada: r }) => {
-        registrarEventos(r, eventosRelevantes(r, ocorrencias));
-      }),
-    [registrarEventos],
-  );
 
   // Música: mudo pelo facilitador; tensão do hospital.
   useEffect(() => {
