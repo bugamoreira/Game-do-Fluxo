@@ -35,7 +35,7 @@ export const REGRAS: BlocoRegra[] = [
     titulo: 'O plantão',
     paragrafos: [
       'Cada grupo coordena o fluxo de pacientes de um hospital das 7h às 19h. Um segundo real equivale a um minuto do plantão, de modo que cada rodada dura 12 minutos.',
-      `O hospital já começa cheio: pronto-socorro (DE) com ${CAP.de} macas, enfermaria com ${CAP.enf} leitos, UTI com ${CAP.uti} leitos e recuperação pós-anestésica (RPA) com ${CAP.rpa} vagas, tudo com ocupação alta logo cedo.`,
+      `O hospital já começa cheio: departamento de emergência (DE) com ${CAP.de} macas, enfermaria com ${CAP.enf} leitos, UTI com ${CAP.uti} leitos e recuperação pós-anestésica (RPA) com ${CAP.rpa} vagas, tudo com ocupação alta logo cedo.`,
       'A turma joga duas rodadas: primeiro o Plantão Travado, o hospital como costuma ser; depois do debrief, o Plantão Lean, o mesmo dia com as ferramentas de fluxo funcionando. Todos os grupos jogam as duas.',
     ],
   },

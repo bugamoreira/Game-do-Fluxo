@@ -1,0 +1,62 @@
+# Ajustes da revisão do Gustavo
+
+> Lista viva dos pedidos feitos durante a revisão das telas (a partir de 1º/11/2026). Cada item entra assim que é pedido e muda de estado quando é feito. As decisões de regra de jogo continuam em `docs/plano.md`.
+
+Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão do Gustavo
+
+## Textos e identidade
+
+| # | Pedido | Onde | Estado |
+|---|---|---|---|
+| 1 | O curso pré acontece em **25 de novembro** (não 25 a 28) | Orientações, docs | ✅ |
+| 2 | É o **Curso de Gestão do ED Leaders** | Orientações, descrição da página, demos, docs | ✅ |
+| 3 | Não falar em "sete pessoas": **um grupo, um plantão** | Orientações (abertura e seção de papéis), docs | ✅ |
+| 4 | Revisão de textos (UX copy) em todas as telas, com norma culta | Jogo, painel, telão, relatório | ✅ primeira varredura ("time" → "grupo"); seguir revisando a cada print |
+| 5 | Frase de abertura em duas linhas: "Cada grupo assume um plantão." / "Decidam juntos para o hospital fluir antes que o plantão trave." | Orientações | ✅ |
+| 6a | Cartões de "Como funciona" encavalados e quebras de linha ruins: setas com espaço próprio, cartões explicativos em 2 × 2, quebras equilibradas; menu do topo some antes de quebrar | Orientações | ✅ |
+| 6b | "Pronto-socorro" → **departamento de emergência**; "vigia" → **monitoramento** | Orientações, relatório, demos | ✅ |
+| 6 | Pergunta frequente "O jogo já começou" ainda fala em liberar grupo atrasado | Orientações | 🔧 sai junto com a remoção de "Liberar entrada" |
+
+## Navegação
+
+| # | Pedido | Onde | Estado |
+|---|---|---|---|
+| 7 | Telas sem como voltar | Entrada do grupo → orientações; treino → entrada da sala e escolha da rodada; login do facilitador → orientações | ✅ |
+| 7b | Som sumiu no Safari: o módulo de áudio passa a ser pré-carregado e o som liga dentro do clique; se o navegador recusar, o próximo clique tenta de novo | Jogo | ✅ (confirmar no Safari do Gustavo) |
+| 8 | Sem "voltar" na sala de espera e durante a rodada (de propósito, para ninguém abandonar a dinâmica) | Jogo em turma | ✅ decisão de projeto |
+
+## Regras de acesso (decididas em 1º/11)
+
+| # | Decisão | Estado |
+|---|---|---|
+| 9 | Nenhum grupo novo depois do início; a sala só começa com todos conectados; sai o botão "Liberar entrada" | 🔧 |
+| 10 | Máximo de 10 grupos por turma | 🔧 |
+| 11 | Reconexão liberada continua: mesmo nome + código de acesso | ✅ mantida |
+
+## Defeitos do ensaio com 6 grupos-robô
+
+| # | Defeito | Estado |
+|---|---|---|
+| 12 | Música trava a página em computador lento | 🔧 |
+| 13 | Espera de login nos grupos sob carga | 🔧 |
+| 14 | Relógio passa do horário na pausa | 🔧 |
+| 15 | Dados atrasados do Travado recusados durante o Lean | 🔧 |
+| 16 | Presença de cada grupo na tela "Ao vivo" | 🔧 |
+| 17 | Documentação dizia pontuação mínima 50 (o certo é 0) | ✅ |
+
+## Publicação (passos do Gustavo)
+
+| # | Passo | Estado |
+|---|---|---|
+| 18 | Variáveis no Netlify (`VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`) | ⏳ |
+| 19 | Desligar cadastro aberto no Supabase | ✅ |
+| 20 | Criar usuário do facilitador e enviar só o UID | ⏳ |
+| 21 | Teto de gastos no Supabase | ✅ |
+| 22 | Secret scanning e push protection no GitHub | ✅ já estavam ligados |
+| 23 | Preparar o Mac para o ensaio local (Homebrew e Postgres 16) | ⏳ |
+
+## Pequenos ajustes técnicos anotados
+
+| # | Item | Estado |
+|---|---|---|
+| 24 | Aviso do Vite sobre `__dirname` no `vite.config.ts` | ✅ |

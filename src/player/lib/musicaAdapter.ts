@@ -1,13 +1,17 @@
 // ============================================================
 // Adaptador fino da música para o jogo.
 // Delega para a API `musica` de src/shared/lib/music.ts (trilhas do Travado e do
-// Lean). O Tone.js só é carregado no primeiro clique (fica fora do pacote inicial);
-// até lá, o último estado e o mudo ficam guardados e são aplicados ao ligar.
+// Lean). O módulo do Tone.js é pré-carregado assim que a tela abre (fora do
+// pacote inicial), para que o clique que liga o som encontre tudo pronto: o
+// Safari só libera o áudio se o `resume()` do AudioContext acontecer dentro do
+// próprio gesto, sem esperar download. Até ligar, o último estado e o mudo ficam
+// guardados e são aplicados ao ligar.
 // ============================================================
 
 import type { SomEfeito } from '../../shared/lib/music';
 
-type ApiMusica = (typeof import('../../shared/lib/music'))['musica'];
+type ModuloMusica = typeof import('../../shared/lib/music');
+type ModuloTone = typeof import('tone');
 
 export interface EstadoMusica {
   rodada: 1 | 2;
@@ -16,39 +20,66 @@ export interface EstadoMusica {
   rodando: boolean;
 }
 
-let api: ApiMusica | null = null;
-let iniciando: Promise<void> | null = null;
+let modulos: { m: ModuloMusica['musica']; tone: ModuloTone } | null = null;
+let carregando: Promise<void> | null = null;
+let ligado = false;
 let mudoDesejado = false;
 let ultimoEstado: EstadoMusica | null = null;
 
+function aplicarGuardado(m: ModuloMusica['musica']): void {
+  m.definirMudo(mudoDesejado);
+  if (ultimoEstado) m.atualizar(ultimoEstado);
+}
+
 export const musica = {
-  /** Liga o áudio. Precisa vir de um gesto do usuário (primeiro clique). */
-  iniciar(): Promise<void> {
-    if (api) return Promise.resolve();
-    iniciando ??= import('../../shared/lib/music')
-      .then(async ({ musica: m }) => {
-        m.definirMudo(mudoDesejado);
-        if (ultimoEstado) m.atualizar(ultimoEstado);
-        await m.iniciar();
-        api = m;
+  /** Baixa o módulo de áudio em segundo plano (não toca nada; não precisa de gesto). */
+  preparar(): Promise<void> {
+    carregando ??= Promise.all([import('../../shared/lib/music'), import('tone')])
+      .then(([mod, tone]) => {
+        modulos = { m: mod.musica, tone };
+        aplicarGuardado(mod.musica);
       })
       .catch(() => {
-        iniciando = null; // navegador recusou o áudio: tenta no próximo clique
+        carregando = null; // falha de rede: tenta de novo no próximo gesto
       });
-    return iniciando;
+    return carregando;
+  },
+
+  /**
+   * Liga o áudio. Chame dentro de um gesto do usuário (clique ou tecla).
+   * Devolve `true` quando o áudio ficou de fato tocando; `false` pede nova tentativa no próximo gesto.
+   */
+  async iniciar(): Promise<boolean> {
+    if (ligado) return true;
+    if (!modulos) {
+      // Ainda baixando: este gesto só adianta o download; o próximo liga o som.
+      await musica.preparar();
+      return false;
+    }
+    const { m, tone } = modulos;
+    try {
+      // Chamado de forma síncrona, ainda dentro do gesto (exigência do Safari).
+      const retomada = tone.start();
+      await Promise.all([retomada, m.iniciar()]);
+    } catch {
+      return false;
+    }
+    ligado = tone.getContext().state === 'running';
+    if (ligado) aplicarGuardado(m);
+    return ligado;
   },
 
   atualizar(estado: EstadoMusica): void {
     ultimoEstado = estado;
-    api?.atualizar(estado);
+    if (ligado) modulos?.m.atualizar(estado);
   },
 
   efeito(som: SomEfeito): void {
-    api?.efeito(som);
+    if (ligado) modulos?.m.efeito(som);
   },
 
   definirMudo(mudo: boolean): void {
     mudoDesejado = mudo;
-    api?.definirMudo(mudo);
+    modulos?.m.definirMudo(mudo);
   },
 };

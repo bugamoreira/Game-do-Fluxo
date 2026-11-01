@@ -36,7 +36,7 @@ const MIN_FIM = 1140;
 export type FaseDemo = 'login' | 'nova' | 'sala' | 'r1' | 'debrief' | 'r2' | 'resultado';
 
 export const GRUPOS_DEMO: ReadonlyArray<{ nome: string; cor: string }> = [
-  { nome: 'Pronto-Socorro Azul', cor: '#2563EB' },
+  { nome: 'Emergência Azul', cor: '#2563EB' },
   { nome: 'Leito Zero', cor: '#7C3AED' },
   { nome: 'Fluxo Contínuo', cor: '#DB2777' },
   { nome: 'Equipe Kanban', cor: '#0E7490' },

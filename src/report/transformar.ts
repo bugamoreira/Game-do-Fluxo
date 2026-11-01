@@ -288,7 +288,7 @@ export function gerarMensagens(r1: ResumoRodada, r2: ResumoRodada, grupos: Grupo
     msgs.push(
       `O boarding somado caiu de ${formatarNumero(t1.bH, 1)} h para ${formatarNumero(t2.bH, 1)} h` +
         (p !== null && p < 0 ? ` (${formatarNumero(-p)}% a menos).` : '.') +
-        ' Quando a saída do hospital anda, o pronto-socorro esvazia sem que ninguém precise correr mais.',
+        ' Quando a saída do hospital anda, o departamento de emergência esvazia sem que ninguém precise correr mais.',
     );
   }
   if (t1.dth !== undefined && t2.dth !== undefined && t1.det !== undefined && t2.det !== undefined) {

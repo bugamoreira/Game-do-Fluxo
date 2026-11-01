@@ -102,7 +102,7 @@ a { color: inherit; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
 .hero h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; font-weight: 800; letter-spacing: -.02em; }
 .hl { color: var(--yellow); }
-.lead { font-size: clamp(1.05rem, 2vw, 1.3rem); font-weight: 300; max-width: 640px; color: rgba(255,255,255,.88); }
+.lead { font-size: clamp(1.05rem, 2vw, 1.3rem); font-weight: 300; max-width: 720px; color: rgba(255,255,255,.88); }
 .chips { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; }
 .chip { padding: 8px 16px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); font-size: .9rem; font-weight: 600; }
 .actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px; }
@@ -129,11 +129,11 @@ h3 { color: var(--text); font-size: 1.05rem; font-weight: 700; margin-bottom: 6p
 .card--rpa { background: var(--tone-rpa); }
 
 /* Como funciona: Travado → Discussão → Lean → Resultado */
-.jornada { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 30px; }
+.jornada { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; margin-top: 30px; }
 .jornada__etapa { position: relative; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 22px 22px 20px; box-shadow: var(--shadow-card); }
 .jornada__etapa p { font-size: .93rem; }
 .jornada__etapa:not(:last-child)::after {
-  content: ''; position: absolute; top: 50%; right: -13px; width: 12px; height: 12px; z-index: 1;
+  content: ''; position: absolute; top: 50%; right: -27px; width: 12px; height: 12px; z-index: 1;
   border-top: 3px solid var(--navy); border-right: 3px solid var(--navy); transform: translateY(-50%) rotate(45deg);
 }
 .jornada__num { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; margin-bottom: 12px; background: var(--bg-tint); color: var(--navy); font-family: var(--font-mono); font-weight: 700; }
@@ -143,6 +143,10 @@ h3 { color: var(--text); font-size: 1.05rem; font-weight: 700; margin-bottom: 6p
 .jornada__etapa--resultado h3 { color: #fff; }
 .jornada__etapa--resultado .jornada__num { background: var(--yellow); color: var(--navy-deep); }
 .card p { font-size: .95rem; }
+/* Quebras de linha mais equilibradas nos cartões estreitos */
+.card h3, .jornada__etapa h3 { text-wrap: balance; }
+.card p, .jornada__etapa p, .steps p, .muted { text-wrap: pretty; hyphens: manual; }
+.card p, .jornada__etapa p { line-height: 1.55; }
 
 /* Steps */
 .steps { list-style: none; counter-reset: step; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 28px; }
@@ -199,6 +203,12 @@ kbd { font-family: inherit; font-size: .85em; font-weight: 700; padding: 1px 7px
 .footer a { color: var(--yellow); text-decoration: none; font-weight: 600; }
 
 /* Responsivo */
+/* Cartões explicativos com texto longo: sempre 2 × 2 (em 4 colunas as linhas ficavam curtas demais). */
+.cards--soft.cards--4 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 1100px) {
+  .topbar nav { display: none; }
+  .topbar .btn { margin-left: auto; }
+}
 @media (max-width: 960px) {
   .cards--4, .jornada { grid-template-columns: repeat(2, 1fr); }
   .jornada__etapa:nth-child(2)::after { display: none; }
@@ -208,7 +218,7 @@ kbd { font-family: inherit; font-size: .85em; font-weight: 700; padding: 1px 7px
 }
 @media (max-width: 640px) {
   .cards--4, .cards--3, .steps, .checks, .jornada { grid-template-columns: 1fr; }
-  .jornada__etapa:not(:last-child)::after { display: block; top: auto; bottom: -13px; right: 50%; transform: translateX(50%) rotate(135deg); }
+  .jornada__etapa:not(:last-child)::after { display: block; top: auto; bottom: -27px; right: 50%; transform: translateX(50%) rotate(135deg); }
   .hero { padding: 36px 0 56px; }
   .logos__abramede { height: 34px; }
   .solo { padding: 24px; }

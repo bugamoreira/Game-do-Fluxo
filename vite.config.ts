@@ -28,11 +28,11 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         input: {
-          landing: resolve(__dirname, 'index.html'),
-          player: resolve(__dirname, 'jogar.html'),
-          instructor: resolve(__dirname, 'instrutor.html'),
-          projector: resolve(__dirname, 'projetor.html'),
-          relatorio: resolve(__dirname, 'relatorio.html'),
+          landing: resolve(import.meta.dirname, 'index.html'),
+          player: resolve(import.meta.dirname, 'jogar.html'),
+          instructor: resolve(import.meta.dirname, 'instrutor.html'),
+          projector: resolve(import.meta.dirname, 'projetor.html'),
+          relatorio: resolve(import.meta.dirname, 'relatorio.html'),
         },
       },
     },

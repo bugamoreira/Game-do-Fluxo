@@ -287,13 +287,13 @@ export function SecaoEvolucao({ numero, vista }: { numero: number; vista: Relato
       numero={numero}
       rotulo="Hora a hora"
       titulo="Evolução ao longo do plantão"
-      intro="Média dos grupos em cada hora simulada. Compare quando o pronto-socorro enche em cada rodada e se ele consegue esvaziar à tarde: no Lean, as altas cedo abrem espaço antes do pico de chegadas."
+      intro="Média dos grupos em cada hora simulada. Compare quando o departamento de emergência enche em cada rodada e se ele consegue esvaziar à tarde: no Lean, as altas cedo abrem espaço antes do pico de chegadas."
     >
       {vista.temSeries ? (
         <div className="impressao-2col grid gap-5 lg:grid-cols-2">
           <Card className="sem-quebra">
             <GraficoLinhas
-              titulo="Ocupação do pronto-socorro"
+              titulo="Ocupação do departamento de emergência"
               descricao="Pacientes no DE em relação às 15 macas (média da turma)."
               pontos={vista.ocupacaoDe}
               unidade="%"
