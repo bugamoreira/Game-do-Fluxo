@@ -21,7 +21,8 @@ function verificar(e: EstadoSimulacao): void {
   expect(contar(e, 'de')).toBeLessThanOrEqual(CAP.de + SALA_VERMELHA_EXTRA);
   expect(contar(e, 'fast_track')).toBeLessThanOrEqual(FAST_TRACK_VAGAS);
   expect(contar(e, 'enf_extra')).toBeLessThanOrEqual(ENF_EXTRA_VAGAS);
-  expect(pontuacao(e)).toBe(calcScore(e.stats));
+  expect(pontuacao(e)).toBe(calcScore({ ...e.stats, atendidosNoAlvo: e.pacientes.filter(p => p.slaOk === true).length }));
+  expect(pontuacao(e)).toBeGreaterThanOrEqual(0);
   expect(e.pacientes.filter(p => p.dead).every(p => p.sector === 'obito')).toBe(true);
   expect(e.log.length).toBeLessThanOrEqual(60);
   expect(e.ferramentas.nirUsos).toBeLessThanOrEqual(3);
@@ -32,7 +33,7 @@ describe('invariantes em partidas inteiras', () => {
     for (const rodada of [1, 2] as Rodada[]) {
       it(`${nome} · R${rodada}`, () => {
         for (const semente of SEMENTES) {
-          let e = criarEstadoInicial(rodada, semente, semente % 3 === 0 ? { ccBlocked: rodada === 1 } : {});
+          let e = criarEstadoInicial(rodada, semente);
           if (rodada === 2) e = liberarFullCapacity(e).estado;
           let versao = e.versao;
           while (e.minuto < MINUTO_FIM) {

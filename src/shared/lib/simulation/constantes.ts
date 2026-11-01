@@ -102,8 +102,13 @@ export const FAST_TRACK_FATOR_DECISAO = 0.6;
 /** Protocolo de fluxo rápido: DE com ocupação ≥ esta fração acelera as decisões. */
 export const FLUXO_RAPIDO_OCUPACAO = 0.8;
 export const FLUXO_RAPIDO_BONUS = 1.0;
+/** NIR (regulação, nas duas rodadas): 3 usos por rodada. */
 export const NIR_MAX_USOS = 3;
+/** Espera entre usos do NIR: só na R2 (na R1, a lentidão da transferência já é o custo). */
 export const NIR_ESPERA_MIN = 60;
+/** Duração da transferência pelo NIR (min): sorteada na R1, fixa na R2. */
+export const NIR_TRANSFERENCIA_R1_MIN: readonly [number, number] = [180, 240];
+export const NIR_TRANSFERENCIA_R2_MIN = 60;
 /** PCP / Full Capacity: vagas no corredor da enfermaria. */
 export const ENF_EXTRA_VAGAS = 2;
 

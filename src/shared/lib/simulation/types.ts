@@ -25,6 +25,10 @@ export interface PacienteSim extends Omit<Patient, 'sector' | 'dest' | 'offSvc'>
   leitoInadequado: boolean;
   /** Necessidade que o hospital não atende (ex.: hemodinâmica, cirurgia oncológica): precisa de transferência */
   foraDoPerfil: boolean;
+  /** NIR acionado: minuto previsto de saída (0 = sem transferência em andamento). Continua no DE até lá. */
+  transferenciaAte: number;
+  /** Saiu do hospital por transferência (NIR) */
+  transferido: boolean;
   risco: Risco;
   /** Entrou no DE dentro do tempo-alvo? null = ainda não decidido (ou paciente do censo inicial) */
   slaOk: boolean | null;
@@ -93,7 +97,7 @@ export interface EstadoSimulacao {
   cirurgias: CirurgiaSim[];
   stats: Stats;
   eventos: Events;
-  /** Rounds e mensagens já disparados; `ccBlocked` = sala 4 reservada para emergências */
+  /** Rounds e mensagens já disparados */
   flags: Record<string, boolean>;
   /** Minuto da próxima chegada da agenda (> 1140 quando acabou) */
   proximaChegada: number;
@@ -135,7 +139,7 @@ export interface CargaGestor {
   };
   /** Emergências cirúrgicas do plantão */
   emergencias: number;
-  /** Emergências que encontraram a RPA cheia (sem a sala reservada, seriam óbito) */
+  /** Emergências que encontraram a RPA cheia (viram óbito) */
   emergenciasSemSala: number;
 }
 
@@ -153,7 +157,7 @@ export type TipoOcorrencia =
   | 'laboratorio' | 'laboratorio_fim'
   | 'surto' | 'fora_do_perfil'
   | 'social' | 'bloqueio_social' | 'social_fim'
-  | 'emergencia_cirurgica' | 'emergencia_obito' | 'emergencia_espera'
+  | 'emergencia_cirurgica' | 'emergencia_obito'
   | 'obs_prolongada' | 'obs_fim'
   | 'fluxista' | 'fluxo_rapido'
   | 'deterioracao' | 'deterioracao_espera' | 'obito' | 'obito_espera'
@@ -163,7 +167,7 @@ export type TipoOcorrencia =
   | 'round_enf' | 'round_uti' | 'bloqueio_fim'
   | 'cirurgia_iniciada' | 'cirurgia_cancelada' | 'cirurgia_concluida'
   | 'alta' | 'movimento' | 'leito_inadequado'
-  | 'nir' | 'full_capacity' | 'full_capacity_liberado';
+  | 'nir' | 'nir_concluido' | 'full_capacity' | 'full_capacity_liberado';
 
 /** Algo que aconteceu num passo ou ação: vira entrada de log, som e eventos_jogo. */
 export interface Ocorrencia {
@@ -238,11 +242,6 @@ export interface Metricas {
   autoCirurgiasViabilizadas: number;
   emergencias: number;
   emergenciasSemSala: number;
-}
-
-export interface OpcoesEstadoInicial {
-  /** Sala 4 reservada para emergências cirúrgicas. Padrão: falso na R1, verdadeiro na R2 (pendente de confirmação). */
-  ccBlocked?: boolean;
 }
 
 /** Robô de decisão: olha o estado e devolve a próxima ação, ou null para não fazer nada. */

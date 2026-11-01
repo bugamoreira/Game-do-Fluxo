@@ -64,10 +64,9 @@ describe('estado inicial e demanda', () => {
     const r1 = simularPartida(passivo, 1, 5).estado;
     const r2 = simularPartida(puxaFluxo, 2, 5).estado;
     const chegaram = (e: EstadoSimulacao): string[] =>
-      e.pacientes.filter(p => p.id > 92 && !p.name.startsWith('PO-')).map(p => `${p.arrMin}|${p.id}`).sort();
-    const nirR2 = r2.ferramentas.nirUsos;
+      e.pacientes.filter(p => p.id > 92 && !p.name.startsWith('PO-')).map(p => String(p.arrMin).padStart(4, '0')).sort();
     expect(r1.chegadasProcessadas).toBe(r1.agenda.chegadas.length);
-    expect(chegaram(r2).length + nirR2).toBe(chegaram(r1).length);
+    expect(chegaram(r2)).toEqual(chegaram(r1));
   });
 
   it('Poisson não homogêneo: ~43 chegadas por plantão em 200 sementes, mais o surto', () => {
@@ -112,15 +111,22 @@ describe('estado inicial e demanda', () => {
     expect(e.log.some(l => l.msg === `ATRASO: a sala 1 começou ${atraso} min atrasada e as cirurgias dela foram adiadas.`)).toBe(true);
   });
 
-  it('sala 4 reservada: falsa na R1, verdadeira na R2, sem conflito de horário ao realocar', () => {
-    expect(criarEstadoInicial(1, 1).flags.ccBlocked).toBeUndefined();
+  it('sem sala reservada: a R2 usa a agenda redistribuída sem conflito de horário', () => {
+    const e = criarEstadoInicial(2, 2);
+    expect(e.flags).toEqual({});
+    expect(e.cirurgias.some(c => c.sala === 4)).toBe(true);
+    for (const a of e.cirurgias) for (const b of e.cirurgias) if (a.id < b.id) expect(sobrepoem(a, b)).toBe(false);
+  });
+
+  it('emergência cirúrgica com a RPA cheia é óbito nas duas rodadas', () => {
     for (const r of [1, 2] as Rodada[]) {
-      const e = criarEstadoInicial(r, 2, { ccBlocked: true });
-      expect(e.flags.ccBlocked).toBe(true);
-      expect(e.cirurgias.some(c => c.sala === 4)).toBe(false);
-      for (const a of e.cirurgias) for (const b of e.cirurgias) if (a.id < b.id) expect(sobrepoem(a, b)).toBe(false);
+      const rpa = [2, 3, 4].map(id => paciente(id, { sector: 'rpa', ready: true, postOp: true }));
+      const vermelho = paciente(1, { sector: 'de', sev: 'red', dest: 'uti', deNeed: 9999 });
+      const rs = variosRng(comPacientes(base(r, 600), [vermelho, ...rpa]), 3000).filter(x => x.ocorrencias.some(o => o.tipo === 'emergencia_obito'));
+      expect(rs.length).toBeGreaterThan(0);
+      expect(rs[0]!.estado.pacientes[0]).toMatchObject({ sector: 'obito', dead: true });
+      expect(rs[0]!.estado.carga.emergenciasSemSala).toBe(1);
     }
-    expect(criarEstadoInicial(2, 1).flags.ccBlocked).toBe(true);
   });
 });
 
@@ -399,23 +405,46 @@ describe('ferramentas e eventos', () => {
     expect(elegivel.some(r => r.estado.eventos.social && r.estado.pacientes[0]!.social)).toBe(true);
   });
 
-  it('NIR: só na R2, 3 usos, 60 min de espera; vale para fora do perfil e para quem espera leito', () => {
-    const fora = paciente(1, { sector: 'de', dest: 'transferencia', foraDoPerfil: true, ready: true, bStart: 465 });
-    const pts = [fora, ...[2, 3, 4].map(id => paciente(id, { sector: 'de', dest: 'enf', ready: true, bStart: 465 }))];
-    const nir = (id: number): Acao => ({ tipo: 'nir', pacienteId: id });
-    expect(falha(aplicarAcao(comPacientes(base(1), pts), nir(1))).codigo).toBe('ferramenta_indisponivel');
-    let e = comPacientes(base(2), pts);
+  const ptsNir = () => [
+    paciente(1, { sector: 'de', dest: 'transferencia', foraDoPerfil: true, ready: true, bStart: 465 }),
+    ...[2, 3, 4].map(id => paciente(id, { sector: 'de', dest: 'enf', ready: true, bStart: 465 })),
+  ];
+  const nir = (id: number): Acao => ({ tipo: 'nir', pacienteId: id });
+
+  it('NIR na R2: transferência de 60 min ocupando a maca, 3 usos, 60 min de espera entre usos', () => {
+    let e = comPacientes(base(2), ptsNir());
     expect(destinosPossiveis(e, 1)).toEqual([]);
     expect(metricas(e).boarding).toBe(4);
     const r = ok(aplicarAcao(e, nir(1)));
-    expect(r.estado.pacientes.some(p => p.id === 1)).toBe(false);
+    expect(r.estado.pacientes.find(p => p.id === 1)).toMatchObject({ sector: 'de', transferenciaAte: 530 });
+    expect(metricas(r.estado).boarding).toBe(4);
     expect(r.ocorrencias[0]).toMatchObject({ tipo: 'nir', decisao: 'produtiva' });
+    expect(falha(aplicarAcao(r.estado, nir(1))).erro).toMatch(/em andamento/);
     e = r.estado;
     expect(falha(aplicarAcao(e, nir(2))).erro).toMatch(/espera/);
-    e = ok(aplicarAcao(avancarAte(e, e.minuto + 60).estado, nir(2))).estado;
+    const quase = avancarAte(e, 529).estado;
+    expect(quase.pacientes.find(p => p.id === 1)!.sector).toBe('de');
+    const saiu = passo(quase);
+    expect(saiu.estado.pacientes.find(p => p.id === 1)).toMatchObject({ sector: 'alta', transferido: true });
+    expect(saiu.ocorrencias.some(o => o.tipo === 'nir_concluido')).toBe(true);
+    e = ok(aplicarAcao(saiu.estado, nir(2))).estado;
     e = ok(aplicarAcao(avancarAte(e, e.minuto + 60).estado, nir(3))).estado;
     e = avancarAte(e, e.minuto + 60).estado;
     expect(falha(aplicarAcao(e, nir(4))).erro).toMatch(/esgotado/);
+  });
+
+  it('NIR na R1: sem espera entre usos, mas a transferência leva de 180 a 240 min (gerador de eventos)', () => {
+    let e = comPacientes(base(1), ptsNir());
+    const r = ok(aplicarAcao(e, nir(1)));
+    const ate = r.estado.pacientes.find(p => p.id === 1)!.transferenciaAte;
+    expect(ate - 470).toBeGreaterThanOrEqual(180);
+    expect(ate - 470).toBeLessThanOrEqual(240);
+    expect(r.estado.rng).not.toBe(e.rng);
+    expect(ok(aplicarAcao(e, nir(1))).estado).toEqual(r.estado);
+    e = ok(aplicarAcao(r.estado, nir(2))).estado;
+    e = ok(aplicarAcao(e, nir(3))).estado;
+    expect(falha(aplicarAcao(e, nir(4))).erro).toMatch(/esgotado/);
+    expect(metricas(e).deOcc).toBe(4);
   });
 
   it('fora do perfil conta como boarding e tem o risco da sua gravidade', () => {
@@ -471,6 +500,12 @@ describe('ferramentas e eventos', () => {
     const r2 = { ...criarEstadoInicial(2, 1), stats: r1.stats };
     expect(pontuacao(r2)).toBe(pontuacao(r1));
     expect(pontuacao(r1)).toBe(calcScore(r1.stats));
+  });
+
+  it('pontuação soma +2 por atendido dentro do tempo-alvo e não tem piso de 50', () => {
+    const e = comPacientes(base(), [paciente(1, { sector: 'de', slaOk: true }), paciente(2, { sector: 'de', slaOk: false })]);
+    expect(pontuacao(e)).toBe(1500 + 150 + 2);
+    expect(pontuacao({ ...e, stats: { ...e.stats, deaths: 20 } })).toBe(0);
   });
 
   it('capacidades: UTI e RPA nunca passam do limite em partidas inteiras', () => {

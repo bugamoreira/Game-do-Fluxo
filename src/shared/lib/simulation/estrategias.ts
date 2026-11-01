@@ -9,7 +9,7 @@ import {
   metricas, MINUTO_FIM, NIR_MAX_USOS, passo, pontuacao,
 } from './motor';
 import { CAP } from '../constants';
-import type { Acao, Estrategia, EstadoSimulacao, Metricas, OpcoesEstadoInicial, PacienteSim, Rodada, SetorSim } from './types';
+import type { Acao, Estrategia, EstadoSimulacao, Metricas, PacienteSim, Rodada, SetorSim } from './types';
 
 function temVaga(estado: EstadoSimulacao, setor: Sector): boolean {
   if (setor === 'alta') return true;
@@ -87,11 +87,11 @@ function primeira(estado: EstadoSimulacao, regras: Array<(e: EstadoSimulacao) =>
 /** Não faz nada: mostra o hospital funcionando sozinho. */
 export const passivo: Estrategia = () => null;
 
-/** NIR para quem está fora do perfil do hospital (R2, se houver uso disponível e sem espera). */
+/** NIR para quem está fora do perfil do hospital (nas duas rodadas, se houver uso disponível e sem espera). */
 function nirForaDoPerfil(estado: EstadoSimulacao): Acao | null {
   const f = estado.ferramentas;
-  if (estado.rodada !== 2 || f.nirUsos >= NIR_MAX_USOS || f.nirEspera > 0) return null;
-  const p = doSetor(estado, 'de').find(x => x.ready && !x.dead && x.dest === 'transferencia');
+  if (f.nirUsos >= NIR_MAX_USOS || f.nirEspera > 0) return null;
+  const p = doSetor(estado, 'de').find(x => x.ready && !x.dead && x.foraDoPerfil && !x.transferenciaAte);
   return p ? { tipo: 'nir', pacienteId: p.id } : null;
 }
 
@@ -136,9 +136,8 @@ export function simularPartida(
   rodada: Rodada,
   semente: number,
   acoesPorMinuto = 2,
-  opcoes: OpcoesEstadoInicial = {},
 ): ResultadoPartida {
-  let estado = criarEstadoInicial(rodada, semente, opcoes);
+  let estado = criarEstadoInicial(rodada, semente);
   let acoes = 0;
   let deLotadoEm: number | null = null;
   let picoBoarding = 0;

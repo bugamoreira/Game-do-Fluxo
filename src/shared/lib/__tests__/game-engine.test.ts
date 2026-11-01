@@ -80,12 +80,12 @@ describe('calcScore', () => {
     expect(score).toBe(1680);
   });
 
-  it('has floor of 50', () => {
+  it('has floor of 0', () => {
     const score = calcScore({
       boardHrs: 100, dets: 10, deaths: 10, cxCan: 10,
       lwbs: 10, offS: 10, socB: 10,
     });
-    expect(score).toBe(50);
+    expect(score).toBe(0);
   });
 
   it('has no R2-only bonus', () => {
@@ -109,6 +109,22 @@ describe('calcScore', () => {
     const clean = calcScore({ boardHrs: 0, dets: 0, deaths: 0, cxCan: 0, lwbs: 0, offS: 0, socB: 0 });
     const boarded = calcScore({ boardHrs: 10, dets: 0, deaths: 0, cxCan: 0, lwbs: 0, offS: 0, socB: 0 });
     expect(clean - boarded).toBe(100); // 10 * 10 = 100
+  });
+
+  it('applies each approved weight', () => {
+    const zero = { boardHrs: 0, dets: 0, deaths: 0, cxCan: 0, lwbs: 0, offS: 0, socB: 0 };
+    const base = calcScore(zero);
+    expect(base).toBe(1650);
+    expect(base - calcScore({ ...zero, dets: 1 })).toBe(40);
+    expect(base - calcScore({ ...zero, cxCan: 1 })).toBe(80);
+    expect(base - calcScore({ ...zero, lwbs: 1 })).toBe(40);
+    expect(base - calcScore({ ...zero, offS: 1 })).toBe(25);
+    expect(calcScore({ ...zero, atendidosNoAlvo: 10 }) - base).toBe(20);
+  });
+
+  it('does not penalize social cases', () => {
+    const zero = { boardHrs: 0, dets: 0, deaths: 0, cxCan: 0, lwbs: 0, offS: 0, socB: 0 };
+    expect(calcScore({ ...zero, socB: 3 })).toBe(calcScore(zero));
   });
 });
 

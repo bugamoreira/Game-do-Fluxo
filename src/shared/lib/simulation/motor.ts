@@ -13,7 +13,7 @@ import {
   ALVO_ESPERA, ATENCAO_ANTES_MIN, ATRASO_SALA1_R1, BLOQUEIO_CASCATA_MIN, ENF_EXTRA_VAGAS,
   FAST_TRACK_FATOR_DECISAO, FAST_TRACK_VAGAS, FLUXISTA_INTERVALO_MIN, FLUXO_RAPIDO_BONUS, FLUXO_RAPIDO_OCUPACAO,
   LAB_ACRESCIMO_CHEGADA, LABORATORIO, LIMIAR_RISCO_BOARDING, LOTES_ALTA, LWBS_LIMITE_CORREDOR,
-  NIR_ESPERA_MIN, NIR_MAX_USOS, OBITO_APOS_DET_MIN, P_DET_BOARDING, P_DET_ESPERA, P_DET_LEITO_INADEQUADO,
+  NIR_ESPERA_MIN, NIR_MAX_USOS, NIR_TRANSFERENCIA_R1_MIN, NIR_TRANSFERENCIA_R2_MIN, OBITO_APOS_DET_MIN, P_DET_BOARDING, P_DET_ESPERA, P_DET_LEITO_INADEQUADO,
   P_EMERGENCIA_CIRURGICA, P_IR_AO_CORREDOR, P_LWBS, P_OBITO, P_OBS_PROLONGADA, P_PCR, P_SOCIAL, P_SOCIAL_FAMILIA,
   P_TOMOGRAFO, PCR_DURACAO_MIN, PRIORIDADE, SALA_VERMELHA_EXTRA, SOCIAL_DURACAO_R1, SOCIAL_DURACAO_R2,
   SOCIAL_FAMILIA_DURACAO_R1, TOMOGRAFO,
@@ -21,7 +21,7 @@ import {
 import { MINUTO_FIM_PLANTAO, MINUTO_INICIO_PLANTAO } from './relogio';
 import { CANAL_DEMANDA, CANAL_EVENTOS, criarGerador, estadoDoCanal, type Gerador } from './rng';
 import type {
-  Acao, CargaGestor, ChaveLote, CirurgiaSim, ErroAcao, EstadoSimulacao, Metricas, Ocorrencia, OpcoesEstadoInicial,
+  Acao, CargaGestor, ChaveLote, CirurgiaSim, ErroAcao, EstadoSimulacao, Metricas, Ocorrencia,
   PacienteSim, ResultadoPasso, Risco, Rodada, SetorSim, TipoOcorrencia,
 } from './types';
 
@@ -53,7 +53,7 @@ function registrar(ctx: Contexto, tipo: TipoOcorrencia, msg: string, nivel: LogT
 export function paraPacienteSim(p: Patient): PacienteSim {
   const { offSvc, ...resto } = p;
   return {
-    ...resto, leitoInadequado: offSvc, foraDoPerfil: false,
+    ...resto, leitoInadequado: offSvc, foraDoPerfil: false, transferenciaAte: 0, transferido: false,
     risco: 'baixo', slaOk: null, entradaMin: null, detMin: null, retorno: false, bloqueioAte: 0,
   };
 }
@@ -111,6 +111,10 @@ function horas(min: number): string {
   return `${Math.max(1, Math.round(min / 60))} h`;
 }
 
+function horasOuMin(min: number): string {
+  return min < 120 ? `${min} min` : `${fmtHora(min)}`;
+}
+
 function fmtHora(min: number): string {
   return `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, '0') : ''}`;
 }
@@ -152,30 +156,9 @@ export function calcularRisco(p: PacienteSim, minuto: number): Risco {
   return 'baixo';
 }
 
-// ── Sala 4 reservada: realocação sem conflito de horário ────
-
-function realocarSala4(cirurgias: CirurgiaSim[]): CirurgiaSim[] {
-  const fixas = cirurgias.filter(s => s.sala !== 4).map(s => ({ ...s }));
-  const realocar = cirurgias.filter(s => s.sala === 4);
-  for (const s of realocar) {
-    const livre = (sala: number, ini: number): boolean =>
-      fixas.every(o => o.sala !== sala || ini + s.dur <= o.stH + 1e-9 || o.stH + o.dur <= ini + 1e-9);
-    const candidatos = [s.stH, ...fixas.map(o => o.stH + o.dur).filter(t => t > s.stH)].sort((a, b) => a - b);
-    let escolha: { sala: number; stH: number } | null = null;
-    for (const t of candidatos) {
-      const sala = [1, 2, 3].find(x => livre(x, t));
-      if (sala) { escolha = { sala, stH: t }; break; }
-    }
-    fixas.push({ ...s, ...(escolha ?? { sala: 3, stH: Math.max(...fixas.map(o => o.stH + o.dur)) }) });
-  }
-  return fixas.sort((a, b) => a.id - b.id);
-}
-
 // ── Estado inicial ──────────────────────────────────────────
 
-export function criarEstadoInicial(rodada: Rodada, semente: number, opcoes: OpcoesEstadoInicial = {}): EstadoSimulacao {
-  const ccBlocked = opcoes.ccBlocked ?? rodada === 2;
-
+export function criarEstadoInicial(rodada: Rodada, semente: number): EstadoSimulacao {
   // Demanda e censo: gerador próprio, independente da rodada
   const gd = criarGerador(estadoDoCanal(semente, CANAL_DEMANDA));
   let proximoId = 1;
@@ -189,18 +172,16 @@ export function criarEstadoInicial(rodada: Rodada, semente: number, opcoes: Opco
 
   // Eventos: gerador separado
   const ge = criarGerador(estadoDoCanal(semente, CANAL_EVENTOS));
-  let cirurgias: CirurgiaSim[] = rodada === 2 ? mkSxR2() : mkSx();
+  const cirurgias: CirurgiaSim[] = rodada === 2 ? mkSxR2() : mkSx();
   let atrasoMin = 0;
   if (rodada === 1) {
     atrasoMin = ge.inteiro(ATRASO_SALA1_R1[0], ATRASO_SALA1_R1[1]);
     cirurgias.forEach(s => { if (s.sala === 1) s.stH += atrasoMin / 60; });
   }
-  if (ccBlocked) cirurgias = realocarSala4(cirurgias);
 
   const title = rodada === 2 ? 'PLANTÃO LEAN' : 'PLANTÃO TRAVADO';
-  const ccMsg = ccBlocked ? ' Sala 4 reservada para emergências.' : ' Todas as 4 salas em uso eletivo.';
-  const r2Msg = rodada === 2 ? ' FERRAMENTAS LEAN ATIVAS: Bed Huddle, Discharge Lounge, Fast Track, Surgical Smoothing, Fluxista, Alta Segura, Fluxo Rápido, NIR e PCP.' : '';
-  const log: LogEntry[] = [{ msg: `${title} iniciado! DE 8/15, ENF 71/85, UTI 13/15. Ocupação hospitalar: 84%.${ccMsg}${r2Msg}`, type: 'info', t: MINUTO_INICIO }];
+  const r2Msg = rodada === 2 ? ' FERRAMENTAS LEAN ATIVAS: Bed Huddle, Discharge Lounge, Fast Track, Surgical Smoothing, Fluxista, Alta Segura, Fluxo Rápido e PCP.' : '';
+  const log: LogEntry[] = [{ msg: `${title} iniciado! DE 8/15, ENF 71/85, UTI 13/15. Ocupação hospitalar: 84%.${r2Msg}`, type: 'info', t: MINUTO_INICIO }];
   if (atrasoMin > 0) log.push({ msg: `ATRASO: a sala 1 começou ${atrasoMin} min atrasada e as cirurgias dela foram adiadas.`, type: 'warning', t: MINUTO_INICIO });
   if (rodada === 2) log.push({ msg: 'BED HUDDLE 7h: previsão de cerca de 45 pacientes, cirurgias redistribuídas e pico das 11h às 14h.', type: 'info', t: MINUTO_INICIO });
 
@@ -213,7 +194,7 @@ export function criarEstadoInicial(rodada: Rodada, semente: number, opcoes: Opco
     cirurgias,
     stats: { ...STATS_ZERO },
     eventos: { ...EVENTOS_ZERO },
-    flags: ccBlocked ? { ccBlocked: true } : {},
+    flags: {},
     proximaChegada: chegadas[0]?.minuto ?? MINUTO_FIM + 1,
     agenda: { chegadas, altas },
     chegadasProcessadas: 0,
@@ -240,7 +221,6 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
   const S: Stats = { ...estado.stats };
   const E: Events = { ...estado.eventos };
   const R: Record<string, boolean> = { ...estado.flags };
-  const ccBlocked = R.ccBlocked === true;
   const ferramentas = { ...estado.ferramentas };
   const cirurgias = estado.cirurgias.map(s => ({ ...s }));
   const carga = copiarCarga(estado.carga);
@@ -315,20 +295,16 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
 
   // Emergência cirúrgica do DE (RPA conta as cirurgias em andamento como reservadas)
   if (ch >= 9 && ch < 16 && rand() < P_EMERGENCIA_CIRURGICA) {
-    const emg = P.find(p => p.sector === 'de' && p.sev === 'red' && !p.dead && !p.postOp && !p.foraDoPerfil);
+    const emg = P.find(p => p.sector === 'de' && p.sev === 'red' && !p.dead && !p.postOp && !p.foraDoPerfil && !p.transferenciaAte);
     if (emg) {
       carga.emergencias++;
       if (rpaReservada() >= CAP.rpa) carga.emergenciasSemSala++;
       if (rpaReservada() < CAP.rpa) {
         emg.sector = 'rpa'; emg.postOp = true; emg.ready = true; emg.dest = 'uti'; emg.bStart = null; emg.bMin = 0;
         emg.name = `EMG-${emg.name.split(' ')[0]}`;
-        registrar(ctx, 'emergencia_cirurgica', `EMERGÊNCIA CIRÚRGICA: ${emg.name} foi operado${ccBlocked ? ' na sala reservada' : ''} e está na RPA.`, 'danger', { som: 'cascade', pacienteId: emg.id });
-      } else if (!ccBlocked) {
-        obito(emg, 'emergencia_obito', `SEM SALA CIRÚRGICA! Óbito evitável de ${emg.name}: RPA lotada e nenhuma sala reservada.`);
+        registrar(ctx, 'emergencia_cirurgica', `EMERGÊNCIA CIRÚRGICA: ${emg.name} foi operado e está na RPA.`, 'danger', { som: 'cascade', pacienteId: emg.id });
       } else {
-        emg.blocked = true;
-        emg.ready = false;
-        registrar(ctx, 'emergencia_espera', `EMERGÊNCIA: ${emg.name} foi operado na sala reservada e aguarda vaga na RPA.`, 'warning', { pacienteId: emg.id });
+        obito(emg, 'emergencia_obito', `SEM VAGA NA RPA PARA A EMERGÊNCIA CIRÚRGICA! Óbito evitável de ${emg.name}.`);
       }
     }
   }
@@ -429,6 +405,14 @@ export function passo(estado: EstadoSimulacao): ResultadoPasso {
   }
 
   if (ferramentas.nirEspera > 0) ferramentas.nirEspera = Math.max(0, ferramentas.nirEspera - 1);
+
+  // NIR: transferência concluída libera a maca
+  P.forEach(p => {
+    if (p.transferenciaAte > 0 && !p.dead && cm >= p.transferenciaAte) {
+      p.sector = 'alta'; p.ready = false; p.bStart = null; p.transferenciaAte = 0; p.transferido = true;
+      registrar(ctx, 'nir_concluido', `NIR: ${p.name} foi transferido para outro hospital. Maca liberada.`, 'success', { som: 'disc', pacienteId: p.id });
+    }
+  });
 
   // ── Boarding: risco de deteriorar depois do limiar da gravidade ──
   P.forEach(p => {
@@ -727,14 +711,17 @@ function confirmarLeitoInadequado(estado: EstadoSimulacao, p: PacienteSim): Resu
 
 function nir(estado: EstadoSimulacao, p: PacienteSim): ResultadoPasso | ErroAcao {
   const f = estado.ferramentas;
-  if (estado.rodada !== 2) return erro('ferramenta_indisponivel', 'O NIR só está disponível no Plantão Lean.');
   if (f.nirUsos >= NIR_MAX_USOS) return erro('ferramenta_indisponivel', `NIR esgotado: o limite de ${NIR_MAX_USOS} usos foi atingido.`);
+  if (p.transferenciaAte > 0) return erro('destino_invalido', `${p.name} já está com a transferência em andamento.`);
   if (f.nirEspera > 0) return erro('ferramenta_indisponivel', `NIR em espera: disponível de novo em ${f.nirEspera} min.`);
   if (!emBoarding(p)) return erro('destino_invalido', 'O NIR só vale para paciente pronto no DE à espera de transferência ou de leito na ENF ou na UTI.');
-  const pacientes = estado.pacientes.filter(x => x.id !== p.id);
-  const ferramentas = { ...f, nirUsos: f.nirUsos + 1, nirEspera: NIR_ESPERA_MIN };
-  return concluirAcao(estado, { pacientes, ferramentas }, [
-    oc(estado, 'nir', `NIR: ${p.name} foi transferido para outro hospital (${f.nirUsos + 1}/${NIR_MAX_USOS} usos).`, 'success', { som: 'disc', pacienteId: p.id, decisao: 'produtiva' }),
+  // Na R1 a regulação é lenta (sorteada pelo gerador de eventos); na R2, rápida, mas com espera entre usos.
+  const g = criarGerador(estado.rng);
+  const duracao = estado.rodada === 2 ? NIR_TRANSFERENCIA_R2_MIN : g.inteiro(NIR_TRANSFERENCIA_R1_MIN[0], NIR_TRANSFERENCIA_R1_MIN[1]);
+  const pacientes = substituir(estado.pacientes, p.id, x => ({ ...x, dest: 'transferencia', transferenciaAte: estado.minuto + duracao }), estado.minuto);
+  const ferramentas = { ...f, nirUsos: f.nirUsos + 1, nirEspera: estado.rodada === 2 ? NIR_ESPERA_MIN : 0 };
+  return concluirAcao(estado, { pacientes, ferramentas, rng: g.estado() }, [
+    oc(estado, 'nir', `NIR acionado: transferência de ${p.name} em andamento, previsão de ${horasOuMin(duracao)} (${f.nirUsos + 1}/${NIR_MAX_USOS} usos). O paciente continua no DE até sair.`, 'info', { pacienteId: p.id, decisao: 'produtiva' }),
   ]);
 }
 
@@ -777,8 +764,12 @@ export function liberarFullCapacity(estado: EstadoSimulacao): ResultadoPasso {
 
 // ── Leituras ────────────────────────────────────────────────
 
+export function atendidosNoAlvo(estado: EstadoSimulacao): number {
+  return estado.pacientes.filter(p => p.slaOk === true).length;
+}
+
 export function pontuacao(estado: EstadoSimulacao): number {
-  return calcScore(estado.stats);
+  return calcScore({ ...estado.stats, atendidosNoAlvo: atendidosNoAlvo(estado) });
 }
 
 export function slaPct(estado: EstadoSimulacao): number {

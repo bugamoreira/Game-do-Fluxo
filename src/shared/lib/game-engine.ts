@@ -175,17 +175,39 @@ export function hospOcc(enfN: number, utiN: number): number {
 }
 
 // ── Cálculo de score ───────────────────────────────────────
-export function calcScore(s: ScoreInput): number {
-  let sc = 1500;
-  sc -= Math.round(s.boardHrs * 10);
-  sc -= s.dets   * 40;
-  sc -= s.deaths * 150;
-  sc -= s.cxCan  * 80;
-  sc -= s.lwbs   * 40;
-  sc -= s.offS   * 25;
-  sc -= s.socB   * 15;
-  sc += (s.altaHosp ?? s.disc ?? 0) * 3;
-  if (s.deaths === 0) sc += 150;
-  // Sem bônus exclusivo da R2 (decisão do Portão 2): a mesma fórmula vale nas duas rodadas.
-  return Math.max(50, Math.round(sc));
+/** Entrada da pontuação: `ScoreInput` mais os atendidos dentro do tempo-alvo de Manchester. */
+export interface EntradaPontuacao extends ScoreInput {
+  atendidosNoAlvo?: number;
+}
+
+/** Pesos da pontuação (aprovados pelo Gustavo, Portão 2). */
+export const PESOS_PONTUACAO = {
+  base: 1500,
+  obito: -150,
+  deterioracao: -40,
+  horaBoarding: -10,
+  cirurgiaCancelada: -80,
+  lwbs: -40,
+  leitoInadequado: -25,
+  altaHospitalar: 3,
+  atendidoNoAlvo: 2,
+  zeroObito: 150,
+  minimo: 0,
+} as const;
+
+export function calcScore(s: EntradaPontuacao): number {
+  const W = PESOS_PONTUACAO;
+  let sc = W.base;
+  sc += Math.round(s.boardHrs * W.horaBoarding);
+  sc += s.dets   * W.deterioracao;
+  sc += s.deaths * W.obito;
+  sc += s.cxCan  * W.cirurgiaCancelada;
+  sc += s.lwbs   * W.lwbs;
+  sc += s.offS   * W.leitoInadequado;
+  // Caso social não penaliza: é evento aleatório, fora do controle do grupo.
+  sc += (s.altaHosp ?? s.disc ?? 0) * W.altaHospitalar;
+  sc += (s.atendidosNoAlvo ?? 0) * W.atendidoNoAlvo;
+  if (s.deaths === 0) sc += W.zeroObito;
+  // A mesma fórmula vale nas duas rodadas (sem bônus exclusivo da R2).
+  return Math.max(W.minimo, Math.round(sc));
 }

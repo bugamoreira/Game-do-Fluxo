@@ -45,6 +45,9 @@ export function resumir(rs: ResultadoPartida[]): Record<string, unknown> {
     autoFT: col(r => r.metricas.autoFastTrack),
     autoCx: col(r => r.metricas.autoCirurgiasViabilizadas),
     nir: col(r => r.estado.ferramentas.nirUsos),
+    foraObitos: col(r => r.estado.pacientes.filter(p => p.foraDoPerfil && p.dead).length),
+    foraBoardH: col(r => r.estado.pacientes.filter(p => p.foraDoPerfil).reduce((a, p) => a + p.bMin, 0) / 60),
+    transferidos: col(r => r.estado.pacientes.filter(p => p.transferido).length),
     emerg: col(r => r.metricas.emergencias),
     emergSemSala: col(r => r.metricas.emergenciasSemSala),
   };
@@ -85,6 +88,18 @@ describe('robôs de decisão', () => {
       }
     }
     console.table(linhas);
+
+    // Efeito do NIR na R1: puxaFluxo com e sem acionar o NIR
+    // Mesmo robô, mas enxergando o NIR esgotado: decide todo o resto igual
+    const semNir: typeof puxaFluxo = e => puxaFluxo({ ...e, ferramentas: { ...e.ferramentas, nirUsos: 3 } });
+    const colunas = ['pontos', 'obitos', 'boardH', 'foraObitos', 'foraBoardH', 'transferidos'];
+    const recorte = (robo: string, r: Record<string, unknown>): Record<string, unknown> =>
+      Object.fromEntries([['robo', robo], ...colunas.map(c => [c, r[c]])]);
+    const efeito = [
+      recorte('puxaFluxo (com NIR)', resumir(SEMENTES.map(s => simularPartida(puxaFluxo, 1, s)))),
+      recorte('puxaFluxo sem NIR', resumir(SEMENTES.map(s => simularPartida(semNir, 1, s)))),
+    ];
+    console.table(efeito);
     // Alvos pedagógicos (Portão 2): jogar bem compensa, e a R2 bem jogada supera a R1 bem jogada
     expect(pontos['puxaFluxo-R2']!).toBeGreaterThan(pontos['puxaFluxo-R1']!);
     expect(pontos['puxaFluxo-R1']!).toBeGreaterThan(pontos['passivo-R1']!);
