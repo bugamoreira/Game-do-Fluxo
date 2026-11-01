@@ -18,7 +18,7 @@
 | Setores em tons pastel | Cada setor tem um tom de fundo fixo, como os cartões de ativos das referências: DE lavanda, ENF menta, UTI pêssego, RPA/CC creme, corredor e triagem cinza. O tom identifica o setor; a lotação aparece por barra e número, não por troca de cor do cartão. |
 | Cartão escuro = momento | O cartão azul-marinho profundo (como o "Earn free crypto" e o "Sell Order" das referências) é reservado para o que exige atenção agora: evento ativo no jogo, próxima ação do facilitador, chamada no telão. No máximo um por tela. |
 | Times | Cada grupo tem uma cor de identificação (8 cores fixas, nenhuma igual às de Manchester) usada em avatar, linha do ranking e gráficos. |
-| Assinaturas | "Simulador do Plantão" é a marca do jogo. ED Leaders aparece como realização; CBMEDE/ABRAMEDE só com autorização e arquivo oficial do logo (pendente). Sem autorização, o evento aparece só em texto ("CBMEDE 2026"). |
+| Assinaturas | "Simulador do Plantão" é a marca do jogo. CBMEDE 2026 e ABRAMEDE autorizados (o congresso é da casa), com logos oficiais em todas as superfícies; ED Leaders como realização. Arquivos oficiais (SVG ou PNG) a receber. |
 | Tom de voz | Português claro, linguagem de plantão ("boarding", "alta", "RPA lotada"), frases curtas, verbo no imperativo nos botões ("Iniciar rodada", "Autorizar"). |
 
 ## 3. Sistema visual (tokens)
@@ -63,8 +63,14 @@ A sala tem um único estado no banco: `waiting → round1 → debrief → round2
     (R1×R2 e posição)                          "Nova turma"
 ```
 
+Regras de acesso à sala:
+- **A sala abre quando o facilitador abre a turma (F1).** Grupos podem entrar desde então, em qualquer ordem, sem precisar entrar juntos.
+- **O facilitador vê quem já entrou** (nome, cor, conexão ativa) e o botão "Iniciar Plantão Travado" mostra quantos grupos estão prontos ("6 grupos prontos"). Ele inicia quando todos estiverem lá.
+- **Depois do início, a entrada de grupos novos fecha** (todos jogam o plantão inteiro). O facilitador pode abrir uma exceção ("Liberar entrada") para um grupo que se atrasou.
+- **Reconexão nunca é bloqueada:** um grupo que já estava na sala volta para o mesmo time, em qualquer momento.
+- **Nome repetido** só é recusado se o outro time estiver ativo; senão, a pessoa reassume o time.
+
 Regras de transição:
-- Entrar é possível em qualquer estado, exceto `finished`. Quem chega durante uma rodada entra direto nela.
 - Perdeu a conexão: a simulação continua no computador do grupo e aparece "Reconectando…". Ao voltar, o placar sincroniza.
 - Fechou a aba: reabrir no mesmo computador retoma a sessão; entrar com o mesmo nome reassume o time em vez de dar erro.
 - "Nova turma" (F5) é a única ação que limpa grupos, e pede confirmação.
@@ -76,6 +82,6 @@ Regras de transição:
 
 **Facilitador — painel (referências Overview, Pay e Wallet).** Barra lateral azul-marinho com as fases (Sala, Ao vivo, Debrief, Resultado). Topo: turma e relógio. Linha de StatTiles por grupo (cor do time, pontuação, mini-tendência). Corpo: RankingTable com as métricas que importam para a discussão (boarding, deteriorações, óbitos, cancelamentos, altas). Direita: DarkCallout com a próxima ação da aula ("Iniciar Plantão Lean", "Autorizar Full Capacity") e controles (pausar, música).
 
-**Telão — projeção (tema escuro, densidade baixa).** Letras enormes, legível do fundo do auditório. Relógio do plantão, ranking em barras com as cores dos times, faixa de eventos marcantes e pódio final animado.
+**Telão — projeção (tema escuro, densidade baixa).** Faz parte da tela do facilitador: o botão "Abrir telão" abre a visão de projeção numa segunda janela, para arrastar para o projetor (tela estendida), e também há o modo telão na própria janela, para quem usa uma tela só. `/projetor.html` continua existindo como endereço dessa visão. Letras enormes, legível do fundo do auditório. Relógio do plantão, ranking em barras com as cores dos times, faixa de eventos marcantes e pódio final animado.
 
 **Orientações.** Já feita no padrão CBMEDE; migra para os tokens comuns.
