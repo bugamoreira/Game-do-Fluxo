@@ -1,9 +1,9 @@
 // Entrada do grupo na turma (RPC `entrar_grupo`). Regras: docs/schema.md, "Regras de entrada".
 
 import { z } from 'zod';
-import { RespostaEntrarGrupoSchema, TokenSchema, type Entrada } from '../schemas';
-import { RespostaInvalida } from './erros';
-import { RPC, chamarEValidar, validarEntrada } from './rpc';
+import { CodigoAcessoSchema, RespostaEntrarGrupoSchema, TokenSchema, type Entrada } from '../schemas';
+import { CodigoAcessoInvalido, RespostaInvalida } from './erros';
+import { RPC, chamarRpc, validar, validarEntrada } from './rpc';
 import { normalizarCodigo } from './turmaService';
 
 /** Caracteres de formatação invisíveis ou de direção de texto (mesma regra de `interno.normalizar_nome`). */
@@ -25,6 +25,11 @@ const NomeGrupoSchema = z
       }),
   );
 
+const RecusaAcessoSchema = z.object({
+  erro: z.literal('CODIGO_ACESSO_INVALIDO'),
+  detalhe: z.string().min(1).optional(),
+});
+
 export const grupoService = {
   /**
    * Entra (ou reconecta) o grupo na turma.
@@ -36,17 +41,25 @@ export const grupoService = {
    * @throws {EntradaFechada} rodada em andamento sem entrada liberada, ou turma encerrada
    * @throws {GrupoJaAtivo} nome em uso por outro computador, sem reconexão liberada
    * @throws {TurmaCheia} limite de grupos atingido
+   * @throws {CodigoAcessoInvalido} grupo novo ou reconexão liberada sem o código de acesso certo
+   * @throws {ErroServico} `LIMITE_EXCEDIDO`: muitas tentativas com código errado (aguardar 1 minuto)
    * @throws {SemConexao} rede
    */
-  async entrar(codigo: string, nome: string, tokenLocal?: string | null): Promise<Entrada> {
+  async entrar(codigo: string, nome: string, tokenLocal?: string | null, codigoAcesso?: string | null): Promise<Entrada> {
     const nomeValido = validarEntrada(NomeGrupoSchema, nome);
+    const acesso = codigoAcesso?.trim() ? validarEntrada(CodigoAcessoSchema, codigoAcesso.trim()) : null;
     // Token local corrompido não deve impedir a entrada: vai como ausente.
     const token = tokenLocal && TokenSchema.safeParse(tokenLocal).success ? tokenLocal : null;
-    const r = await chamarEValidar(
-      RPC.entrarGrupo,
-      { p_codigo: normalizarCodigo(codigo), p_nome: nomeValido, p_token: token },
-      RespostaEntrarGrupoSchema,
-    );
+    const bruto = await chamarRpc(RPC.entrarGrupo, {
+      p_codigo: normalizarCodigo(codigo),
+      p_nome: nomeValido,
+      p_token: token,
+      p_acesso: acesso,
+    });
+    // Código errado volta como resposta (não exceção) para o servidor contar as tentativas.
+    const recusa = RecusaAcessoSchema.safeParse(bruto);
+    if (recusa.success) throw new CodigoAcessoInvalido(recusa.data.detalhe);
+    const r = validar(RespostaEntrarGrupoSchema, bruto, RPC.entrarGrupo);
     const tokenQueVale = r.token ?? token;
     if (!tokenQueVale) throw new RespostaInvalida(RPC.entrarGrupo, 'Servidor não devolveu token para grupo novo');
     return {

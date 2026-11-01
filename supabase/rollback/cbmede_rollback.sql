@@ -15,6 +15,8 @@ drop function if exists public.estado_turma(text, text);
 drop function if exists public.ranking(text);
 drop function if exists public.obter_relatorio(text);
 drop function if exists public.entrar_grupo(text, text, text);
+drop function if exists public.entrar_grupo(text, text, text, text);
+drop function if exists public.codigo_acesso_telao(uuid);
 drop function if exists public.enviar_estado(text, integer, integer, bigint, jsonb, numeric, jsonb);
 drop function if exists public.obter_estado(text, integer);
 drop function if exists public.registrar_serie(text, integer, integer, jsonb);

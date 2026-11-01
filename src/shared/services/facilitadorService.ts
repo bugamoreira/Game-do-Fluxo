@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import {
   AbrirTurmaEntradaSchema,
+  CodigoAcessoSchema,
   EstadoTurmaSchema,
   FiltroEventosSchema,
   GerarRelatorioEntradaSchema,
@@ -34,6 +35,8 @@ import { NaoAutorizado, RespostaInvalida, SemConexao, mapearErroRpc } from './er
 import { RPC, chamarEValidar, validarEntrada, type NomeRpc } from './rpc';
 
 const RespostaTurmaSchema = z.preprocess(umaLinha, EstadoTurmaSchema);
+
+const CodigoAcessoTelaoSchema = z.preprocess(umaLinha, z.object({ codigo_acesso: CodigoAcessoSchema }));
 
 const id = (valor: string) => validarEntrada(IdSchema, valor);
 const booleano = (valor: boolean) => validarEntrada(z.boolean(), valor);
@@ -160,6 +163,15 @@ export const facilitadorService = {
    */
   async painelTurma(turmaId: string): Promise<EstadoTurma> {
     return acao(RPC.painelTurma, { p_turma_id: id(turmaId) });
+  },
+
+  /**
+   * Código de acesso da turma, para o telão aberto pela janela logada do facilitador.
+   * @throws {TurmaNaoEncontrada} | {NaoAutorizado} | {SemConexao} | {RespostaInvalida}
+   */
+  async codigoAcessoTelao(turmaId: string): Promise<string> {
+    const r = await chamarEValidar(RPC.codigoAcessoTelao, { p_turma_id: id(turmaId) }, CodigoAcessoTelaoSchema);
+    return r.codigo_acesso;
   },
 
   /**

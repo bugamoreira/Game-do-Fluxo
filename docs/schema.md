@@ -45,11 +45,11 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 
 | Situação | Resultado |
 |---|---|
-| Turma `aberta` e nome novo | cria o grupo, devolve token e cor |
+| Turma `aberta` e nome novo, com o código de acesso | cria o grupo, devolve token e cor |
 | Turma em rodada (`rodada1`/`rodada2`), nome novo, `entrada_liberada = falso` | recusa: "A rodada já começou. Fale com o facilitador." |
 | Turma em rodada, nome novo, `entrada_liberada = verdadeiro` | cria o grupo, que entra na rodada atual |
 | Nome já existe e o computador tem o token desse grupo | reconecta (devolve o estado para restaurar) |
-| Nome já existe, sem token, `reconexao_liberada = verdadeiro` | gera novo token, restaura o estado salvo no servidor e desliga a liberação |
+| Nome já existe, sem token, `reconexao_liberada = verdadeiro`, com o código de acesso | gera novo token, restaura o estado salvo no servidor e desliga a liberação |
 | Nome já existe, sem token, sem liberação | recusa: "Esse grupo já está no jogo. Se é o seu, peça ao facilitador para liberar a reconexão." |
 | Turma `aberta`, nome novo | cria o grupo |
 | Turma em `rodada1`, `debrief` ou `rodada2`, nome novo, sem liberação | recusa: "O jogo já começou. Fale com o facilitador." (todo grupo joga as duas rodadas) |
@@ -57,6 +57,14 @@ aberta ──Iniciar Travado──► rodada1 ──Encerrar──► debrief �
 | Sala com `max_grupos` (12) grupos ativos | recusa: `TURMA_CHEIA` |
 
 Nome: espaços normalizados, 2 a 30 caracteres, ao menos 2 letras ou dígitos, sem caracteres invisíveis ou de direção de texto (U+200B–U+200F, U+202A–U+202E, U+2060–U+206F, U+FEFF; migração `20261102100200`), comparação sem diferenciar maiúsculas ("Grupo A" = "grupo  a"). Cor: a primeira livre de 8 cores fixas (repete a partir do 9º grupo). O token (32 bytes aleatórios, 43 caracteres base64url) volta **uma vez**, só quando é gerado; o banco guarda só o sha256. Reconexão pelo próprio token não troca o token.
+
+## Código de acesso (migração `20261102100500`)
+
+Cada turma tem `codigo_acesso`, 4 dígitos aleatórios gerados ao abrir a turma. Só quem está na sala vê: o painel do facilitador mostra (`painel_turma` e as ações devolvem `codigo_acesso`), e o telão aberto pela janela logada do facilitador busca com `codigo_acesso_telao(p_turma_id)`. Nunca sai em `estado_turma`.
+
+- **Grupo novo** e **reconexão liberada** pelo facilitador exigem `p_acesso` certo. **Reconexão com o próprio token** não exige.
+- Código ausente ou fora do formato: `CODIGO_ACESSO_INVALIDO` (CB014). Código errado: a resposta é `{erro: 'CODIGO_ACESSO_INVALIDO', detalhe: 'Código de acesso incorreto. Confira no telão.'}` com HTTP 200, porque uma exceção desfaria a contagem de tentativas; o `grupoService` converte em `CodigoAcessoInvalido`.
+- Força bruta: 20 códigos errados em 1 minuto na mesma turma bloqueiam novas tentativas (inclusive com o código certo) por 1 minuto, com `LIMITE_EXCEDIDO`.
 
 ## RPCs
 
@@ -74,7 +82,7 @@ Todas são `security definer` com `search_path = ''` e nomes qualificados. Parâ
 
 | RPC | Regra |
 |---|---|
-| `entrar_grupo(p_codigo, p_nome, p_token?)` | Tabela acima. Devolve `{turma_id, status, rodada, grupo{id, nome, cor}, token, reconectado, estado_salvo, hora_servidor}`; `token` é `null` quando não foi gerado token novo. |
+| `entrar_grupo(p_codigo, p_nome, p_token?, p_acesso?)` | Tabela acima. Devolve `{turma_id, status, rodada, grupo{id, nome, cor}, token, reconectado, estado_salvo, hora_servidor}`; `token` é `null` quando não foi gerado token novo; `estado_salvo` é o jogo salvo da rodada atual (`null` = nada salvo nessa rodada). Código de acesso errado devolve `{erro: 'CODIGO_ACESSO_INVALIDO', detalhe}` (ver “Código de acesso”). |
 | `enviar_estado(p_token, p_rodada, p_minuto, p_versao, p_estado, p_pontuacao, p_metricas)` | Recusa `p_versao` ≤ guardada (`VERSAO_ANTIGA`) e rodada que não é a atual (`RODADA_INVALIDA`). Plausibilidade (migração `20261102100100`): minuto mais de 3 min à frente do relógio da sala ou menor que o guardado, pontuação fora de 0–3000 e estado acima de 256 KB dão `DADOS_INVALIDOS`; nova versão menos de 1 s depois da anterior do mesmo grupo dá `LIMITE_EXCEDIDO` (o app envia a cada 2 s e tenta de novo). Grava estado e placar e atualiza `grupos.visto_em`. Métricas ≤ 16 KB, minuto 420–1140. |
 | `obter_estado(p_token, p_rodada?)` | Último estado do próprio grupo (`{rodada, minuto, versao, estado, atualizado_em}`) ou `null`. Sem rodada, usa a atual. |
 | `registrar_serie(p_token, p_rodada, p_minuto, p_metricas)` | Um ponto por (grupo, rodada, minuto); reenvio não altera (`{registrado: false}`). |
@@ -88,6 +96,7 @@ Todas são `security definer` com `search_path = ''` e nomes qualificados. Parâ
 |---|---|
 | `painel_turma(p_turma_id)` | O estado da turma na visão do facilitador (o mesmo formato das ações, com `visto_em`, `reconexao_liberada` e `removido` por grupo). É a consulta periódica do painel. |
 | `series_turma(p_turma_id, p_rodada?)` | `[{grupo_id, nome, cor, rodada, minuto, metricas}]` dos grupos ativos, por grupo, rodada e minuto. |
+| `codigo_acesso_telao(p_turma_id)` | `{codigo_acesso}`: para o telão aberto pela janela logada do facilitador. |
 | `eventos_turma(p_turma_id, p_desde_minuto?, p_rodada?, p_limite? = 100)` | `[{id, grupo_id, nome, cor, rodada, minuto, tipo, mensagem, criado_em}]` dos grupos ativos, mais recentes primeiro; `p_limite` de 1 a 500. Alimenta o painel e o telão aberto pela janela logada do facilitador. |
 
 Turma inexistente: `TURMA_NAO_ENCONTRADA`; rodada fora de 1–2 ou limite fora da faixa: `DADOS_INVALIDOS`.
@@ -110,6 +119,7 @@ Turma inexistente: `TURMA_NAO_ENCONTRADA`; rodada fora de 1–2 ou limite fora d
 | `TURMA_CHEIA` | CB010 | `max_grupos` atingido |
 | `CODIGO_EM_USO` | CB011 | `abrir_turma` com turma ativa de mesmo código e grupos, sem `p_substituir` |
 | `RELATORIO_NAO_ENCONTRADO` | CB012 | slug malformado ou inexistente |
+| `CODIGO_ACESSO_INVALIDO` | CB014 | grupo novo ou reconexão liberada sem o código de acesso certo (código errado vem como resposta, ver “Código de acesso”) |
 | `LIMITE_EXCEDIDO` | CB013 | mais de 50 eventos por chamada ou 3000 por rodada; `enviar_estado` com menos de 1 s desde o último envio |
 
 Sem permissão de EXECUTE (anon chamando RPC de facilitador) o PostgREST responde 401 `permission denied` antes de entrar na função.

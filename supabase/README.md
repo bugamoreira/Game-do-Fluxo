@@ -17,6 +17,7 @@ As tabelas do FLAME (`rooms`, `teams`, `game_state`, `game_logs`) não são toca
 | `migrations/20261102100200_cbmede_nome_sem_invisiveis.sql` | Nome de grupo sem caracteres invisíveis e com ao menos 2 letras ou dígitos |
 | `migrations/20261102100300_cbmede_sem_leitura_direta.sql` | Revoga SELECT de `anon`/`authenticated` em `turmas`, `grupos`, `placar` e nas views públicas (leitura só por RPC) |
 | `migrations/20261102100400_cbmede_lean_apos_tolerancia.sql` | `mudar_status` recusa iniciar o Lean antes dos 30 s de tolerância do Travado |
+| `migrations/20261102100500_cbmede_codigo_acesso.sql` | Código de acesso de 4 dígitos por turma, exigido de grupo novo e de reconexão liberada, com limite de tentativas; `codigo_acesso_telao` |
 | `rollback/cbmede_rollback.sql` | Apaga só os objetos acima (fora de `migrations/` para o CLI não aplicar) |
 | `tests/rodar-local.sh` | Sobe um Postgres temporário, aplica as migrações, roda o teste ponta a ponta, o rollback e reaplica |
 | `tests/local/00_stubs_supabase.sql` | Stubs de `auth.uid()`, `auth.users`, `anon`, `authenticated` (só para o Postgres local) |

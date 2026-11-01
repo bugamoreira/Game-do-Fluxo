@@ -16,6 +16,7 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 import {
+  CodigoAcessoInvalido,
   CodigoEmUso,
   DadosInvalidos,
   EntradaFechada,
@@ -148,7 +149,7 @@ describe('grupoService.entrar', () => {
   it('grupo novo: envia p_codigo, p_nome normalizado e p_token null; devolve o token gerado', async () => {
     responder({ data: resposta() });
     const r = await grupoService.entrar('cbmede', '  Grupo   Azul ');
-    expect(rpc).toHaveBeenCalledWith('entrar_grupo', { p_codigo: 'CBMEDE', p_nome: 'Grupo Azul', p_token: null });
+    expect(rpc).toHaveBeenCalledWith('entrar_grupo', { p_codigo: 'CBMEDE', p_nome: 'Grupo Azul', p_token: null, p_acesso: null });
     expect(r).toMatchObject({ token: TOKEN, reconectado: false, estadoSalvo: null, turmaId: turma.id });
   });
 
@@ -161,7 +162,7 @@ describe('grupoService.entrar', () => {
       }),
     });
     const r = await grupoService.entrar('CBMEDE', 'Azul', TOKEN);
-    expect(rpc).toHaveBeenCalledWith('entrar_grupo', { p_codigo: 'CBMEDE', p_nome: 'Azul', p_token: TOKEN });
+    expect(rpc).toHaveBeenCalledWith('entrar_grupo', { p_codigo: 'CBMEDE', p_nome: 'Azul', p_token: TOKEN, p_acesso: null });
     expect(r.token).toBe(TOKEN);
     expect(r.reconectado).toBe(true);
     expect(r.estadoSalvo).toEqual(estado);
@@ -191,6 +192,30 @@ describe('grupoService.entrar', () => {
     const erro = await grupoService.entrar('CBMEDE', 'Azul').catch((e: unknown) => e);
     expect(erro).toBeInstanceOf(Classe);
     expect((erro as Error).message).toBe(frase);
+  });
+
+  it('envia o código de acesso de 4 dígitos', async () => {
+    responder({ data: resposta() });
+    await grupoService.entrar('CBMEDE', 'Azul', null, ' 0427 ');
+    expect(rpc).toHaveBeenCalledWith('entrar_grupo', expect.objectContaining({ p_acesso: '0427' }));
+  });
+
+  it('código de acesso errado (resposta com erro, não exceção) vira CodigoAcessoInvalido', async () => {
+    responder({ data: { erro: 'CODIGO_ACESSO_INVALIDO', detalhe: 'Código de acesso incorreto. Confira no telão.' } });
+    const erro = await grupoService.entrar('CBMEDE', 'Azul', null, '1111').catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(CodigoAcessoInvalido);
+    expect((erro as Error).message).toBe('Código de acesso incorreto. Confira no telão.');
+  });
+
+  it('código de acesso ausente recusado pelo banco (CB014) vira CodigoAcessoInvalido', async () => {
+    responder(erroBanco('CODIGO_ACESSO_INVALIDO', 'CB014', 'Código de acesso incorreto. Confira no telão.'));
+    await expect(grupoService.entrar('CBMEDE', 'Azul')).rejects.toBeInstanceOf(CodigoAcessoInvalido);
+  });
+
+  it('código de acesso fora do formato é recusado antes de ir ao servidor', async () => {
+    rpc.mockClear();
+    await expect(grupoService.entrar('CBMEDE', 'Azul', null, '12a')).rejects.toBeInstanceOf(DadosInvalidos);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('nome curto é recusado antes de ir ao servidor', async () => {
@@ -395,6 +420,16 @@ describe('facilitadorService', () => {
     expect(rpc).toHaveBeenCalledWith('painel_turma', { p_turma_id: turma.id });
     expect(r.grupos.map((g) => g.removido)).toEqual([false, true]);
     expect(r.grupos[0]?.vistoEm).toBe('2026-11-01T12:00:00Z');
+  });
+
+  it('painelTurma traz o código de acesso; codigoAcessoTelao devolve só o código', async () => {
+    responder({ data: { ...turma, codigo_acesso: '0427' } });
+    expect((await facilitadorService.painelTurma(turma.id)).codigoAcesso).toBe('0427');
+    responder({ data: { codigo_acesso: '0427' } });
+    expect(await facilitadorService.codigoAcessoTelao(turma.id)).toBe('0427');
+    expect(rpc).toHaveBeenLastCalledWith('codigo_acesso_telao', { p_turma_id: turma.id });
+    responder({ data: { codigo_acesso: '42' } });
+    await expect(facilitadorService.codigoAcessoTelao(turma.id)).rejects.toBeInstanceOf(RespostaInvalida);
   });
 
   it('seriesTurma: converte os pontos e descarta métricas não numéricas', async () => {

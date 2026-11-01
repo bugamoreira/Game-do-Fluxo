@@ -20,6 +20,7 @@ export type CodigoErro =
   | 'TURMA_CHEIA'
   | 'CODIGO_EM_USO'
   | 'RELATORIO_NAO_ENCONTRADO'
+  | 'CODIGO_ACESSO_INVALIDO'
   | 'SEM_CONEXAO'
   | 'RESPOSTA_INVALIDA'
   | 'ERRO_SERVICO';
@@ -126,6 +127,14 @@ export class RelatorioNaoEncontrado extends ErroSimulador {
   }
 }
 
+/** Grupo novo ou reconexão liberada sem o código de acesso de 4 dígitos certo (aparece no telão). */
+export class CodigoAcessoInvalido extends ErroSimulador {
+  readonly codigo = 'CODIGO_ACESSO_INVALIDO' as const;
+  constructor(mensagem = 'Código de acesso incorreto. Confira no telão.', causa?: unknown) {
+    super(mensagem, causa);
+  }
+}
+
 export class SemConexao extends ErroSimulador {
   readonly codigo = 'SEM_CONEXAO' as const;
   constructor(mensagem = 'Sem conexão com o servidor. Tentando de novo…', causa?: unknown) {
@@ -173,7 +182,8 @@ export function ehErroDeNegocio(e: unknown): boolean {
     e instanceof RodadaInvalida ||
     e instanceof TurmaCheia ||
     e instanceof CodigoEmUso ||
-    e instanceof RelatorioNaoEncontrado
+    e instanceof RelatorioNaoEncontrado ||
+    e instanceof CodigoAcessoInvalido
   );
 }
 
@@ -191,7 +201,7 @@ export interface ErroBruto {
 type Fabrica = (mensagem: string | undefined, causa: unknown) => ErroSimulador;
 
 // Contrato do banco (docs/schema.md, "Erros"): `message` = código estável,
-// `details` = frase para a tela, `hint` = código, SQLSTATE próprio CB001–CB013.
+// `details` = frase para a tela, `hint` = código, SQLSTATE próprio CB001–CB014.
 const POR_CODIGO: Readonly<Record<string, Fabrica>> = {
   TURMA_NAO_ENCONTRADA: (m, c) => new TurmaNaoEncontrada(m, c),
   ENTRADA_FECHADA: (m, c) => new EntradaFechada(m, c),
@@ -205,6 +215,7 @@ const POR_CODIGO: Readonly<Record<string, Fabrica>> = {
   TURMA_CHEIA: (m, c) => new TurmaCheia(m, c),
   CODIGO_EM_USO: (m, c) => new CodigoEmUso(m, c),
   RELATORIO_NAO_ENCONTRADO: (m, c) => new RelatorioNaoEncontrado(m, c),
+  CODIGO_ACESSO_INVALIDO: (m, c) => new CodigoAcessoInvalido(m, c),
 };
 
 const POR_SQLSTATE: Readonly<Record<string, string>> = {
@@ -221,6 +232,7 @@ const POR_SQLSTATE: Readonly<Record<string, string>> = {
   CB011: 'CODIGO_EM_USO',
   CB012: 'RELATORIO_NAO_ENCONTRADO',
   CB013: 'LIMITE_EXCEDIDO',
+  CB014: 'CODIGO_ACESSO_INVALIDO',
 };
 
 const IDENTIFICADOR = /^[A-Z][A-Z0-9_]+$/;

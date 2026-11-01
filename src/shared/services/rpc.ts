@@ -33,6 +33,7 @@ export const RPC = {
   painelTurma: 'painel_turma',
   seriesTurma: 'series_turma',
   eventosTurma: 'eventos_turma',
+  codigoAcessoTelao: 'codigo_acesso_telao',
 } as const;
 
 export type NomeRpc = (typeof RPC)[keyof typeof RPC];

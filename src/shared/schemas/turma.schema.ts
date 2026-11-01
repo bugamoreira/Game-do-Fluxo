@@ -12,6 +12,9 @@ import {
   umaLinha,
 } from './comum';
 
+/** Código de acesso da turma: 4 dígitos, mostrado no telão e no painel do facilitador. */
+export const CodigoAcessoSchema = z.string().regex(/^[0-9]{4}$/, { message: 'O código de acesso tem 4 dígitos.' });
+
 export const StatusTurmaSchema = z.enum([
   'aberta',
   'rodada1',
@@ -59,6 +62,8 @@ export const EstadoTurmaSchema = objetoCamel(
     fullCapacityLiberado: z.boolean(),
     musicaMudo: z.boolean(),
     grupos: z.array(GrupoDaTurmaSchema),
+    /** Só na visão do facilitador: código de acesso de 4 dígitos para os grupos entrarem. */
+    codigoAcesso: CodigoAcessoSchema.optional(),
     /** Só quando a consulta leva o token do grupo: o token ainda vale nesta turma. */
     tokenValido: z.boolean().optional(),
   }),
