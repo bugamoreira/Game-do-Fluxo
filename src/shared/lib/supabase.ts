@@ -1,30 +1,35 @@
 // ============================================================
-// Supabase Client — usa proxy do Netlify para evitar bloqueios
-// de cross-origin (Chrome, firewalls corporativos, SSL inspection).
+// Cliente Supabase — sempre pelo mesmo domínio do site.
 //
-// Em produção: window.location.origin (browser fala com mesmo domínio,
-// Netlify faz proxy reverso para okmafynejwrwnmvyruwy.supabase.co).
+// O navegador nunca fala com *.supabase.co diretamente: as chamadas vão
+// para window.location.origin e um proxy repassa /rest e /auth ao Supabase.
+//   - Produção: redirects do netlify.toml.
+//   - Desenvolvimento e preview: server.proxy / preview.proxy do vite.config.ts.
+// Assim o ambiente local se comporta igual ao de produção.
 //
-// Em dev local: VITE_SUPABASE_URL direto (sem proxy).
+// Sem Realtime (WebSocket): o proxy do Netlify não repassa WebSocket, e foi
+// isso que derrubou o FLAME (docs/pos-mortem-flame.md). Toda sincronização é
+// por consulta periódica, feita pelos services (src/shared/services/).
+// Só os services devem usar este cliente.
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js';
 
-const key = import.meta.env.VITE_SUPABASE_KEY as string;
+const chave = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
 
-if (!key) {
-  throw new Error('Missing VITE_SUPABASE_KEY environment variable');
+if (!chave) {
+  throw new Error('Variável de ambiente VITE_SUPABASE_KEY ausente');
 }
 
-// Em produção (browser): usa o domínio atual (proxy via netlify.toml).
-// Em dev (Vite dev server): usa URL direto do Supabase.
-const url =
-  typeof window !== 'undefined' && import.meta.env.PROD
-    ? window.location.origin
-    : (import.meta.env.VITE_SUPABASE_URL as string);
-
-if (!url) {
-  throw new Error('Missing VITE_SUPABASE_URL environment variable');
+if (typeof window === 'undefined') {
+  throw new Error('O cliente Supabase só roda no navegador (usa window.location.origin)');
 }
 
-export const sb = createClient(url, key);
+export const sb = createClient(window.location.origin, chave, {
+  auth: {
+    // A sessão do facilitador sobrevive a um recarregamento da página.
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
+});

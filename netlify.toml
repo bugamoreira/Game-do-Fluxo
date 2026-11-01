@@ -2,9 +2,12 @@
   command = "npm run build"
   publish = "dist"
 
-# Proxy reverso para Supabase — browser fala com o mesmo domínio do site,
-# evitando bloqueios de cross-origin do Chrome / firewalls / SSL inspection.
-# Headers (apikey, authorization, range, prefer) são repassados.
+# Proxy reverso para o Supabase: o navegador fala só com o domínio do site,
+# evitando bloqueios de cross-origin (Chrome, firewalls, inspeção SSL).
+# Cabeçalhos (apikey, authorization, range, prefer) são repassados.
+# Só /rest (PostgREST/RPC) e /auth. Sem /realtime: redirect do Netlify não
+# repassa WebSocket, e o jogo sincroniza por consulta periódica
+# (docs/pos-mortem-flame.md). O vite.config.ts espelha estes proxies.
 
 [[redirects]]
   from = "/rest/*"
@@ -18,14 +21,20 @@
   status = 200
   force = true
 
-[[redirects]]
-  from = "/realtime/*"
-  to = "https://okmafynejwrwnmvyruwy.supabase.co/realtime/:splat"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/storage/*"
-  to = "https://okmafynejwrwnmvyruwy.supabase.co/storage/:splat"
-  status = 200
-  force = true
+# Cabeçalhos de segurança (playbook, 19-seguranca/_headers).
+# - connect-src 'self': toda chamada de API passa pelo proxy acima, no mesmo
+#   domínio. Os domínios de ingestão do Sentry ficam liberados (só envia se
+#   VITE_SENTRY_DSN estiver configurado).
+# - Google Fonts: CSS em fonts.googleapis.com (style-src), arquivos em
+#   fonts.gstatic.com (font-src).
+# - script-src 'self' sem 'unsafe-inline'/'unsafe-eval': o build do Vite só
+#   gera <script type="module" src=...>.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=31536000"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https://*.ingest.sentry.io https://*.ingest.us.sentry.io; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
