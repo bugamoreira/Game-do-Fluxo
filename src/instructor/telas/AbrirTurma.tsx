@@ -56,7 +56,7 @@ export function AbrirTurma({ codigoInicial, enviando, erro, aviso, onAbrir, onRe
               id={ids.nome}
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex.: Curso pré-congresso · Turma 1"
+              placeholder="Ex.: Curso de Gestão do ED Leaders"
               maxLength={80}
               required
               autoFocus

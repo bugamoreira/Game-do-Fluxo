@@ -1,6 +1,6 @@
 # Simulador do Plantão — CBMEDE 2026
 
-Jogo educacional de gestão de fluxo na emergência para o curso pré-congresso do CBMEDE 2026 (25 a 28 de novembro, Rio de Janeiro). Cerca de seis grupos jogam no próprio computador o Plantão Travado (rodada 1) e o Plantão Lean (rodada 2); o facilitador conduz a turma e o telão projeta o ranking.
+Jogo educacional de gestão de fluxo na emergência para o Curso de Gestão do ED Leaders, pré-congresso do CBMEDE 2026 (25 de novembro, Windsor Barra, Rio de Janeiro). Cerca de seis grupos, um plantão por grupo, jogam no próprio computador o Plantão Travado (rodada 1) e o Plantão Lean (rodada 2); o facilitador conduz a turma e o telão projeta o ranking.
 
 ## Regras absolutas
 

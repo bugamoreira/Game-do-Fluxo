@@ -125,7 +125,7 @@ export function gerarDadosDemo(): Record<string, unknown> {
     turma: {
       id: '00000000-0000-4000-8000-0000000000aa',
       codigo: 'DEMO',
-      nome: 'Curso de Gestão de Fluxo · Turma de demonstração',
+      nome: 'Curso de Gestão do ED Leaders · Turma de demonstração',
       evento: 'CBMEDE 2026 · Rio de Janeiro',
       data: '2026-11-25',
     },

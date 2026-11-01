@@ -71,7 +71,7 @@ export function Sala({ turma, grupos, proxima, ocupado, acionar, origem }: Props
           <Icone nome="info" tamanho={16} className="mt-0.5 shrink-0" />
           <span>
             <strong className="text-texto">Liberar reconexão</strong> serve para o grupo que trocou de computador ou
-            perdeu a sessão: o próximo computador que entrar com o mesmo nome e o código de acesso reassume o time.{' '}
+            perdeu a sessão: o próximo computador que entrar com o mesmo nome e o código de acesso reassume o grupo.{' '}
             <strong className="text-texto">Remover</strong> tira o grupo do ranking sem apagar os dados.
           </span>
         </p>

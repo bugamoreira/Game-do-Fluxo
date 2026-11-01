@@ -301,7 +301,7 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
   // Estado inicial conforme a fase pedida.
   const faseInicial: FaseDemo = opcoes.fase ?? 'login';
   if (faseInicial !== 'login' && faseInicial !== 'nova') {
-    const t = criarTurma('CBMEDE', 'Curso pré-congresso · Turma 1', 'CBMEDE 2026', '2026-11-25');
+    const t = criarTurma('CBMEDE', 'Curso de Gestão do ED Leaders', 'CBMEDE 2026', '2026-11-25');
     const seq: StatusTurma[] = [];
     if (faseInicial !== 'sala') seq.push('rodada1');
     if (['debrief', 'r2', 'resultado'].includes(faseInicial)) seq.push('debrief');

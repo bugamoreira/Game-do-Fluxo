@@ -1,6 +1,6 @@
 # Plano — Simulador do Plantão no CBMEDE 2026
 
-Evento: 25 a 28 de novembro de 2026, Rio de Janeiro. Cenário: cerca de 6 grupos de 7 pessoas, um computador por grupo, Wi-Fi do evento e 5G de reserva. Endereço: `plantaocbmede.netlify.app`.
+Evento: Curso de Gestão do ED Leaders, pré-congresso do CBMEDE 2026, 25 de novembro de 2026, Windsor Barra, Rio de Janeiro. Cenário: cerca de 6 grupos, cada grupo um plantão, um computador por grupo, Wi-Fi do evento e 5G de reserva. Endereço: `plantaocbmede.netlify.app`.
 
 **Publicação única:** nada vai ao ar até tudo estar concluído e aprovado no ensaio local. Até lá o `plantaocbmede` fica vazio e o `plantaoflame` fica congelado.
 

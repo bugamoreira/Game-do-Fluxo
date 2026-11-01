@@ -52,7 +52,7 @@ function criarTurma(tela: TelaDemo, inicioMs: number, quemEntrou: string | null)
   return {
     id: TURMA_ID,
     codigo: 'CBMEDE',
-    nome: 'Curso pré-congresso CBMEDE 2026',
+    nome: 'Curso de Gestão do ED Leaders · CBMEDE 2026',
     status,
     rodada: status === 'rodada1' ? 1 : status === 'rodada2' ? 2 : null,
     rodadaInicio: emRodada ? new Date(inicioMs).toISOString() : null,
