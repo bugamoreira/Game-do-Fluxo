@@ -79,6 +79,10 @@ async function deveFalhar(tentativa, promessa, { esperado } = {}) {
   registrar(tentativa, recusou, `${r.status} ${codigoErro(r)}`);
 }
 
+// Coluna de data existente em cada tabela, para o UPDATE ser recusado por falta de
+// privilégio (401/403) e não por coluna inexistente (400).
+const COLUNA_DATA = { turmas: 'criada_em', placar: 'atualizado_em', estado_jogo: 'atualizado_em' };
+
 async function main() {
   // 0. Sanidade: a chave funciona? Sem isso, "tudo recusado" não prova nada.
   const sanidade = await chamar('GET', '/rest/v1/turmas_publicas?select=id&limit=1');
@@ -89,7 +93,7 @@ async function main() {
   // 1. Escrita direta em cada tabela nova
   for (const [tabela, { filtro, corpo }] of Object.entries(TABELAS)) {
     await deveFalhar(`INSERT direto em ${tabela}`, chamar('POST', `/rest/v1/${tabela}`, corpo));
-    await deveFalhar(`UPDATE direto em ${tabela}`, chamar('PATCH', `/rest/v1/${tabela}?${filtro}`, { criado_em: null }));
+    await deveFalhar(`UPDATE direto em ${tabela}`, chamar('PATCH', `/rest/v1/${tabela}?${filtro}`, { [COLUNA_DATA[tabela] ?? 'criado_em']: null }));
     await deveFalhar(`DELETE direto em ${tabela}`, chamar('DELETE', `/rest/v1/${tabela}?${filtro}`));
   }
   await deveFalhar('UPDATE do status da turma (mudar status direto)',
