@@ -3,6 +3,7 @@ import type { EstadoTurma } from '../../shared/schemas';
 import { NaoAutorizado, SemConexao } from '../../shared/services/erros';
 import { criarServicoDemo } from '../demo/servicoDemo';
 import type { ServicosFacilitador } from '../servicos';
+import { ESPERA_RECUSA_MS } from '../../shared/hooks/leituraPeriodica';
 import { AlvoPainel, PresencaGrupos, criarBuscaPainel } from '../useTurmaFacilitador';
 
 function turma(parcial: Partial<EstadoTurma> = {}): EstadoTurma {
@@ -53,6 +54,29 @@ describe('consulta periódica do painel (painel_turma)', () => {
     await buscar('CBMEDE');
     expect(painelTurma).toHaveBeenCalledTimes(1);
     expect(estado).toHaveBeenCalledTimes(2);
+  });
+
+  it('uma recusa não trava para sempre: tenta o painel de novo depois da espera ou quando a sessão muda', async () => {
+    let agora = 0;
+    const estado = vi.fn(async () => turma());
+    const painelTurma = vi.fn<(id: string) => Promise<EstadoTurma>>().mockRejectedValueOnce(new NaoAutorizado()).mockResolvedValue(turma());
+    const alvo = new AlvoPainel(() => agora);
+    alvo.fixar('t1');
+    const buscar = criarBuscaPainel(servicosFalsos({ estado, painelTurma }), alvo);
+    await buscar('CBMEDE');
+    agora = ESPERA_RECUSA_MS - 1;
+    await buscar('CBMEDE');
+    expect(painelTurma).toHaveBeenCalledTimes(1);
+    agora = ESPERA_RECUSA_MS;
+    await buscar('CBMEDE');
+    expect(painelTurma).toHaveBeenCalledTimes(2);
+
+    // Sessão mudou: não espera.
+    painelTurma.mockRejectedValueOnce(new NaoAutorizado());
+    await buscar('CBMEDE');
+    alvo.reautorizar();
+    await buscar('CBMEDE');
+    expect(painelTurma).toHaveBeenCalledTimes(4);
   });
 
   it('turma arquivada: a próxima consulta procura pelo código (pode haver turma nova)', async () => {

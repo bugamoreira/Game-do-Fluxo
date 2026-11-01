@@ -26,6 +26,9 @@ import {
 import type { ServicosFacilitador } from '../servicos';
 import { eventosDemo, metricasDemo, pontuacaoDemo } from './dadosDemo';
 
+/** Código de acesso fictício da demonstração (o real é gerado ao abrir a turma). */
+export const CODIGO_ACESSO_DEMO = '2026';
+
 const MIN_INICIO = 420;
 const MIN_FIM = 1140;
 
@@ -132,6 +135,7 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
       fullCapacityLiberado: t.fullCapacityLiberado,
       musicaMudo: t.musicaMudo,
       grupos: t.grupos.filter((g) => facilitador || !g.removido).map((g) => grupoJson(g, facilitador)),
+      ...(facilitador ? { codigoAcesso: CODIGO_ACESSO_DEMO } : {}),
     };
   }
 
@@ -328,6 +332,15 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
     },
 
     async sair() {},
+
+    aoMudarSessao() {
+      return () => {};
+    },
+
+    async codigoAcessoTelao(id) {
+      exigirTurma(id);
+      return CODIGO_ACESSO_DEMO;
+    },
 
     async painelTurma(id) {
       const t = exigirTurma(id);

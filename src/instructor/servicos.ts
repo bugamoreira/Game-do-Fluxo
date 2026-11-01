@@ -19,6 +19,10 @@ export interface ServicosFacilitador {
   /** Sessão salva neste navegador (recarregar a página não pede login de novo). */
   sessaoAtual(): Promise<SessaoFacilitador | null>;
   sair(): Promise<void>;
+  /** Avisa quando a sessão muda (login, saída, renovação); devolve o cancelamento. */
+  aoMudarSessao(ouvinte: () => void): () => void;
+  /** Código de acesso da turma para o telão aberto pela janela do facilitador. */
+  codigoAcessoTelao(turmaId: string): Promise<string>;
   /** Leitura pública pelo código (para achar a turma). */
   estado(codigo: string): Promise<EstadoTurma>;
   ranking(codigo: string): Promise<ItemRanking[]>;

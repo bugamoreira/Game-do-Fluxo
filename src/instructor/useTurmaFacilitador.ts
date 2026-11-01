@@ -6,7 +6,9 @@
 // liberada sempre corretos, mesmo sem nenhuma ação recente).
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { aoVoltar } from '../shared/hooks/aoVoltar';
 import { LojaObservavel } from '../shared/hooks/cicloPeriodico';
+import { ESPERA_RECUSA_MS, LeituraPeriodica } from '../shared/hooks/leituraPeriodica';
 import {
   ControladorEstadoTurma,
   ControladorRanking,
@@ -91,11 +93,27 @@ export interface TurmaFacilitador extends InstantaneoTurma {
 /** Turma acompanhada pelo painel: o id é descoberto pela leitura pública e confirmado pelas ações. */
 export class AlvoPainel {
   id: string | null = null;
-  /** `painel_turma` recusou (sessão expirada): segue só com a leitura pública. */
-  semPainel = false;
+  /** Quando `painel_turma` recusou (sessão expirada): segue com a leitura pública e tenta de novo depois. */
+  private recusadoEm: number | null = null;
+
+  constructor(private readonly agora: () => number = Date.now) {}
 
   fixar(id: string): void {
     this.id = id;
+  }
+
+  recusar(): void {
+    this.recusadoEm = this.agora();
+  }
+
+  /** A sessão mudou: volta a tentar o painel na próxima consulta. */
+  reautorizar(): void {
+    this.recusadoEm = null;
+  }
+
+  /** Pode consultar `painel_turma` agora (nunca recusou, ou a recusa já tem `ESPERA_RECUSA_MS`). */
+  get podeUsarPainel(): boolean {
+    return this.recusadoEm === null || this.agora() - this.recusadoEm >= ESPERA_RECUSA_MS;
   }
 }
 
@@ -106,13 +124,14 @@ export class AlvoPainel {
  */
 export function criarBuscaPainel(servicos: ServicosFacilitador, alvo: AlvoPainel): (codigo: string) => Promise<EstadoTurma> {
   return async (codigo) => {
-    if (alvo.id && !alvo.semPainel) {
+    if (alvo.id && alvo.podeUsarPainel) {
       try {
         const t = await servicos.painelTurma(alvo.id);
+        alvo.reautorizar();
         if (t.status === 'arquivada') alvo.id = null;
         return t;
       } catch (e) {
-        if (e instanceof NaoAutorizado) alvo.semPainel = true;
+        if (e instanceof NaoAutorizado) alvo.recusar();
         else if (!(e instanceof TurmaNaoEncontrada)) throw e;
         alvo.id = null;
       }
@@ -154,6 +173,16 @@ export function useTurmaFacilitador(servicos: ServicosFacilitador, codigo: strin
 
   useTentarAoVoltarRede(ctrlTurma);
   useTentarAoVoltarRede(ctrlRanking);
+
+  // Sessão renovada ou novo login: o painel volta a usar painel_turma na hora.
+  useEffect(
+    () =>
+      servicos.aoMudarSessao(() => {
+        alvo?.reautorizar();
+        ctrlTurma?.tentarAgora();
+      }),
+    [servicos, alvo, ctrlTurma],
+  );
 
   const turmaInst = useSyncExternalStore(
     ctrlTurma?.assinar ?? assinarNada,
@@ -213,23 +242,20 @@ export function useLeiturasFacilitador(
 
   useEffect(() => {
     if (!turmaId || !comDados) return;
-    let vivo = true;
-    const ler = async () => {
-      try {
-        const [series, eventos] = await Promise.all([
-          servicos.seriesTurma(turmaId),
-          servicos.eventosTurma(turmaId, { limite: 300 }),
-        ]);
-        if (vivo) setDados({ turmaId, series, eventos });
-      } catch {
-        /* mantém o último resultado; as telas seguem com o ranking */
-      }
-    };
-    void ler();
-    const id = setInterval(() => void ler(), emRodada ? INTERVALO_LEITURAS_RODADA_MS : INTERVALO_LEITURAS_PARADA_MS);
+    // CicloPeriodico por baixo: sem leituras sobrepostas nem resposta antiga por cima da nova.
+    // Falha mantém o último resultado; as telas seguem com o ranking.
+    const leitura = new LeituraPeriodica({
+      intervaloMs: emRodada ? INTERVALO_LEITURAS_RODADA_MS : INTERVALO_LEITURAS_PARADA_MS,
+      ler: () => Promise.all([servicos.seriesTurma(turmaId), servicos.eventosTurma(turmaId, { limite: 300 })]),
+      aoLer: ([series, eventos]) => setDados({ turmaId, series, eventos }),
+    });
+    leitura.iniciar();
+    const cancelarSessao = servicos.aoMudarSessao(() => leitura.reautorizar());
+    const cancelarVoltar = aoVoltar(() => leitura.tentarAgora());
     return () => {
-      vivo = false;
-      clearInterval(id);
+      leitura.parar();
+      cancelarSessao();
+      cancelarVoltar();
     };
   }, [servicos, turmaId, comDados, emRodada, status]);
 

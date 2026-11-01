@@ -89,6 +89,20 @@ export const facilitadorService = {
     }
   },
 
+  /**
+   * Avisa quando a sessão muda neste navegador (login, saída, renovação do token).
+   * As leituras do facilitador recusadas por sessão expirada tentam de novo na hora.
+   * Devolve o cancelamento.
+   */
+  aoMudarSessao(ouvinte: () => void): () => void {
+    try {
+      const { data } = sb.auth.onAuthStateChange(() => ouvinte());
+      return () => data.subscription.unsubscribe();
+    } catch {
+      return () => {};
+    }
+  },
+
   /** Encerra a sessão do facilitador neste navegador. */
   async sair(): Promise<void> {
     await sb.auth.signOut();
