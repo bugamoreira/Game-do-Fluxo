@@ -12,6 +12,7 @@ As tabelas do FLAME (`rooms`, `teams`, `game_state`, `game_logs`) não são toca
 | `migrations/20261101190000_cbmede_schema.sql` | pgcrypto, schema `interno`, 8 tabelas, índices, RLS, privilégios e views públicas |
 | `migrations/20261101190100_cbmede_rpcs.sql` | 18 RPCs `security definer` e os `grant execute` |
 | `migrations/20261101200000_cbmede_leituras_facilitador.sql` | Leituras do facilitador (`painel_turma`, `series_turma`, `eventos_turma`) e `gerar_relatorio` com facilitador e local |
+| `migrations/20261102100000_cbmede_ranking_estavel.sql` | Desempate estável do ranking (ordem de entrada e nome) |
 | `rollback/cbmede_rollback.sql` | Apaga só os objetos acima (fora de `migrations/` para o CLI não aplicar) |
 | `tests/rodar-local.sh` | Sobe um Postgres temporário, aplica as migrações, roda o teste ponta a ponta, o rollback e reaplica |
 | `tests/local/00_stubs_supabase.sql` | Stubs de `auth.uid()`, `auth.users`, `anon`, `authenticated` (só para o Postgres local) |

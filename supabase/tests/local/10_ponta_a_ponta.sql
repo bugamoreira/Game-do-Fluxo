@@ -334,6 +334,31 @@ select tst.ok((public.abrir_turma('CBMEDE', 'Ensaio 3', null, null, true) ->> 's
 select tst.ok((select count(*) from public.grupos where turma_id = :'turma3') = 1, 'grupos da turma substituída continuam guardados');
 reset role;
 
+-- ---------------------------------------------------------------- ranking: desempate estável
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+select public.abrir_turma('EMPATE', 'Turma do empate') ->> 'id' as turma_emp \gset
+reset role;
+set role anon;
+set request.jwt.claims = '{"role":"anon"}';
+select public.entrar_grupo('EMPATE', 'Primeiro') ->> 'token' as tok_p1 \gset
+select public.entrar_grupo('EMPATE', 'Segundo') ->> 'token' as tok_p2 \gset
+reset role;
+update public.grupos set criado_em = now() - interval '1 minute' where nome = 'Primeiro';
+set role authenticated;
+set request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+select public.mudar_status(:'turma_emp', 'rodada1') is not null as x \gset
+reset role;
+update public.turmas set rodada_inicio = now() - interval '60 seconds' where id = :'turma_emp';
+set role anon;
+set request.jwt.claims = '{"role":"anon"}';
+select public.enviar_estado(:'tok_p2', 1, 430, 1, '{}'::jsonb, 100, '{}'::jsonb) is not null as x \gset
+select public.enviar_estado(:'tok_p1', 1, 430, 1, '{}'::jsonb, 100, '{}'::jsonb) is not null as x \gset
+select tst.ok((public.ranking('EMPATE') -> 0 ->> 'nome') = 'Primeiro'
+              and (public.ranking('EMPATE') -> 1 ->> 'nome') = 'Segundo',
+              'empate no ranking: decide quem entrou antes, não quem enviou por último');
+reset role;
+
 -- ---------------------------------------------------------------- catálogo
 select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                 where n.nspname = 'public' and p.prosecdef

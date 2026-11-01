@@ -67,7 +67,7 @@ Todas são `security definer` com `search_path = ''` e nomes qualificados. Parâ
 | RPC | Devolve |
 |---|---|
 | `estado_turma(p_codigo, p_token?)` | `id, codigo, nome, evento, data, status, rodada, rodada_inicio, rodada_fim, pausada, pausada_em, pausa_acumulada_ms, minuto, hora_servidor, entrada_liberada, full_capacity_liberado, musica_mudo, grupos[{id, nome, cor, conectado}]`. Com `p_token` válido, marca o grupo como visto (presença na sala de espera) e acrescenta `token_valido`. Busca a turma ativa com o código ou, se não houver, a mais recente (arquivada). |
-| `ranking(p_codigo)` | `[{posicao, grupo_id, nome, cor, rodada, pontuacao, minuto, metricas}]`, rodada 1 e depois rodada 2 |
+| `ranking(p_codigo)` | `[{posicao, grupo_id, nome, cor, rodada, pontuacao, minuto, metricas}]`, rodada 1 e depois rodada 2. Empate: quem entrou antes na turma e, depois, o nome (ordem estável; migração `20261102100000`) |
 | `obter_relatorio(p_slug)` | `{slug, criado_em, versao_regras, dados}` |
 
 **Do grupo (anon e authenticated; o token identifica o grupo, não há parâmetro de grupo):**
