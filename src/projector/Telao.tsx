@@ -1,15 +1,17 @@
 // Telão (projetor.html): escolhe a fase pelo estado da turma e conduz a música.
-// Recebe só dados públicos; quem busca é AoVivo.tsx (ou a demonstração).
+// Recebe os dados públicos e, se houver sessão de facilitador, os eventos e as
+// séries da turma; quem busca é AoVivo.tsx (ou a demonstração).
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { musica } from '../shared/lib/music';
 import type { Conexao } from '../shared/hooks';
-import type { EstadoTurma, ItemRanking } from '../shared/schemas';
+import type { EstadoTurma, EventoTurma, ItemRanking, PontoSerieTurma } from '../shared/schemas';
 import { BotaoSom, Logos, Moldura, Palco } from './componentes';
 import {
   ENDERECO_JOGO,
   MemoriaEventos,
   SALA_PADRAO,
+  eventosDoServidor,
   faseDoTelao,
   itensDaRodada,
   rodadaEmFoco,
@@ -30,6 +32,10 @@ export interface DadosTelao {
   carregando: boolean;
   /** O servidor respondeu que não há turma com esse código. */
   turmaInexistente: boolean;
+  /** Eventos reais da rodada (`eventos_turma`); só com sessão de facilitador. */
+  eventosJogo?: EventoTurma[] | null;
+  /** Séries da turma (`series_turma`); só com sessão de facilitador. */
+  series?: PontoSerieTurma[] | null;
 }
 
 export function Telao(d: DadosTelao) {
@@ -41,7 +47,12 @@ export function Telao(d: DadosTelao) {
 
   // --- Eventos marcantes (variação do placar entre consultas) ---
   const memoria = useMemo(() => new MemoriaEventos(4), []);
-  const eventos = useSyncExternalStore(memoria.assinar, memoria.eventos, memoria.eventos);
+  const deduzidos = useSyncExternalStore(memoria.assinar, memoria.eventos, memoria.eventos);
+  // Com a sessão do facilitador, o quadro mostra o que os grupos gravaram (surto,
+  // NIR, DE lotado...); sem ela, o que se deduz da variação do placar.
+  const doJogo = useMemo(() => (d.eventosJogo ? eventosDoServidor(d.eventosJogo, 5) : null), [d.eventosJogo]);
+  const eventos = doJogo ?? deduzidos;
+  const series = d.series ?? null;
   useEffect(() => {
     if (fase !== 'rodada') return;
     const som = memoria.registrar(itensRodada, rodada);
@@ -94,12 +105,12 @@ export function Telao(d: DadosTelao) {
       )}
       {fase === 'debrief' && (
         <Moldura rotulo="— Debrief · Rodada 1 · Plantão Travado" veu={0.94} conexao={conexao} som={som}>
-          <Debrief itensR1={itensR1} />
+          <Debrief itensR1={itensR1} series={series} />
         </Moldura>
       )}
       {fase === 'final' && (
         <Moldura rotulo="— Resultado final · CBMEDE 2026" fundo="/img/rio/rio-cristo-nevoa.jpg" veu={0.88} conexao={conexao} som={som}>
-          <Final itens={itens} />
+          <Final itens={itens} series={series} />
         </Moldura>
       )}
     </Palco>

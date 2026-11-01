@@ -9,7 +9,13 @@ import type { PontoHora } from '../lib/evolucao';
 
 const PALETAS = {
   claro: { r1: '#7B819F', r2: '#1B2A6B', grade: '#E3E5F0', eixo: '#5D6384', fundoPonto: '#ffffff' },
-  escuro: { r1: 'rgba(255,255,255,0.72)', r2: '#F5C518', grade: 'rgba(255,255,255,0.14)', eixo: 'rgba(255,255,255,0.8)', fundoPonto: '#0e1840' },
+  escuro: {
+    r1: 'rgba(255,255,255,0.72)',
+    r2: '#F5C518',
+    grade: 'rgba(255,255,255,0.14)',
+    eixo: 'rgba(255,255,255,0.8)',
+    fundoPonto: '#0e1840',
+  },
 } as const;
 
 export interface GraficoEvolucaoProps {
@@ -22,6 +28,8 @@ export interface GraficoEvolucaoProps {
   minimoEixo?: number;
   /** Escala do texto (o telão é visto de longe). */
   fonte?: number;
+  /** Altura do desenho, na escala de 560 de largura (padrão 260). */
+  altura?: number;
   className?: string;
 }
 
@@ -43,12 +51,13 @@ export function GraficoEvolucao({
   casas = 0,
   minimoEixo = 1,
   fonte = 13,
+  altura = 260,
   className,
 }: GraficoEvolucaoProps) {
   const idTabela = useId();
   const cor = PALETAS[tema];
   const L = 560;
-  const A = 260;
+  const A = altura;
   const M = { topo: 16, dir: fonte * 7, base: fonte * 2.6, esq: fonte * 3.6 };
   const LI = L - M.esq - M.dir;
   const AI = A - M.topo - M.base;
@@ -98,7 +107,13 @@ export function GraficoEvolucao({
 
   return (
     <figure className={className}>
-      <svg viewBox={`0 0 ${L} ${A}`} className="h-auto w-full" role="img" aria-label={titulo} aria-describedby={idTabela}>
+      <svg
+        viewBox={`0 0 ${L} ${A}`}
+        className="h-auto w-full"
+        role="img"
+        aria-label={titulo}
+        aria-describedby={idTabela}
+      >
         <g fontFamily="Space Mono, monospace" fontSize={fonte} fill={cor.eixo}>
           {ticks.map((t) => (
             <g key={t}>
@@ -116,11 +131,28 @@ export function GraficoEvolucao({
             ) : null,
           )}
         </g>
-        <path d={caminho('r1')} fill="none" stroke={cor.r1} strokeWidth="3" strokeDasharray="7 5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d={caminho('r2')} fill="none" stroke={cor.r2} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d={caminho('r1')}
+          fill="none"
+          stroke={cor.r1}
+          strokeWidth="3"
+          strokeDasharray="7 5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d={caminho('r2')}
+          fill="none"
+          stroke={cor.r2}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
         {pontos.map((p, i) => (
           <g key={p.hora}>
-            {p.r1 !== null && <circle cx={x(i)} cy={y(p.r1)} r="3" fill={cor.fundoPonto} stroke={cor.r1} strokeWidth="2" />}
+            {p.r1 !== null && (
+              <circle cx={x(i)} cy={y(p.r1)} r="3" fill={cor.fundoPonto} stroke={cor.r1} strokeWidth="2" />
+            )}
             {p.r2 !== null && <circle cx={x(i)} cy={y(p.r2)} r="3.5" fill={cor.r2} />}
           </g>
         ))}

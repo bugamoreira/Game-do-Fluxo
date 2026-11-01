@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { contarPorRotulo, eventosMarcantes, evolucaoPorHora, horaDoMinuto, temEvolucao, type EventoBasico } from '../evolucao';
+import {
+  contarPorRotulo,
+  eventosMarcantes,
+  evolucaoPorHora,
+  horaDoMinuto,
+  temEvolucao,
+  type EventoBasico,
+} from '../evolucao';
 
 describe('evolução por hora', () => {
   it('média dos grupos com o último ponto de cada um até a hora', () => {
@@ -25,7 +32,14 @@ describe('evolução por hora', () => {
 
 describe('eventos marcantes', () => {
   const ev = (id: number, tipo: string, rodada: 1 | 2 = 1, minuto = 600): EventoBasico => ({
-    id, grupoId: 'g', nome: 'Grupo', cor: '#123456', rodada, minuto, tipo, mensagem: '',
+    id,
+    grupoId: 'g',
+    nome: 'Grupo',
+    cor: '#123456',
+    rodada,
+    minuto,
+    tipo,
+    mensagem: '',
   });
 
   it('reconhece os tipos gravados pelo jogo e ignora os demais', () => {
@@ -37,7 +51,11 @@ describe('eventos marcantes', () => {
   it('filtra por rodada, respeita o limite e conta por rótulo', () => {
     const base = [ev(1, 'obito'), ev(2, 'obito'), ev(3, 'corredor'), ev(4, 'lwbs', 2)];
     expect(eventosMarcantes(base, { rodada: 1, limite: 2 })).toHaveLength(2);
-    expect(contarPorRotulo(eventosMarcantes(base, { rodada: 1 }))[0]).toEqual({ rotulo: 'Óbito', problema: true, total: 2 });
+    expect(contarPorRotulo(eventosMarcantes(base, { rodada: 1 }))[0]).toEqual({
+      rotulo: 'Óbito',
+      problema: true,
+      total: 2,
+    });
   });
 
   it('hora do plantão a partir do minuto', () => {

@@ -5,6 +5,7 @@ import {
   classificacaoFinal,
   comparativoTurma,
   detectarEventos,
+  eventosDoServidor,
   faseDoTelao,
   itensDaRodada,
   rodadaEmFoco,
@@ -89,5 +90,23 @@ describe('comparativo R1 × R2', () => {
   it('sem métricas de carga, não inventa linha', () => {
     const linhas = comparativoTurma([item('a', 1, 900, { dth: 1 }), item('a', 2, 1100, {})]);
     expect(linhas.map((l) => l.rotulo)).not.toContain('Alertas por hora');
+  });
+});
+
+describe('eventos gravados pelo jogo (telão com sessão do facilitador)', () => {
+  it('traduz surto, NIR e DE lotado, ignora tipos sem destaque e limita a lista', () => {
+    const base = { grupoId: 'g1', nome: 'Grupo 1', cor: '#2563EB', rodada: 1 as const, mensagem: '' };
+    const lista = eventosDoServidor(
+      [
+        { ...base, id: 3, minuto: 640, tipo: 'nir' },
+        { ...base, id: 2, minuto: 630, tipo: 'movimento' },
+        { ...base, id: 1, minuto: 620, tipo: 'surto' },
+        { ...base, id: 0, minuto: 610, tipo: 'de_lotado' },
+      ],
+      2,
+    );
+    expect(lista.map((e) => e.texto)).toEqual(['NIR acionado', 'Surto de chegadas']);
+    expect(lista[0]?.problema).toBe(false);
+    expect(lista[1]).toMatchObject({ tipo: 'jogo', minuto: 620, problema: true, id: 'srv-1-1' });
   });
 });

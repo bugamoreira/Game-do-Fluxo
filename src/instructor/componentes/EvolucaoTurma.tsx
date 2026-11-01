@@ -49,7 +49,11 @@ export function EvolucaoTurma({ series, eventos, rodadas }: Props) {
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <p className="text-sm font-bold text-texto">Pacientes no DE (média por grupo)</p>
-              <GraficoEvolucao titulo="Pacientes no DE, média por grupo, hora a hora" pontos={pontosDe} minimoEixo={5} />
+              <GraficoEvolucao
+                titulo="Pacientes no DE, média por grupo, hora a hora"
+                pontos={pontosDe}
+                minimoEixo={5}
+              />
             </div>
             <div>
               <p className="text-sm font-bold text-texto">Pacientes em boarding (média por grupo)</p>
@@ -101,7 +105,11 @@ export function EvolucaoTurma({ series, eventos, rodadas }: Props) {
                   {rodadas.length > 1 ? `R${e.rodada} ` : ''}
                   {horaDoMinuto(e.minuto)}
                 </span>
-                <span aria-hidden="true" className="mt-1.5 size-3 shrink-0 rounded-full" style={{ background: e.cor }} />
+                <span
+                  aria-hidden="true"
+                  className="mt-1.5 size-3 shrink-0 rounded-full"
+                  style={{ background: e.cor }}
+                />
                 <span>
                   <strong className="font-bold">{e.nome}:</strong> {e.rotulo}
                 </span>

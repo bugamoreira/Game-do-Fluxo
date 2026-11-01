@@ -144,7 +144,9 @@ export function eventosMarcantes(
 }
 
 /** Contagem por rótulo (para "o que mais aconteceu"), da maior para a menor. */
-export function contarPorRotulo(eventos: readonly EventoMarcante[]): { rotulo: string; problema: boolean; total: number }[] {
+export function contarPorRotulo(
+  eventos: readonly EventoMarcante[],
+): { rotulo: string; problema: boolean; total: number }[] {
   const mapa = new Map<string, { rotulo: string; problema: boolean; total: number }>();
   for (const e of eventos) {
     const atual = mapa.get(e.rotulo) ?? { rotulo: e.rotulo, problema: e.problema, total: 0 };

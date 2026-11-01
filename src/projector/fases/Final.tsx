@@ -2,7 +2,9 @@
 // As animações só rodam com motion-safe (classes em telao.css).
 
 import { Icone, cx } from '../../shared/components/ui';
-import type { ItemRanking } from '../../shared/schemas';
+import { GraficoEvolucao, LegendaEvolucao } from '../../shared/components/GraficoEvolucao';
+import { evolucaoPorHora, temEvolucao } from '../../shared/lib/evolucao';
+import type { ItemRanking, PontoSerieTurma } from '../../shared/schemas';
 import { cargaDoGestor, classificacaoFinal, comparativoTurma, formatarInteiro, itensDaRodada, type ColocacaoFinal, type LinhaComparativo } from '../derivar';
 import { Medalhao } from '../componentes';
 
@@ -13,7 +15,10 @@ const DEGRAUS = [
   { posicao: 3, altura: 190, atraso: 0 },
 ];
 
-export function Final({ itens }: { itens: ItemRanking[] }) {
+export function Final({ itens, series = null }: { itens: ItemRanking[]; series?: PontoSerieTurma[] | null }) {
+  // Com séries (telão aberto pela janela logada do facilitador): curva do DE R1 × R2.
+  const curvaDe = series ? evolucaoPorHora(series, (m) => m.deOcc) : [];
+  const comCurva = temEvolucao(curvaDe, 1) && temEvolucao(curvaDe, 2);
   const classificacao = classificacaoFinal(itens);
   const linhas = comparativoTurma(itens);
   const restantes = classificacao.slice(3);
@@ -87,18 +92,38 @@ export function Final({ itens }: { itens: ItemRanking[] }) {
           </tbody>
         </table>
 
-        <h3 className="mt-6 text-3xl font-bold">Evolução por grupo</h3>
-        <ul className="mt-3 grid grid-cols-2 gap-x-10 gap-y-2.5">
-          {classificacao.map((g) => (
-            <li key={g.grupoId} className="flex items-center gap-3 text-2xl">
-              <span aria-hidden="true" className="size-4 shrink-0 rounded-full" style={{ background: g.cor }} />
-              <span className="min-w-0 flex-1 truncate font-semibold">{g.nome}</span>
-              <span className="font-space-mono text-white/80 tabular-nums">{g.r1 === null ? '–' : formatarInteiro(g.r1)}</span>
-              <Icone nome="setaDireita" tamanho={20} className="text-white/60" />
-              <span className="font-space-mono font-bold tabular-nums">{g.r2 === null ? '–' : formatarInteiro(g.r2)}</span>
-            </li>
-          ))}
-        </ul>
+        {comCurva ? (
+          <>
+            <h3 className="mt-6 flex items-baseline justify-between gap-6 text-3xl font-bold">
+              Pacientes no DE ao longo do plantão
+              <LegendaEvolucao tema="escuro" className="shrink-0 text-lg font-normal text-white/85" />
+            </h3>
+            <GraficoEvolucao
+              titulo="Pacientes no DE, média dos grupos, Plantão Travado e Plantão Lean"
+              pontos={curvaDe}
+              tema="escuro"
+              fonte={15}
+              altura={190}
+              minimoEixo={5}
+              className="mt-2"
+            />
+          </>
+        ) : (
+          <>
+          <h3 className="mt-6 text-3xl font-bold">Evolução por grupo</h3>
+          <ul className="mt-3 grid grid-cols-2 gap-x-10 gap-y-2.5">
+            {classificacao.map((g) => (
+              <li key={g.grupoId} className="flex items-center gap-3 text-2xl">
+                <span aria-hidden="true" className="size-4 shrink-0 rounded-full" style={{ background: g.cor }} />
+                <span className="min-w-0 flex-1 truncate font-semibold">{g.nome}</span>
+                <span className="font-space-mono text-white/80 tabular-nums">{g.r1 === null ? '–' : formatarInteiro(g.r1)}</span>
+                <Icone nome="setaDireita" tamanho={20} className="text-white/60" />
+                <span className="font-space-mono font-bold tabular-nums">{g.r2 === null ? '–' : formatarInteiro(g.r2)}</span>
+              </li>
+            ))}
+          </ul>
+          </>
+        )}
 
         {gestorAliviado && (
           <p className="mt-auto rounded-cartao bg-white/10 px-6 py-4 text-2xl leading-snug ring-1 ring-white/15">

@@ -88,8 +88,24 @@ describe('consulta periódica do painel (painel_turma)', () => {
     presenca.receberTurma(
       turma({
         grupos: [
-          { id: 'a', nome: 'A', cor: '#111111', conectado: false, vistoEm: '2026-11-25T10:00:30Z', reconexaoLiberada: true, removido: false },
-          { id: 'b', nome: 'B', cor: '#222222', conectado: false, vistoEm: null, reconexaoLiberada: false, removido: true },
+          {
+            id: 'a',
+            nome: 'A',
+            cor: '#111111',
+            conectado: false,
+            vistoEm: '2026-11-25T10:00:30Z',
+            reconexaoLiberada: true,
+            removido: false,
+          },
+          {
+            id: 'b',
+            nome: 'B',
+            cor: '#222222',
+            conectado: false,
+            vistoEm: null,
+            reconexaoLiberada: false,
+            removido: true,
+          },
         ],
       }),
     );
@@ -110,7 +126,9 @@ describe('demonstração: leituras do facilitador', () => {
     const series = await s.seriesTurma(t.id);
     expect(series.some((p) => p.rodada === 1)).toBe(true);
     expect(series.some((p) => p.rodada === 2)).toBe(true);
-    expect(series.every((p) => typeof p.metricas.deOcc === 'number' && typeof p.metricas.boarding === 'number')).toBe(true);
+    expect(series.every((p) => typeof p.metricas.deOcc === 'number' && typeof p.metricas.boarding === 'number')).toBe(
+      true,
+    );
     const eventos = await s.eventosTurma(t.id, { rodada: 1, limite: 5 });
     expect(eventos).toHaveLength(5);
     expect(eventos.every((e) => e.rodada === 1)).toBe(true);

@@ -1,7 +1,7 @@
 // Dados FALSOS para o modo demonstração do telão (projetor.html?demo=1).
 // Nunca usar fora de src/projector/demo/.
 
-import type { EstadoTurma, ItemRanking, Metricas, Rodada, StatusTurma } from '../../shared/schemas';
+import type { EstadoTurma, ItemRanking, Metricas, PontoSerieTurma, Rodada, StatusTurma } from '../../shared/schemas';
 
 export type FaseDemo = 'aberta' | 'rodada1' | 'debrief' | 'rodada2' | 'encerrada';
 
@@ -109,4 +109,22 @@ export function rankingDemo(fase: FaseDemo, minuto: number): ItemRanking[] {
     lista.push(...GRUPOS.map((g) => item(g, 2, r2Minuto)));
   }
   return lista;
+}
+
+/** Séries falsas (um ponto a cada 30 min) das rodadas já jogadas na fase pedida. */
+export function seriesDemo(fase: FaseDemo, minuto: number): PontoSerieTurma[] {
+  const rodadas: { rodada: Rodada; ate: number }[] = [];
+  if (fase === 'rodada1') rodadas.push({ rodada: 1, ate: minuto });
+  if (fase === 'debrief' || fase === 'rodada2' || fase === 'encerrada') rodadas.push({ rodada: 1, ate: 1140 });
+  if (fase === 'rodada2') rodadas.push({ rodada: 2, ate: minuto });
+  if (fase === 'encerrada') rodadas.push({ rodada: 2, ate: 1140 });
+  const pontos: PontoSerieTurma[] = [];
+  for (const g of GRUPOS) {
+    for (const { rodada, ate } of rodadas) {
+      for (let m = 420; m <= ate; m += 30) {
+        pontos.push({ grupoId: g.id, nome: g.nome, cor: g.cor, rodada, minuto: m, metricas: metricasDemo(g, rodada, m).metricas });
+      }
+    }
+  }
+  return pontos;
 }

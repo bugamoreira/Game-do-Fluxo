@@ -1,5 +1,5 @@
 // Telão — projetor.html?sala=CODIGO (padrão CBMEDE).
-// Demonstração: projetor.html?demo=1&fase=aberta|rodada1|debrief|rodada2|encerrada[&minuto=900]
+// Demonstração: projetor.html?demo=1&fase=aberta|rodada1|debrief|rodada2|encerrada[&minuto=900][&publico=1]
 
 import { Suspense, lazy } from 'react';
 import { SALA_PADRAO } from './derivar';
@@ -17,13 +17,14 @@ function lerParametros() {
     sala,
     demo,
     fase: lerFaseDemo(p.get('fase')),
+    publico: p.get('publico') === '1',
     minuto: Number.isInteger(minuto) && minuto >= 420 && minuto <= 1140 ? minuto : undefined,
   };
 }
 
 export function App() {
-  const { sala, demo, fase, minuto } = lerParametros();
-  if (demo) return <TelaoDemo fase={fase} minutoInicial={minuto} />;
+  const { sala, demo, fase, minuto, publico } = lerParametros();
+  if (demo) return <TelaoDemo fase={fase} minutoInicial={minuto} publico={publico} />;
   return (
     <Suspense fallback={<div className="fixed inset-0 bg-marinho-profundo" />}>
       <AoVivo sala={sala} />

@@ -1,8 +1,11 @@
 // Regras puras do telão: tudo o que a projeção mostra sai daqui, a partir dos
-// dados públicos (`estado_turma` e `ranking`). Sem React, sem rede.
+// dados públicos (`estado_turma` e `ranking`) e, quando o telão é aberto pela
+// janela logada do facilitador, de `eventos_turma` e `series_turma`. Sem React,
+// sem rede.
 
 import type { EstadoTurma, ItemRanking, Metricas, Rodada } from '../shared/schemas';
 import { tensaoDoPlacar, type SomEfeito } from '../shared/lib/music';
+import { descreverEvento, type EventoBasico } from '../shared/lib/evolucao';
 
 export type FaseTelao = 'aguardando' | 'aberta' | 'rodada' | 'debrief' | 'final';
 
@@ -89,7 +92,16 @@ export function resumoAoVivo(itensRodada: ItemRanking[]): ResumoAoVivo {
 // Eventos marcantes (derivados da variação do placar entre consultas)
 // ------------------------------------------------------------
 
-export type TipoEvento = 'obito' | 'deterioracao' | 'cancelamento' | 'evasao' | 'fluxista' | 'lounge' | 'cirurgiaProtegida';
+export type TipoEvento =
+  | 'obito'
+  | 'deterioracao'
+  | 'cancelamento'
+  | 'evasao'
+  | 'fluxista'
+  | 'lounge'
+  | 'cirurgiaProtegida'
+  /** Evento gravado pelo jogo e lido por `eventos_turma` (surto, NIR, DE lotado...). */
+  | 'jogo';
 
 export interface EventoTelao {
   id: string;
@@ -123,6 +135,31 @@ const REGRAS: RegraEvento[] = [
   { chave: 'autoDischargeLounge', tipo: 'lounge', problema: false, som: 'alta', rodada: 2, texto: (n) => (n > 1 ? `Discharge Lounge liberou ${n} leitos` : 'Discharge Lounge liberou um leito') },
   { chave: 'autoCirurgiasViabilizadas', tipo: 'cirurgiaProtegida', problema: false, som: 'nir', rodada: 2, texto: (n) => (n > 1 ? `${n} cirurgias protegidas` : 'Cirurgia protegida') },
 ];
+
+/**
+ * Eventos gravados pelos grupos (`eventos_turma`, só com a sessão do facilitador
+ * no navegador) no formato do quadro "Agora no plantão". Mantém a ordem
+ * recebida (mais recentes primeiro), só os tipos conhecidos, até `limite`.
+ */
+export function eventosDoServidor(eventos: readonly EventoBasico[], limite = 5): EventoTelao[] {
+  const saida: EventoTelao[] = [];
+  for (const e of eventos) {
+    const d = descreverEvento(e.tipo);
+    if (!d) continue;
+    saida.push({
+      id: `srv-${e.rodada}-${e.id}`,
+      grupoId: e.grupoId,
+      nome: e.nome,
+      cor: e.cor,
+      minuto: e.minuto,
+      tipo: 'jogo',
+      texto: d.rotulo,
+      problema: d.problema,
+    });
+    if (saida.length >= limite) break;
+  }
+  return saida;
+}
 
 export interface ResultadoEventos {
   novos: EventoTelao[];
