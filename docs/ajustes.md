@@ -48,7 +48,9 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 
 | # | Passo | Estado |
 |---|---|---|
-| 18 | Variáveis no Netlify (`VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`) | ⏳ |
+| 17b | Migrações 1 a 9 aplicadas no Supabase real (autorizado em 1º/11); 35 funções conferidas uma a uma com o banco de teste; Security Advisor só aponta as RPCs expostas de propósito | ✅ |
+| 17c | Migrações novas do agente E2 (entrada só antes do início, 10 grupos, dados atrasados) | ⏳ aplicar quando integradas |
+| 18 | Variáveis no Netlify (`VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`): o Netlify recusou pela API (403); fazer no site de teste ao importar do GitHub | ⏳ |
 | 19 | Desligar cadastro aberto no Supabase | ✅ |
 | 20 | Criar usuário do facilitador e enviar só o UID | ⏳ |
 | 21 | Teto de gastos no Supabase | ✅ |

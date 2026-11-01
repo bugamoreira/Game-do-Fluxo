@@ -20,7 +20,7 @@ begin
   if p_nome is null or char_length(p_nome) > 200 then
     perform interno.erro('DADOS_INVALIDOS', 'O nome do grupo precisa ter de 2 a 30 caracteres.');
   end if;
-  if p_nome ~ '[​-‏‪-‮⁠-⁯﻿]' then
+  if p_nome ~ '[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]' then
     perform interno.erro('DADOS_INVALIDOS', 'O nome do grupo tem caracteres invisíveis. Digite o nome de novo.');
   end if;
   v := pg_catalog.regexp_replace(pg_catalog.btrim(p_nome), '\s+', ' ', 'g');
