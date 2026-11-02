@@ -15,7 +15,7 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 | 5 | Frase de abertura em duas linhas: "Cada grupo assume um plantão." / "Decidam juntos para o hospital fluir antes que o plantão trave." | Orientações | ✅ |
 | 6a | Cartões de "Como funciona" encavalados e quebras de linha ruins: setas com espaço próprio, cartões explicativos em 2 × 2, quebras equilibradas; menu do topo some antes de quebrar | Orientações | ✅ |
 | 6b | "Pronto-socorro" → **departamento de emergência**; "vigia" → **monitoramento** | Orientações, relatório, demos | ✅ |
-| 6 | Pergunta frequente "O jogo já começou" ainda fala em liberar grupo atrasado | Orientações | 🔧 sai junto com a remoção de "Liberar entrada" |
+| 6 | Pergunta frequente "O jogo já começou" ainda fala em liberar grupo atrasado | Orientações | ✅ |
 
 ## Navegação
 
@@ -29,19 +29,19 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 
 | # | Decisão | Estado |
 |---|---|---|
-| 9 | Nenhum grupo novo depois do início; a sala só começa com todos conectados; sai o botão "Liberar entrada" | 🔧 |
-| 10 | Máximo de 10 grupos por turma | 🔧 |
+| 9 | Nenhum grupo novo depois do início; a sala só começa com todos conectados; sai o botão "Liberar entrada" | ✅ |
+| 10 | Máximo de 10 grupos por turma | ✅ |
 | 11 | Reconexão liberada continua: mesmo nome + código de acesso | ✅ mantida |
 
 ## Defeitos do ensaio com 6 grupos-robô
 
 | # | Defeito | Estado |
 |---|---|---|
-| 12 | Música trava a página em computador lento | 🔧 |
-| 13 | Espera de login nos grupos sob carga | 🔧 |
-| 14 | Relógio passa do horário na pausa | 🔧 |
-| 15 | Dados atrasados do Travado recusados durante o Lean | 🔧 |
-| 16 | Presença de cada grupo na tela "Ao vivo" | 🔧 |
+| 12 | Música trava a página em computador lento | ✅ |
+| 13 | Espera de login nos grupos sob carga | ✅ |
+| 14 | Relógio passa do horário na pausa | ✅ |
+| 15 | Dados atrasados do Travado recusados durante o Lean | ✅ |
+| 16 | Presença de cada grupo na tela "Ao vivo" | ✅ |
 | 17 | Documentação dizia pontuação mínima 50 (o certo é 0) | ✅ |
 
 ## Publicação (passos do Gustavo)
@@ -49,7 +49,7 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 | # | Passo | Estado |
 |---|---|---|
 | 17b | Migrações 1 a 9 aplicadas no Supabase real (autorizado em 1º/11); 35 funções conferidas uma a uma com o banco de teste; Security Advisor só aponta as RPCs expostas de propósito | ✅ |
-| 17c | Migrações novas do agente E2 (entrada só antes do início, 10 grupos, dados atrasados) | ⏳ aplicar quando integradas |
+| 17c | Migrações 10 a 12 (dados atrasados, entrada só antes do início, 10 grupos) | ✅ 10 e 12 aplicadas; da 11 falta só apagar a função antiga `liberar_entrada` (o Supabase pediu confirmação e ela não veio a tempo); já não tem efeito, porque a entrada nova ignora a liberação |
 | 18 | Variáveis no Netlify (`VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`): o Netlify recusou pela API (403); fazer no site de teste ao importar do GitHub | ⏳ |
 | 19 | Desligar cadastro aberto no Supabase | ✅ |
 | 20 | Criar usuário do facilitador e enviar só o UID | ⏳ |
