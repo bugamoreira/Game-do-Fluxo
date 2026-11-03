@@ -74,7 +74,11 @@ export function Telao(d: DadosTelao) {
   }, [mudo]);
   const ativarSom = useCallback(() => {
     musica.iniciar().then(
-      () => setSomAtivo(true),
+      () => {
+        setSomAtivo(true);
+        // Fora da rodada a trilha fica em silêncio: o sinal confirma que o áudio do telão está ligado.
+        musica.efeito('alta');
+      },
       () => setSomAtivo(false),
     );
   }, []);

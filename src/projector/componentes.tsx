@@ -115,7 +115,7 @@ export function BotaoSom({ ativo, mudoPeloFacilitador, onAtivar }: BotaoSomProps
     return (
       <span className="inline-flex items-center gap-2 font-sora text-lg text-white/60">
         <Icone nome="musica" tamanho={20} />
-        {mudoPeloFacilitador ? 'Som desligado pelo facilitador' : 'Som ligado'}
+        {mudoPeloFacilitador ? 'Som desligado pelo facilitador' : 'Som ligado · a música toca durante as rodadas'}
       </span>
     );
   }

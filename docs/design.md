@@ -110,6 +110,7 @@ Cada rodada tem identidade sonora própria, reforçando a virada pedagógica:
 - **Plantão Travado:** tensão que cresce. Ritmo irregular, harmonia menor e dissonante, e mais camadas e andamento conforme o boarding sobe. Óbito leva ao modo crise. Alertas secos.
 - **Plantão Lean:** fluxo. Pulso constante e estável (a "esteira" bem regulada), tom maior e timbres mais claros. Quando o fluxo melhora (altas, Fluxista), a música ganha camadas em vez de acelerar. Eventos positivos têm som próprio (alta, Fluxista, NIR). Problemas soam, mas sem o modo crise.
 - Toca no computador de cada grupo (liga no primeiro clique) e no telão; o facilitador controla o mudo de todos.
+- Fora das rodadas (sala aberta, debrief, resultado) a trilha fica em silêncio. No telão, "Ativar som" toca um sinal curto para confirmar que o áudio está ligado, e o rodapé avisa que a música toca durante as rodadas.
 - **A música nunca derruba o jogo.** O sequenciador é próprio (não usa o Transport do Tone.js, que congelava a página com a CPU apertada no ensaio): agenda no máximo alguns passos à frente, descarta passos atrasados mais de 0,2 s, nunca agenda no passado e limita a oito vozes por passo. Um disjuntor silencia e para o sequenciador quando a aba fica oculta ou depois de três engasgos (atraso acima de 1 s) ou cinco erros em 30 s; volta limpo, sem tocar o que ficou para trás, ao reaparecer a aba ou 10 s depois. Exceções do áudio são engolidas e registradas uma única vez no console.
 
 ## 8. Relatório da turma
