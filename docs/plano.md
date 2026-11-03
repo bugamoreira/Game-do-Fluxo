@@ -1,4 +1,4 @@
-# Plano — Simulador do Plantão no CBMEDE 2026
+# Plano — Simulador do Fluxo no CBMEDE 2026
 
 Evento: Curso de Gestão do ED Leaders, pré-congresso do CBMEDE 2026, 25 de novembro de 2026, Windsor Barra, Rio de Janeiro. Cenário: cerca de 6 grupos, cada grupo um plantão, um computador por grupo, Wi-Fi do evento e 5G de reserva. Endereço: `plantaocbmede.netlify.app`.
 
@@ -98,3 +98,5 @@ Merge no `main`, site `plantaocbmede` ligado ao GitHub, variáveis de ambiente n
 - Sem entrada de grupos depois do início; a sala só começa com todos conectados. A confirmação de "Iniciar Travado" lista os grupos e destaca quem está sem sinal; "Liberar entrada" de grupo novo foi removida (só a reconexão de quem já estava continua).
 - Emergência cirúrgica sem vaga na RPA: risco alto aguardando vaga, óbito só após deteriorar.
 - Publicação guiada passo a passo: `docs/publicacao.md`.
+- Nome do jogo: **Simulador do Fluxo** (3/11); as rodadas seguem Plantão Travado e Plantão Lean.
+- Evento: Curso de Gestão do ED Leaders, 25 de novembro; um grupo, um plantão; termos "departamento de emergência" e "monitoramento".

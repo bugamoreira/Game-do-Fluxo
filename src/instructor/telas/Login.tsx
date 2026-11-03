@@ -48,7 +48,7 @@ export function Login({ servicos, onEntrar }: LoginProps) {
             — Acesso do facilitador
           </p>
           <h1 className="mt-4 text-titulo-g font-bold">
-            Simulador do <span className="text-amarelo">Plantão</span>
+            Simulador do <span className="text-amarelo">Fluxo</span>
           </h1>
           <p className="mt-6 max-w-md text-lg leading-relaxed text-white/85">
             Abra a turma, acompanhe os grupos ao vivo e conduza o debrief do Plantão Travado ao Plantão Lean.

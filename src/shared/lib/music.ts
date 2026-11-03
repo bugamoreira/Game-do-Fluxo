@@ -1,5 +1,5 @@
 // ============================================================
-// Música adaptativa do Simulador do Plantão (docs/design.md §7).
+// Música adaptativa do Simulador do Fluxo (docs/design.md §7).
 //
 // Duas trilhas com identidade própria, sintetizadas com Tone.js:
 //

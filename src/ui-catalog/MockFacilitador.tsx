@@ -42,7 +42,7 @@ export function MockFacilitador() {
           <div>
             <p className="font-space-mono text-rotulo font-bold uppercase tracking-[0.18em] text-amarelo">Facilitador</p>
             <p className="mt-1 text-xl leading-tight font-bold">
-              Simulador do <span className="text-amarelo">Plantão</span>
+              Simulador do <span className="text-amarelo">Fluxo</span>
             </p>
           </div>
         }

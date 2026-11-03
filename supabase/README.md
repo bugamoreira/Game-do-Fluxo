@@ -1,6 +1,6 @@
 # Supabase — schema do CBMEDE 2026
 
-Banco do Simulador do Plantão para o CBMEDE. Desenho e regras em [`docs/schema.md`](../docs/schema.md).
+Banco do Simulador do Fluxo para o CBMEDE. Desenho e regras em [`docs/schema.md`](../docs/schema.md).
 **Nada daqui foi aplicado no projeto `okmafynejwrwnmvyruwy`.** A aplicação depende de autorização do Gustavo.
 
 As tabelas do FLAME (`rooms`, `teams`, `game_state`, `game_logs`) não são tocadas por nenhum arquivo desta pasta.
@@ -70,7 +70,7 @@ Pelo painel do facilitador (`/instrutor.html`), ou à mão no SQL Editor fingind
 begin;
 select set_config('request.jwt.claims',
   json_build_object('sub', 'COLE-AQUI-O-USER-UID', 'role', 'authenticated')::text, true);
-select public.abrir_turma('CBMEDE', 'CBMEDE 2026 — Simulador do Plantão', 'CBMEDE 2026', date '2026-11-20');
+select public.abrir_turma('CBMEDE', 'CBMEDE 2026 — Simulador do Fluxo', 'CBMEDE 2026', date '2026-11-20');
 commit;
 ```
 

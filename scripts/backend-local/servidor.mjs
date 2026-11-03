@@ -598,7 +598,7 @@ const servidor = http.createServer(async (req, res) => {
     } else if (caminho.startsWith('/auth/v1/')) {
       await auth(req, res, caminho, url);
     } else if (caminho === '/' || caminho === '/rest/v1') {
-      responder(res, 200, { backend: 'Simulador do Plantão — backend local de ensaio', ok: true });
+      responder(res, 200, { backend: 'Simulador do Fluxo — backend local de ensaio', ok: true });
     } else {
       responder(res, 404, { code: 'PGRST125', details: null, hint: null, message: `Caminho inválido: ${caminho}` });
     }

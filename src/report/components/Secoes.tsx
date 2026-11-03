@@ -44,7 +44,7 @@ export function Capa({ vista }: { vista: RelatorioVista }) {
             Relatório da turma
           </p>
           <h1 className="font-sora text-[2.5rem] leading-[1.05] font-bold tracking-tight sm:text-titulo-g">
-            Simulador do <span className="text-amarelo">Plantão</span>
+            Simulador do <span className="text-amarelo">Fluxo</span>
           </h1>
           <p className="max-w-2xl text-lg font-light text-white/90 sm:text-xl">{vista.turma.nome}</p>
         </div>

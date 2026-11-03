@@ -14,6 +14,7 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 | 4 | Revisão de textos (UX copy) em todas as telas, com norma culta | Jogo, painel, telão, relatório | ✅ primeira varredura ("time" → "grupo"); seguir revisando a cada print |
 | 5 | Frase de abertura em duas linhas: "Cada grupo assume um plantão." / "Decidam juntos para o hospital fluir antes que o plantão trave." | Orientações | ✅ |
 | 6a | Cartões de "Como funciona" encavalados e quebras de linha ruins: setas com espaço próprio, cartões explicativos em 2 × 2, quebras equilibradas; menu do topo some antes de quebrar | Orientações | ✅ |
+| 6c | Nome do jogo: **Simulador do Fluxo** (antes, Simulador do Plantão); as rodadas continuam Plantão Travado e Plantão Lean | Todas as telas, títulos das abas, docs | ✅ |
 | 6b | "Pronto-socorro" → **departamento de emergência**; "vigia" → **monitoramento** | Orientações, relatório, demos | ✅ |
 | 6 | Pergunta frequente "O jogo já começou" ainda fala em liberar grupo atrasado | Orientações | ✅ |
 

@@ -1,6 +1,6 @@
 # Backend local de ensaio
 
-Permite rodar o Simulador do Plantão inteiro num computador, **sem internet e sem tocar no Supabase real**. Um Postgres temporário recebe as mesmas migrações de `supabase/migrations/`, e um pequeno servidor Node imita a parte do Supabase que o app usa (RPCs em `/rest/v1/rpc/*` e o login do facilitador em `/auth/v1/*`). As permissões são as do banco: o servidor apenas assume o papel `anon` ou `authenticated` em cada pedido, exatamente como o Supabase faz.
+Permite rodar o Simulador do Fluxo inteiro num computador, **sem internet e sem tocar no Supabase real**. Um Postgres temporário recebe as mesmas migrações de `supabase/migrations/`, e um pequeno servidor Node imita a parte do Supabase que o app usa (RPCs em `/rest/v1/rpc/*` e o login do facilitador em `/auth/v1/*`). As permissões são as do banco: o servidor apenas assume o papel `anon` ou `authenticated` em cada pedido, exatamente como o Supabase faz.
 
 Serve para o ensaio geral e para testes. **Não é para o evento**: no CBMEDE o app usa o Supabase de verdade.
 

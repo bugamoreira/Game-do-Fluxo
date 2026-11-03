@@ -58,7 +58,7 @@ export function Moldura({ rotulo, fundo = '/img/rio/rio-pao-de-acucar-panorama.j
         <div className="min-w-0">
           <p className="font-space-mono text-2xl font-bold tracking-[0.2em] text-amarelo uppercase">{rotulo}</p>
           <p className="mt-1 text-5xl font-bold">
-            Simulador do <span className="text-amarelo">Plantão</span>
+            Simulador do <span className="text-amarelo">Fluxo</span>
           </p>
         </div>
         <Logos />

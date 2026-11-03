@@ -410,7 +410,7 @@ function Painel({
               Facilitador
             </p>
             <p className="mt-1 text-xl leading-tight font-bold">
-              Simulador do <span className="text-amarelo">Plantão</span>
+              Simulador do <span className="text-amarelo">Fluxo</span>
             </p>
           </div>
         }

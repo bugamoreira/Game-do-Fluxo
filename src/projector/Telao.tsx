@@ -145,7 +145,7 @@ function Espera({
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-degrade-cbmede opacity-[0.88]" />
       <Logos grande />
       <p className="text-8xl font-bold">
-        Simulador do <span className="text-amarelo">Plantão</span>
+        Simulador do <span className="text-amarelo">Fluxo</span>
       </p>
       <p role="status" className="telao-pulsar text-4xl text-white/90">{mensagem}</p>
       <p className="font-space-mono text-6xl font-bold text-amarelo">{ENDERECO_JOGO}</p>

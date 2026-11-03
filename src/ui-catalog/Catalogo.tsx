@@ -67,7 +67,7 @@ export function Catalogo() {
       <header className="bg-degrade-cbmede px-10 py-12 text-white">
         <p className="font-space-mono text-rotulo font-bold uppercase tracking-[0.22em] text-amarelo">— Design system · CBMEDE 2026</p>
         <h1 className="mt-2 text-titulo-g font-extrabold">
-          Simulador do <span className="text-amarelo">Plantão</span>
+          Simulador do <span className="text-amarelo">Fluxo</span>
         </h1>
         <p className="mt-3 max-w-2xl text-lg font-light text-white/85">
           Componentes base em <code className="font-space-mono">src/shared/components/ui</code>. Telas montadas no fim:{' '}

@@ -33,7 +33,7 @@ export function Moldura({ rotulo, conexao, largura = 'm', centralizar = false, v
             <img src="/img/brand/abramede.png" alt="ABRAMEDE" className="h-11 rounded-lg" />
             <div>
               <p className="font-space-mono text-rotulo font-bold uppercase tracking-[0.18em] text-amarelo">CBMEDE 2026</p>
-              <p className="text-xl font-bold">Simulador do Plantão</p>
+              <p className="text-xl font-bold">Simulador do Fluxo</p>
             </div>
           </div>
           <div className="flex items-center gap-4">

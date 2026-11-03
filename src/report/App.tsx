@@ -60,7 +60,7 @@ const ERROS: Record<Extract<Estado, { fase: 'erro' }>['tipo'], { titulo: string;
   },
   invalido: {
     titulo: 'Não foi possível montar o relatório',
-    texto: 'Os dados desta turma estão incompletos ou num formato que esta página não reconhece. Avise a equipe do Simulador do Plantão.',
+    texto: 'Os dados desta turma estão incompletos ou num formato que esta página não reconhece. Avise a equipe do Simulador do Fluxo.',
     tentar: false,
   },
 };
@@ -124,7 +124,7 @@ const SUMARIO = [
 
 function Relatorio({ vista, demo }: { vista: RelatorioVista; demo: boolean }) {
   useEffect(() => {
-    document.title = `Relatório · ${vista.turma.nome} · Simulador do Plantão`;
+    document.title = `Relatório · ${vista.turma.nome} · Simulador do Fluxo`;
   }, [vista.turma.nome]);
   const gerado = vista.geradoEm ? new Date(vista.geradoEm) : null;
   return (
@@ -148,7 +148,7 @@ function Relatorio({ vista, demo }: { vista: RelatorioVista; demo: boolean }) {
       </main>
       <footer className="rodape mt-6 border-t border-borda bg-cartao">
         <div className="mx-auto flex max-w-[1040px] flex-wrap justify-between gap-3 px-4 py-6 text-xs text-texto-suave sm:px-8">
-          <span>Simulador do Plantão · ED Leaders · ABRAMEDE · CBMEDE 2026</span>
+          <span>Simulador do Fluxo · ED Leaders · ABRAMEDE · CBMEDE 2026</span>
           <span>
             {gerado && !Number.isNaN(gerado.getTime()) && `Gerado em ${gerado.toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' })}. `}
             {vista.versaoRegras && `Regras: ${vista.versaoRegras}. `}

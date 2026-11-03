@@ -1,4 +1,4 @@
-# Fluxo e regras do jogo — Simulador do Plantão
+# Fluxo e regras do jogo — Simulador do Fluxo
 
 > Entendimento do código em 01/11/2026 (`src/shared/lib/game-engine.ts`, `constants.ts` e o tick em `src/player/App.tsx`). Validar com o Gustavo antes de mudar qualquer regra.
 

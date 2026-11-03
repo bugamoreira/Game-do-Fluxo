@@ -20,7 +20,7 @@ export function MockTelao() {
         <div>
           <p className="font-space-mono text-base font-bold uppercase tracking-[0.22em] text-amarelo">— Plantão Travado · Rodada 1</p>
           <h1 className="text-titulo-g font-bold">
-            Simulador do <span className="text-amarelo">Plantão</span>
+            Simulador do <span className="text-amarelo">Fluxo</span>
           </h1>
         </div>
         <div className="flex items-center gap-6">

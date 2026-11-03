@@ -1,4 +1,4 @@
-# Design — Simulador do Plantão · CBMEDE 2026
+# Design — Simulador do Fluxo · CBMEDE 2026
 
 > Regras de marca, sistema visual e mapa de telas. Referências: padrão visual do site cbmede2026.com.br e 4 referências de dashboard trazidas pelo Gustavo (timeline de medicação, Overview cripto, Pay, Wallet).
 
@@ -18,7 +18,7 @@
 | Setores em tons pastel | Cada setor tem um tom de fundo fixo, como os cartões de ativos das referências: DE lavanda, ENF menta, UTI pêssego, RPA/CC creme, corredor e triagem cinza. O tom identifica o setor; a lotação aparece por barra e número, não por troca de cor do cartão. |
 | Cartão escuro = momento | O cartão azul-marinho profundo (como o "Earn free crypto" e o "Sell Order" das referências) é reservado para o que exige atenção agora: evento ativo no jogo, próxima ação do facilitador, chamada no telão. No máximo um por tela. |
 | Times | Cada grupo tem uma cor de identificação (8 cores fixas, nenhuma igual às de Manchester) usada em avatar, linha do ranking e gráficos. |
-| Assinaturas | "Simulador do Plantão" é a marca do jogo. CBMEDE 2026 e ABRAMEDE autorizados (o congresso é da casa), com logos oficiais em todas as superfícies; ED Leaders como realização. Arquivos oficiais (SVG ou PNG) a receber. |
+| Assinaturas | "Simulador do Fluxo" é a marca do jogo. CBMEDE 2026 e ABRAMEDE autorizados (o congresso é da casa), com logos oficiais em todas as superfícies; ED Leaders como realização. Arquivos oficiais (SVG ou PNG) a receber. |
 | Norma culta | Todo texto do jogo, do facilitador, do telão, do relatório e das mensagens segue a norma-padrão do português (acentuação, concordância, crase, pontuação). Revisão de texto faz parte do ensaio. |
 | Tom de voz | Português claro, linguagem de plantão ("boarding", "alta", "RPA lotada"), frases curtas, verbo no imperativo nos botões ("Iniciar rodada", "Autorizar"). |
 
