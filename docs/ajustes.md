@@ -51,7 +51,7 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 |---|---|---|
 | 17b | Migrações 1 a 9 aplicadas no Supabase real (autorizado em 1º/11); 35 funções conferidas uma a uma com o banco de teste; Security Advisor só aponta as RPCs expostas de propósito | ✅ |
 | 17c | Migrações 10 a 12 (dados atrasados, entrada só antes do início, 10 grupos) | ✅ todas aplicadas (a função antiga `liberar_entrada` foi apagada em 3/11) |
-| 18 | Site de teste `plantaocbmede-teste.netlify.app` criado e publicado (3/11), com as variáveis; teste de fumaça 26/26 e prova de segurança 73/73 contra o banco real (`docs/prova-seguranca-real.md`) | ✅ |
+| 18 | Site `plantaocbmede-teste.netlify.app`, renomeado pelo Gustavo para **`plantaocbmede26.netlify.app`** (endereço oficial do evento), criado e publicado (3/11), com as variáveis; teste de fumaça 26/26 e prova de segurança 73/73 contra o banco real (`docs/prova-seguranca-real.md`) | ✅ |
 | 19 | Desligar cadastro aberto no Supabase | ✅ |
 | 20 | Usuário do facilitador criado e cadastrado em `facilitadores` (3/11, a pedido do Gustavo) | ✅ |
 | 21 | Teto de gastos no Supabase | ✅ |
@@ -62,4 +62,5 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 
 | # | Item | Estado |
 |---|---|---|
+| 25 | Botão "Trocar senha" no painel do facilitador | ✅ |
 | 24 | Aviso do Vite sobre `__dirname` no `vite.config.ts` | ✅ |

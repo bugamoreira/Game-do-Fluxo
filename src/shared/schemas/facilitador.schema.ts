@@ -12,6 +12,13 @@ export const LoginEntradaSchema = z.object({
 });
 export type LoginEntrada = z.infer<typeof LoginEntradaSchema>;
 
+/** Senha nova do facilitador: 12 a 72 caracteres (limite do bcrypt), sem espaço nas pontas. */
+export const NovaSenhaSchema = z
+  .string()
+  .min(12, { message: 'A senha nova precisa ter ao menos 12 caracteres.' })
+  .max(72, { message: 'A senha nova pode ter no máximo 72 caracteres.' })
+  .refine((s) => s.trim() === s, { message: 'A senha nova não pode começar nem terminar com espaço.' });
+
 export const SessaoFacilitadorSchema = z.object({
   userId: IdSchema,
   email: z.string(),

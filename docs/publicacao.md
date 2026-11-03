@@ -26,7 +26,7 @@
 1. Ligar o site `plantaocbmede` ao repositório GitHub (branch `main`), com build `npm run build` e pasta `dist`.
 2. Variáveis: `VITE_SUPABASE_URL` e `VITE_SUPABASE_KEY` (chave anon/publishable; nunca a service_role; nenhuma outra `VITE_*` com segredo).
 3. Merge no `main` e publicação única.
-4. Conferir cabeçalhos (`curl -sI https://plantaocbmede.netlify.app/`), abrir o telão, clicar em "Ativar som" e confirmar que a música continua sem erro de CSP no console.
+4. Conferir cabeçalhos (`curl -sI https://plantaocbmede26.netlify.app/`), abrir o telão, clicar em "Ativar som" e confirmar que a música continua sem erro de CSP no console.
 5. Teste de fumaça no endereço final: abrir turma de teste, entrar com dois computadores, iniciar e encerrar uma rodada, gerar relatório.
 6. Decidir sobre o site antigo `plantaoflame.netlify.app` (tirar do ar ou manter congelado).
 

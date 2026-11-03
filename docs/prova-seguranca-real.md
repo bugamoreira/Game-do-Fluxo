@@ -1,6 +1,6 @@
 # Prova de segurança no ambiente real
 
-> 3/11/2026. Site de teste `plantaocbmede-teste.netlify.app` (proxy) contra o Supabase `okmafynejwrwnmvyruwy`, com a conta real do facilitador. Comando: `scripts/backend-local/prova-local.mjs` com BACKEND_URL apontando para o site de teste.
+> 3/11/2026. Site de teste `plantaocbmede26.netlify.app (então chamado plantaocbmede-teste)` (proxy) contra o Supabase `okmafynejwrwnmvyruwy`, com a conta real do facilitador. Comando: `scripts/backend-local/prova-local.mjs` com BACKEND_URL apontando para o site de teste.
 
 ```
 Turma PROVA aberta no backend local.

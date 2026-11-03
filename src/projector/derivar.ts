@@ -10,7 +10,7 @@ import { descreverEvento, type EventoBasico } from '../shared/lib/evolucao';
 export type FaseTelao = 'aguardando' | 'aberta' | 'rodada' | 'debrief' | 'final';
 
 /** Endereço que os grupos digitam (docs/design.md §5, P1). */
-export const ENDERECO_JOGO = 'plantaocbmede.netlify.app';
+export const ENDERECO_JOGO = 'plantaocbmede26.netlify.app';
 export const SALA_PADRAO = 'CBMEDE';
 /** Horas de plantão por rodada (07:00 → 19:00). */
 export const HORAS_PLANTAO = 12;

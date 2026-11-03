@@ -12,6 +12,7 @@ import {
   GerarRelatorioEntradaSchema,
   IdSchema,
   LoginEntradaSchema,
+  NovaSenhaSchema,
   MudarStatusEntradaSchema,
   RelatorioGeradoSchema,
   RespostaEventosTurmaSchema,
@@ -31,7 +32,7 @@ import {
   type StatusTurma,
 } from '../schemas';
 import { clienteComSessao } from '../lib/supabase';
-import { NaoAutorizado, RespostaInvalida, SemConexao, mapearErroRpc } from './erros';
+import { DadosInvalidos, NaoAutorizado, RespostaInvalida, SemConexao, mapearErroRpc } from './erros';
 import { RPC, chamarEValidar, validarEntrada, type NomeRpc } from './rpc';
 
 const RespostaTurmaSchema = z.preprocess(umaLinha, EstadoTurmaSchema);
@@ -101,6 +102,29 @@ export const facilitadorService = {
     } catch {
       return () => {};
     }
+  },
+
+  /**
+   * Troca a senha do facilitador logado (Supabase Auth). Exige sessão ativa.
+   * @throws {DadosInvalidos} senha fora da regra ou recusada pelo servidor
+   * @throws {NaoAutorizado} sem sessão
+   * @throws {SemConexao} rede
+   */
+  async trocarSenha(novaSenha: string): Promise<void> {
+    const senha = validarEntrada(NovaSenhaSchema, novaSenha);
+    let resposta: Awaited<ReturnType<ReturnType<typeof clienteComSessao>['auth']['updateUser']>>;
+    try {
+      resposta = await clienteComSessao().auth.updateUser({ password: senha });
+    } catch (e) {
+      throw new SemConexao(undefined, e);
+    }
+    const { error } = resposta;
+    if (!error) return;
+    const mapeado = mapearErroRpc(error, error.status);
+    if (mapeado instanceof SemConexao) throw mapeado;
+    if (error.status === 401 || error.status === 403) throw new NaoAutorizado('Entre de novo para trocar a senha.', error);
+    if (error.code === 'same_password') throw new DadosInvalidos('A senha nova precisa ser diferente da atual.', error);
+    throw new DadosInvalidos('O servidor recusou a senha nova. Escolha outra, mais longa.', error);
   },
 
   /** Encerra a sessão do facilitador neste navegador. */

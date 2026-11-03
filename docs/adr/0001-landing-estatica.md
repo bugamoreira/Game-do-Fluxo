@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Para o CBMEDE 2026 o aluno precisa de uma página de entrada, em `plantaocbmede.netlify.app`, que explique como acessar o jogo pelo computador do grupo e teste se a máquina está pronta (navegador, tela, conexão com o servidor, som).
+Para o CBMEDE 2026 o aluno precisa de uma página de entrada, em `plantaocbmede26.netlify.app`, que explique como acessar o jogo pelo computador do grupo e teste se a máquina está pronta (navegador, tela, conexão com o servidor, som).
 
 O padrão do playbook (cap. 02) é React + Tailwind. O próprio cap. 02 abre exceção: "Página estática simples → HTML + um pouco de JS".
 

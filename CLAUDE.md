@@ -5,7 +5,7 @@ Jogo educacional de gestão de fluxo na emergência para o Curso de Gestão do E
 ## Regras absolutas
 
 - **Nada de deploy, push para `main` ou aplicação de migração no Supabase sem autorização expressa do Gustavo.** `main` é produção.
-- **Publicação única** em `plantaocbmede.netlify.app`, só depois do ensaio aprovado (`docs/plano.md`). O `plantaoflame.netlify.app` está congelado.
+- **Publicação única** em `plantaocbmede26.netlify.app`, só depois do ensaio aprovado (`docs/plano.md`). O `plantaoflame.netlify.app` está congelado.
 - **Nenhuma credencial no código.** Facilitador entra pelo Supabase Auth; as variáveis `VITE_*` são públicas no bundle e só levam a chave anônima.
 - Não apague dados nem rode SQL no projeto real sem perguntar.
 

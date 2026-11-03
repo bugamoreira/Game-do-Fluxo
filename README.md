@@ -2,7 +2,7 @@
 
 Jogo educacional de gestão de fluxo na emergência, da ED Leaders com a ABRAMEDE, para o Curso de Gestão do ED Leaders, pré-congresso do CBMEDE 2026 (25 de novembro de 2026, Rio de Janeiro). Cada grupo coordena o fluxo de um hospital em duas rodadas com a mesma demanda: o **Plantão Travado**, em que tudo depende do gestor, e o **Plantão Lean**, em que ferramentas automáticas puxam o fluxo. A comparação mostra o efeito do Lean no boarding, nos óbitos evitáveis e na carga do gestor.
 
-Endereço do evento: **plantaocbmede.netlify.app** (publicado só depois do ensaio aprovado).
+Endereço do evento: **plantaocbmede26.netlify.app** (publicado só depois do ensaio aprovado).
 
 ## Telas
 

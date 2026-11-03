@@ -330,6 +330,11 @@ export function criarServicoDemo(opcoes: OpcoesDemo = {}): ServicosFacilitador &
 
     async sair() {},
 
+    async trocarSenha(novaSenha) {
+      await espera();
+      if (novaSenha.length < 12) throw new DadosInvalidos('A senha nova precisa ter ao menos 12 caracteres.');
+    },
+
     aoMudarSessao() {
       return () => {};
     },

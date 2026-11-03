@@ -71,7 +71,7 @@ export function MockTelao() {
       </div>
 
       <footer className="flex items-center justify-between font-space-mono text-lg text-white/75">
-        <span>plantaocbmede.netlify.app</span>
+        <span>plantaocbmede26.netlify.app</span>
         <span>CBMEDE 2026 · Windsor Barra · Rio de Janeiro</span>
       </footer>
     </div>

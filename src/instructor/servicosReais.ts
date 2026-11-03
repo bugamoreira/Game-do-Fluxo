@@ -10,6 +10,7 @@ export const servicosReais: ServicosFacilitador = {
   login: (email, senha) => facilitadorService.login(email, senha),
   sessaoAtual: () => facilitadorService.sessaoAtual(),
   sair: () => facilitadorService.sair(),
+  trocarSenha: (novaSenha) => facilitadorService.trocarSenha(novaSenha),
   aoMudarSessao: (ouvinte) => facilitadorService.aoMudarSessao(ouvinte),
   codigoAcessoTelao: (id) => facilitadorService.codigoAcessoTelao(id),
   estado: (codigo) => turmaService.estado(codigo),

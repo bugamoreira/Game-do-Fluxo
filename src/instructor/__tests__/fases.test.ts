@@ -183,8 +183,8 @@ describe('espera para iniciar o Lean', () => {
 
 describe('endereços', () => {
   it('monta o telão por código e o relatório por slug', () => {
-    expect(linkTelao('https://plantaocbmede.netlify.app', 'CBMEDE')).toBe(
-      'https://plantaocbmede.netlify.app/projetor.html?sala=CBMEDE',
+    expect(linkTelao('https://plantaocbmede26.netlify.app', 'CBMEDE')).toBe(
+      'https://plantaocbmede26.netlify.app/projetor.html?sala=CBMEDE',
     );
     expect(linkTelao('http://localhost:5182', 'CBMEDE', true)).toBe(
       'http://localhost:5182/projetor.html?sala=CBMEDE&demo=1',

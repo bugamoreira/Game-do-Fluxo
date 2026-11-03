@@ -21,6 +21,7 @@ import type { AbrirTurmaEntrada, EstadoTurma, SessaoFacilitador } from '../share
 import { CodigoEmUso, SemConexao, TurmaNaoEncontrada } from '../shared/services/erros';
 import { DialogoConfirmacao } from './componentes/DialogoConfirmacao';
 import { ModoTelao } from './componentes/ModoTelao';
+import { TrocarSenha } from './componentes/TrocarSenha';
 import { confirmacaoPara, type Confirmacao } from './logica/confirmacoes';
 import { mensagemDeErro } from './logica/erros';
 import {
@@ -156,6 +157,7 @@ function Painel({
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ItemToast[]>([]);
   const [telao, setTelao] = useState(false);
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [relatorio, setRelatorio] = useState<{ turmaId: string; slug: string } | null>(null);
   const [abrindo, setAbrindo] = useState(false);
   const [erroAbrir, setErroAbrir] = useState<string | null>(null);
@@ -439,10 +441,18 @@ function Painel({
             </Button>
             <img src="/img/brand/abramede.png" alt="ABRAMEDE" className="mt-2 w-full rounded-xl" />
             <p className="text-xs text-white/70">CBMEDE 2026 · Rio de Janeiro</p>
-            <div className="flex items-center justify-between gap-2 border-t border-white/15 pt-3">
+            <div className="flex flex-col gap-1 border-t border-white/15 pt-3">
               <p className="min-w-0 truncate text-xs text-white/80" title={sessao.email}>
                 {sessao.email}
               </p>
+              <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setTrocandoSenha(true)}
+                className="min-h-10 shrink-0 rounded-pilula px-3 text-xs font-bold text-white hover:bg-white/10"
+              >
+                Trocar senha
+              </button>
               <button
                 type="button"
                 onClick={onSair}
@@ -450,6 +460,7 @@ function Painel({
               >
                 Sair
               </button>
+              </div>
             </div>
           </div>
         }
@@ -533,6 +544,15 @@ function Painel({
       />
 
       {telao && codigo && <ModoTelao url={linkTelao(origem, codigo, demo)} onSair={() => setTelao(false)} />}
+      <TrocarSenha
+        aberto={trocandoSenha}
+        servicos={servicos}
+        onFechar={() => setTrocandoSenha(false)}
+        onTrocada={() => {
+          setTrocandoSenha(false);
+          avisar('sucesso', 'Senha trocada', 'Use a senha nova no próximo login.');
+        }}
+      />
 
       <ToastArea>
         {toasts.map((t) => (

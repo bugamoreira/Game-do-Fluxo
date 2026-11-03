@@ -7,10 +7,12 @@ const rpc = vi.fn();
 const usados: { cliente: 'semSessao' | 'comSessao'; nome: string }[] = [];
 const signInWithPassword = vi.fn();
 const getSession = vi.fn();
+const updateUser = vi.fn();
 vi.mock('../../lib/supabase', () => {
   const auth = {
     signInWithPassword: (...args: unknown[]) => signInWithPassword(...args),
     getSession: () => getSession(),
+    updateUser: (...args: unknown[]) => updateUser(...args),
     signOut: vi.fn(),
   };
   const semSessao = {
@@ -344,6 +346,25 @@ describe('syncService', () => {
 });
 
 describe('facilitadorService', () => {
+  it('trocarSenha: senha curta é recusada antes da rede', async () => {
+    await expect(facilitadorService.trocarSenha('curta')).rejects.toBeInstanceOf(DadosInvalidos);
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it('trocarSenha: envia a senha nova ao Auth', async () => {
+    updateUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } }, error: null });
+    await facilitadorService.trocarSenha('uma-senha-bem-longa');
+    expect(updateUser).toHaveBeenCalledWith({ password: 'uma-senha-bem-longa' });
+  });
+
+  it('trocarSenha: senha igual à atual vira DadosInvalidos com mensagem própria', async () => {
+    updateUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: { name: 'AuthApiError', message: 'same', status: 422, code: 'same_password' },
+    });
+    await expect(facilitadorService.trocarSenha('uma-senha-bem-longa')).rejects.toThrow('diferente da atual');
+  });
+
   it('login recusado vira NaoAutorizado', async () => {
     signInWithPassword.mockResolvedValueOnce({
       data: { user: null, session: null },
