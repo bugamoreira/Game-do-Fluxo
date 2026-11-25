@@ -8,7 +8,8 @@ export type Pergunta =
   | { tipo: 'opcao'; campo: string; titulo: string; opcoes: { valor: string; rotulo: string }[] }
   | { tipo: 'texto'; campo: string; titulo: string; ajuda?: string }
   | { tipo: 'simnao'; campo: string; titulo: string }
-  | { tipo: 'email'; campo: 'email'; titulo: string; ajuda?: string };
+  | { tipo: 'email'; campo: 'email'; titulo: string; ajuda?: string }
+  | { tipo: 'nome'; campo: 'nome'; titulo: string; ajuda?: string };
 
 export interface Secao {
   titulo: string;
@@ -24,7 +25,6 @@ export const BLOCOS = [
   { campo: 'bloco_triagem', rotulo: 'Triagem, Tempos e Capacidade' },
   { campo: 'bloco_lean', rotulo: 'Ferramentas Lean' },
   { campo: 'bloco_superlotacao', rotulo: 'Superlotação e Gestão de Crises' },
-  { campo: 'bloco_lideranca', rotulo: 'Liderança e Comunicação' },
 ];
 
 export const PRATICAS = [
@@ -121,6 +121,7 @@ export const SECOES: Secao[] = [
     titulo: 'Próximos passos',
     perguntas: [
       { tipo: 'texto', campo: 'temas_futuros', titulo: 'Que temas você gostaria de ver num próximo curso?', ajuda: 'Opcional.' },
+      { tipo: 'nome', campo: 'nome', titulo: 'Seu nome', ajuda: 'Opcional. Só a equipe do curso vê; não aparece no telão.' },
       { tipo: 'simnao', campo: 'quer_conteudos', titulo: 'Quer receber conteúdos do ED Leaders?' },
       { tipo: 'email', campo: 'email', titulo: 'Seu e-mail', ajuda: 'Opcional. Usamos só para enviar conteúdos do ED Leaders.' },
       { tipo: 'simnao', campo: 'interesse_consultoria', titulo: 'Seu serviço tem interesse em conversar sobre consultoria em gestão da emergência?' },

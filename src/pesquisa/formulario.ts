@@ -116,6 +116,16 @@ function renderPergunta(p: Pergunta): HTMLElement | null {
       q.append(t);
       return q;
     }
+    case 'nome': {
+      const id = 'c-nome';
+      const i = el('input', { id, type: 'text', autocomplete: 'name', maxlength: '120' }) as HTMLInputElement;
+      i.value = typeof respostas.nome === 'string' ? respostas.nome : '';
+      i.addEventListener('input', () => definir('nome', i.value.trim()));
+      q.append(el('label', { class: 'q-titulo', for: id, style: 'display:block' }, p.titulo));
+      if (p.ajuda) q.append(el('p', { class: 'q-ajuda' }, p.ajuda));
+      q.append(i);
+      return q;
+    }
     case 'email': {
       if (respostas.quer_conteudos !== true) return null;
       const id = 'c-email';
@@ -205,7 +215,7 @@ function render(erro?: string) {
   if (passo === 0) {
     corpo.append(
       el('h1', {}, 'Como foi o curso de ', el('em', {}, 'Gestão do Departamento de Emergência'), '?'),
-      el('p', { class: 'intro' }, 'Leva menos de 3 minutos. Suas respostas são anônimas.'),
+      el('p', { class: 'intro' }, 'Leva menos de 3 minutos. Nome e e-mail são opcionais.'),
     );
   } else {
     corpo.append(el('h1', {}, secao.titulo));

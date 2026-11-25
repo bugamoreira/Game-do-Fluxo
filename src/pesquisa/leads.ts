@@ -13,9 +13,9 @@ function sim(v: boolean) {
 
 function csv(leads: LeadSatisfacao[]): string {
   const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
-  const linhas = [['data', 'email', 'quer_conteudos', 'interesse_consultoria', 'nps'].join(';')];
+  const linhas = [['data', 'nome', 'email', 'quer_conteudos', 'interesse_consultoria', 'nps'].join(';')];
   for (const l of leads) {
-    linhas.push([esc(new Date(l.data).toLocaleString('pt-BR')), esc(l.email ?? ''), sim(l.quer_conteudos), sim(l.interesse_consultoria), String(l.nps)].join(';'));
+    linhas.push([esc(new Date(l.data).toLocaleString('pt-BR')), esc(l.nome ?? ''), esc(l.email ?? ''), sim(l.quer_conteudos), sim(l.interesse_consultoria), String(l.nps)].join(';'));
   }
   return '﻿' + linhas.join('\r\n');
 }
@@ -42,6 +42,7 @@ async function mostrarLeads() {
     const corpo = el('tbody', {}, ...leads.map((l) =>
       el('tr', {},
         el('td', {}, new Date(l.data).toLocaleString('pt-BR')),
+        el('td', {}, l.nome ?? '–'),
         el('td', {}, l.email ?? '–'),
         el('td', {}, sim(l.quer_conteudos)),
         el('td', {}, sim(l.interesse_consultoria)),
@@ -50,10 +51,10 @@ async function mostrarLeads() {
     raiz.replaceChildren(
       el('main', { class: 'l' },
         el('h1', {}, 'Leads da pesquisa'),
-        el('p', { style: 'color:var(--suave);margin-bottom:12px' }, `${leads.length} respostas com e-mail ou interesse.`),
+        el('p', { style: 'color:var(--suave);margin-bottom:12px' }, `${leads.length} respostas com nome, e-mail ou interesse.`),
         el('div', { class: 'linha-acoes' }, exportar, atualizar, sair),
         el('table', {},
-          el('thead', {}, el('tr', {}, el('th', {}, 'Data'), el('th', {}, 'E-mail'), el('th', {}, 'Quer conteúdos'), el('th', {}, 'Consultoria'), el('th', {}, 'NPS'))),
+          el('thead', {}, el('tr', {}, el('th', {}, 'Data'), el('th', {}, 'Nome'), el('th', {}, 'E-mail'), el('th', {}, 'Quer conteúdos'), el('th', {}, 'Consultoria'), el('th', {}, 'NPS'))),
           corpo,
         ),
       ),

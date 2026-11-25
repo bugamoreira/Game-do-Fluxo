@@ -33,6 +33,7 @@ export const RespostaSatisfacaoSchema = z.object({
   aplicar_30_dias: z.string().max(1000).optional(),
   mudaria: z.string().max(1000).optional(),
   temas_futuros: z.string().max(1000).optional(),
+  nome: z.string().max(120).optional(),
   email: z.email({ message: 'Confira o e-mail.' }).max(200).optional(),
   quer_conteudos: z.boolean().default(false),
   interesse_consultoria: z.boolean().default(false),
@@ -62,6 +63,7 @@ export type PainelSatisfacao = z.infer<typeof PainelSatisfacaoSchema>;
 
 export const LeadSatisfacaoSchema = z.object({
   data: z.string(),
+  nome: z.string().nullable().default(null),
   email: z.string().nullable(),
   quer_conteudos: z.boolean(),
   interesse_consultoria: z.boolean(),
