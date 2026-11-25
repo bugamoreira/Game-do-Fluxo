@@ -162,3 +162,31 @@ textarea::placeholder, input::placeholder { color: rgba(255, 255, 255, .6); }
 .trio b { font-size: min(5vh, 3.4vw); }
 .trio span { font-size: clamp(10px, 1.4vh, 16px); }
 .p-rodape { display: none; }
+
+/* ---------------- Telão no celular: uma coluna, rolagem livre ---------------- */
+@media (max-width: 820px) {
+  .p { height: auto; min-height: 100vh; overflow: visible; grid-template-columns: 1fr; grid-template-rows: none; gap: 14px; padding: 16px; }
+  .p > .cartao { overflow: visible; padding: 18px 16px; }
+  .p-topo { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .p-topo h1 { white-space: normal; font-size: 1.35rem; line-height: 1.25; }
+  .p-topo .marcas { gap: 14px; }
+  .p-topo .marcas img:first-child { height: 26px; }
+  .p-topo .marcas img.ed { height: 18px; }
+  .rotulo { font-size: .72rem; margin-bottom: 6px; }
+  .grande { font-size: 3.6rem; }
+  .p > .cartao:first-of-type { gap: 18px !important; }
+  .trio { margin-top: 14px; }
+  .trio b { font-size: 2rem; }
+  .trio span { font-size: .78rem; }
+  .pilha { height: 12px; margin-top: 12px; }
+  .gb-titulo { font-size: 1rem; margin-bottom: 6px; }
+  .grupo-barras + .grupo-barras { margin-top: 16px; }
+  .barras { gap: 10px; }
+  .barra { grid-template-columns: minmax(0, 1fr) 2.6em; row-gap: 4px; font-size: .95rem; }
+  .barra > span { grid-column: 1 / -1; }
+  .barra .trilho { height: 10px; }
+  .carrossel { font-size: 1.2rem; -webkit-line-clamp: unset; display: block; min-height: 0; }
+  .carrossel::before { font-size: 2.4rem; vertical-align: -.9rem; }
+  .p > .qr { display: none; }
+  .p > * { grid-column: 1 / -1 !important; min-width: 0; }
+}
