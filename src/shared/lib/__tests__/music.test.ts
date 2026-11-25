@@ -35,6 +35,8 @@ vi.mock('tone', () => {
   return {
     start: tone.start,
     now: () => 0,
+    // contexto em execução depois do start (o desbloqueio do Safari usa rawContext)
+    getContext: () => ({ state: 'running', rawContext: c() }),
     getTransport: () => tone.transporte,
     Time: c(),
     Gain: c(),
@@ -133,6 +135,11 @@ describe('musica', () => {
     await musica.iniciar();
     expect(tone.start).toHaveBeenCalledTimes(1);
     expect(__estadoMusica().iniciado).toBe(true);
+  });
+
+  it('desbloqueio do Safari não quebra quando o contexto ainda não existe', async () => {
+    await expect(musica.iniciar()).resolves.toBeUndefined();
+    expect(musica.estaTocando()).toBe(true);
   });
 
   it('se o navegador recusar, permite tentar de novo', async () => {

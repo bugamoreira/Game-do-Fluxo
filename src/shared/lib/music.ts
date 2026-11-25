@@ -745,7 +745,44 @@ function aplicarMestre(): void {
 // API pública
 // ------------------------------------------------------------
 
+/**
+ * Desbloqueio do áudio no Safari (macOS e iOS): precisa acontecer dentro do
+ * próprio gesto, de forma síncrona. Toca um buffer silencioso de 1 amostra,
+ * pede `resume()` e, no iOS, usa a sessão de áudio de reprodução (toca mesmo
+ * com a chave de silencioso ligada). Falhas são ignoradas.
+ */
+function desbloquear(): void {
+  try {
+    const nav = navigator as Navigator & { audioSession?: { type: string } };
+    if (nav.audioSession) nav.audioSession.type = 'playback';
+  } catch {
+    /* navegador sem audioSession */
+  }
+  try {
+    const ctx = Tone.getContext().rawContext as AudioContext;
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const fonte = ctx.createBufferSource();
+    fonte.buffer = buffer;
+    fonte.connect(ctx.destination);
+    fonte.start(0);
+    if (ctx.state !== 'running') void ctx.resume();
+  } catch {
+    /* sem contexto ainda: Tone.start() abaixo tenta de novo */
+  }
+}
+
+/** O áudio está de fato tocando (contexto em execução e música montada)? */
+function estaTocando(): boolean {
+  return estado.iniciado && Tone.getContext().state === 'running';
+}
+
 async function iniciar(): Promise<void> {
+  desbloquear();
+  if (estado.inicio && Tone.getContext().state !== 'running') {
+    // Ligou antes, mas o navegador deixou o áudio suspenso: tenta de novo neste gesto.
+    await Tone.start();
+    return;
+  }
   if (estado.inicio) return estado.inicio;
   estado.inicio = (async () => {
     await Tone.start();
@@ -865,7 +902,7 @@ function estaMudo(): boolean {
   return estado.mudo;
 }
 
-export const musica = { iniciar, atualizar, efeito, definirMudo, estaMudo };
+export const musica = { iniciar, atualizar, efeito, definirMudo, estaMudo, estaTocando };
 
 /** Só para testes: retrato do estado interno. */
 export function __estadoMusica() {

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { ConnectionBanner, Icone, type Conexao } from '../../shared/components/ui';
 import { encerrado, pontuacao } from '../../shared/lib/simulation';
 import { useJogo } from '../jogo/useJogo';
+import { BotaoSomJogo } from '../telas/BotaoSomJogo';
 import { AvisosDoJogo } from './AvisosDoJogo';
 import { BarraSelecao } from './BarraSelecao';
 import { Cabecalho } from './Cabecalho';
@@ -50,7 +51,12 @@ export function TelaPlantao({
         pontuacao={pontuacao(estado)}
         pausado={pausado}
         conexao={conexao}
-        extra={extraCabecalho}
+        extra={
+          <div className="flex items-center gap-2">
+            <BotaoSomJogo />
+            {extraCabecalho}
+          </div>
+        }
       />
       {conexao && <ConnectionBanner conexao={conexao} />}
       <BarraSelecao estado={estado} bloqueada={bloqueada} />

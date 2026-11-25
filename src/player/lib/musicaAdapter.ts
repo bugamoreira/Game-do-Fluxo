@@ -50,7 +50,8 @@ export const musica = {
    * Devolve `true` quando o áudio ficou de fato tocando; `false` pede nova tentativa no próximo gesto.
    */
   async iniciar(): Promise<boolean> {
-    if (ligado) return true;
+    if (ligado && modulos?.tone.getContext().state === 'running') return true;
+    ligado = false;
     if (!modulos) {
       // Ainda baixando: este gesto só adianta o download; o próximo liga o som.
       await musica.preparar();
@@ -58,15 +59,21 @@ export const musica = {
     }
     const { m, tone } = modulos;
     try {
-      // Chamado de forma síncrona, ainda dentro do gesto (exigência do Safari).
-      const retomada = tone.start();
-      await Promise.all([retomada, m.iniciar()]);
+      // Chamado de forma síncrona, ainda dentro do gesto (exigência do Safari):
+      // m.iniciar() desbloqueia o áudio antes do primeiro await.
+      const inicio = m.iniciar();
+      await Promise.all([inicio, tone.start()]);
     } catch {
       return false;
     }
     ligado = tone.getContext().state === 'running';
     if (ligado) aplicarGuardado(m);
     return ligado;
+  },
+
+  /** Som de fato tocando neste computador (para o botão de som da tela do jogo). */
+  tocando(): boolean {
+    return ligado && modulos?.tone.getContext().state === 'running';
   },
 
   atualizar(estado: EstadoMusica): void {
