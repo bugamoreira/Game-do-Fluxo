@@ -143,3 +143,22 @@ textarea::placeholder, input::placeholder { color: rgba(255, 255, 255, .6); }
   .f-topo span { display: none; }
   .b { min-height: 48px; font-size: 1rem; }
 }
+
+/* ---------------- Telão: cabe em 16:9 e 4:3 (1024 a 1920) sem cortar ---------------- */
+.p { grid-template-rows: auto minmax(0, 1fr) 21vh; gap: 1.8vh 1.6vw; padding: 2.4vh 2.4vw; }
+.p > .cartao { overflow: hidden; }
+.p-topo h1 { font-size: clamp(16px, 3vh, 34px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.p-topo { gap: 2vw; }
+.grande { font-size: min(11vh, 7vw); }
+.barra { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 2.8em; font-size: clamp(11px, 1.75vh, 20px); line-height: 1.2; }
+.barras { gap: .9vh; }
+.gb-titulo { font-size: clamp(11px, 1.7vh, 20px); margin-bottom: .5vh; }
+.grupo-barras + .grupo-barras { margin-top: 1.4vh; }
+.rotulo { font-size: clamp(10px, 1.45vh, 16px); margin-bottom: .8vh; }
+.carrossel { font-size: clamp(14px, 3vh, 36px); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; min-height: 0; }
+.qr { gap: 1vw; }
+.qr img { width: 15vh; height: 15vh; flex: 0 0 auto; }
+.qr p { font-size: clamp(12px, 2vh, 24px); }
+.trio b { font-size: min(5vh, 3.4vw); }
+.trio span { font-size: clamp(10px, 1.4vh, 16px); }
+.p-rodape { display: none; }

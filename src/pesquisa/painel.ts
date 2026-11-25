@@ -15,7 +15,8 @@ function barra(rotulo: string, media: number | null | undefined): HTMLElement {
   const v = typeof media === 'number' ? media : null;
   return el('div', { class: 'barra' },
     el('span', {}, rotulo),
-    el('div', { class: 'trilho' }, el('i', { style: `width:${v ? (v / 5) * 100 : 0}%` })),
+    // escala de 1 a 5: 1 = trilho vazio, 5 = cheio (diferenças pequenas ficam visíveis)
+    el('div', { class: 'trilho' }, el('i', { style: `width:${v ? Math.max(3, ((v - 1) / 4) * 100) : 0}%` })),
     el('b', {}, v ? v.toFixed(1).replace('.', ',') : '–'),
   );
 }
