@@ -1,19 +1,25 @@
-/* Pesquisa de satisfação: identidade ED Leaders (fundo preto, vermelho, ciano, turquesa, Inter). */
+/* Pesquisa de satisfação: identidade CBMEDE (marinho, amarelo, verde; Sora e Space Mono). */
 :root {
-  --preto: #0d0d0d;
-  --preto-2: #171717;
-  --preto-3: #222;
-  --vermelho: #ff3b3b;
-  --ciano: #00d4ff;
-  --turquesa: #40e0d0;
-  --texto: #f5f5f5;
-  --suave: #a3a3a3;
-  --borda: #2e2e2e;
+  /* Paleta CBMEDE (docs/design.md), com contraste alto sobre o marinho. */
+  --marinho: #1b2a6b;
+  --marinho-fundo: #0e1840;
+  --preto: #13205a;            /* base (nome mantido) */
+  --preto-2: #22337c;          /* cartões e botões */
+  --preto-3: #33468f;          /* trilhos */
+  --vermelho: #ff6b6b;         /* detratores e avisos */
+  --amarelo: #f5c518;
+  --verde: #3db54a;
+  --ciano: #f5c518;            /* destaque passa a amarelo */
+  --turquesa: #3db54a;         /* positivo passa a verde */
+  --texto: #ffffff;
+  --suave: rgba(255, 255, 255, .82);
+  --borda: rgba(255, 255, 255, .28);
   --raio: 16px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: var(--preto); color: var(--texto); }
-body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+html { background: var(--marinho-fundo); }
+body { background: linear-gradient(135deg, #0e1840 0%, #1b2a6b 55%, #1f3380 100%) fixed; color: var(--texto); min-height: 100vh; }
+body { font-family: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 3px solid var(--ciano); outline-offset: 2px; }
@@ -98,3 +104,27 @@ textarea:focus, input:focus { border-color: var(--ciano); outline: none; }
 .l th, .l td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--borda); }
 .l th { color: var(--suave); font-weight: 600; }
 .l .linha-acoes { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+/* ---------------- Ajustes CBMEDE ---------------- */
+.f-topo span, .f-passo, .rotulo, .legenda { font-family: 'Space Mono', ui-monospace, monospace; }
+.f-topo .marcas { display: flex; align-items: center; gap: 12px; }
+.f-topo .marcas img:first-child { height: 26px; border-radius: 6px; }
+img.ed { mix-blend-mode: screen; }
+.f h1 em, .p-topo h1 em { color: var(--amarelo); }
+.f-progresso > i { background: linear-gradient(90deg, var(--amarelo), var(--verde)); }
+.b { color: #fff; }
+.b[aria-pressed="true"] { border-color: var(--amarelo); background: var(--amarelo); color: var(--marinho); }
+.acao { background: var(--verde); color: var(--marinho-fundo); box-shadow: 0 6px 18px rgba(61, 181, 74, .35); }
+.acao.sec { box-shadow: none; }
+.f-rodape { background: linear-gradient(transparent, #16245a 30%); }
+.aviso { background: rgba(255, 107, 107, .18); border-color: var(--vermelho); }
+textarea, input[type=email], input[type=password] { background: rgba(255, 255, 255, .1); }
+textarea::placeholder, input::placeholder { color: rgba(255, 255, 255, .6); }
+.n-resp { color: #fff; }
+.nps-valor { color: var(--amarelo); }
+.trio .neu b { color: #fff; }
+.carrossel::before { color: var(--amarelo); }
+.barra .trilho i { background: linear-gradient(90deg, var(--amarelo), var(--verde)); }
+.p-topo .marcas { display: flex; align-items: center; gap: 1.4vw; }
+.p-topo .marcas img:first-child { height: 4.4vh; border-radius: 8px; }
+.qr small { font-size: 1.35vh; white-space: nowrap; overflow-wrap: normal; }

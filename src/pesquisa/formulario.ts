@@ -159,7 +159,10 @@ function telaFinal() {
 
 function topo(): HTMLElement {
   return el('header', { class: 'f-topo' },
-    el('img', { src: '/img/brand/edleaders-escuro.png', alt: 'ED Leaders', width: '133', height: '20' }),
+    el('div', { class: 'marcas' },
+      el('img', { src: '/img/brand/abramede.png', alt: 'ABRAMEDE', width: '89', height: '26' }),
+      el('img', { class: 'ed', src: '/img/brand/edleaders-escuro.png', alt: 'ED Leaders', width: '133', height: '20' }),
+    ),
     el('span', {}, 'CBMEDE 2026'),
   );
 }
