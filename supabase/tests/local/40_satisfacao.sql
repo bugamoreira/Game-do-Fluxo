@@ -46,3 +46,11 @@ select tst.ok(jsonb_array_length(:'l'::jsonb) = 1 and (:'l'::jsonb -> 0 ->> 'ema
               and (:'l'::jsonb -> 0 ->> 'nome') = 'Fulana de Tal',
               'facilitador lê o e-mail e o interesse');
 reset role;
+
+-- anti-spam: 60 por minuto no total (as 3 de cima já contam)
+set role anon;
+set request.jwt.claims = '{"role":"anon"}';
+select count(public.enviar_satisfacao('{"turma":"spam","nps":5}')) from generate_series(1, 57);
+select tst.ok(tst.erro_de($q$select public.enviar_satisfacao('{"turma":"outra","nps":5}')$q$) = 'CB013:LIMITE_EXCEDIDO',
+              'a 61ª resposta no mesmo minuto é recusada, mesmo com outra turma');
+reset role;
