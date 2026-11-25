@@ -72,5 +72,5 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 | 26 | Formulário `/pesquisa/`, telão `/pesquisa/painel.html`, leads `/pesquisa/leads.html` (login de facilitador) | ✅ |
 | 27 | Banco: `satisfacao_respostas` sem acesso direto; `enviar_satisfacao` (anônimo), `painel_satisfacao` (só agregados, sem e-mail), `leads_satisfacao` (só facilitador) | ✅ |
 | 28 | QR code: `docs/qr-pesquisa-cbmede26.png` (2000 px) e `public/pesquisa/qr-pesquisa.png` (painel) | ✅ |
-| 29 | Confirmar nomes finais dos blocos de conteúdo (`src/pesquisa/perguntas.ts`) | 💬 |
+| 29 | Blocos iguais à programação: 7 temas e 2 práticas (Game do Fluxo, Dinâmica de conflito) | ✅ |
 | 30 | Comparar a pergunta de NPS com o Jotform do FLAME | 💬 |

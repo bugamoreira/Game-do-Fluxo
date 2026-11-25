@@ -1,5 +1,5 @@
 // Perguntas da pesquisa, uma seção por tela. Textos sem travessão e sem menção
-// a prova de título. Nomes dos blocos: confirmar com o Gustavo (docs/ajustes.md).
+// a prova de título. Blocos e práticas iguais à programação do curso (25/11).
 
 export type Pergunta =
   | { tipo: 'nps'; campo: 'nps'; titulo: string; ajuda?: string }
@@ -18,17 +18,18 @@ export interface Secao {
 const RUIM_OTIMO: [string, string] = ['1 = fraco', '5 = excelente'];
 
 export const BLOCOS = [
-  { campo: 'bloco_nir_fluxista', rotulo: 'NIR e fluxista' },
-  { campo: 'bloco_segmentacao', rotulo: 'Segmentação e fast track' },
-  { campo: 'bloco_indicadores', rotulo: 'Indicadores' },
-  { campo: 'bloco_capacidade', rotulo: 'Capacidade, demanda e filas' },
+  { campo: 'bloco_ito', rotulo: 'Input-Throughput-Output' },
+  { campo: 'bloco_filas', rotulo: 'Teoria das Filas e Restrições' },
+  { campo: 'bloco_indicadores', rotulo: 'Indicadores e Gestão por Dados' },
+  { campo: 'bloco_triagem', rotulo: 'Triagem, Tempos e Capacidade' },
   { campo: 'bloco_lean', rotulo: 'Ferramentas Lean' },
+  { campo: 'bloco_superlotacao', rotulo: 'Superlotação e Gestão de Crises' },
+  { campo: 'bloco_lideranca', rotulo: 'Liderança e Comunicação' },
 ];
 
 export const PRATICAS = [
-  { campo: 'pratica_dashboard', rotulo: 'Dashboard' },
-  { campo: 'pratica_planilha_vsm', rotulo: 'Planilha de VSM' },
-  { campo: 'pratica_game_fluxo', rotulo: 'Simulador do Fluxo' },
+  { campo: 'pratica_game_fluxo', rotulo: 'Game do Fluxo' },
+  { campo: 'pratica_conflito', rotulo: 'Dinâmica de conflito' },
 ];
 
 const facilitador = (nome: string, chave: string) => [
@@ -79,7 +80,7 @@ export const SECOES: Secao[] = [
           { valor: 'avancado', rotulo: 'Muito avançado' },
         ],
       },
-      { tipo: 'grupo', titulo: 'Avalie cada bloco', itens: BLOCOS, legenda: RUIM_OTIMO },
+      { tipo: 'grupo', titulo: 'Avalie cada tema', itens: BLOCOS, legenda: RUIM_OTIMO },
     ],
   },
   {
