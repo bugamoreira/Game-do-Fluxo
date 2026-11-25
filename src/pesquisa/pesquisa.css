@@ -17,8 +17,9 @@
   --raio: 16px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { background: var(--marinho-fundo); }
-body { background: linear-gradient(135deg, #0e1840 0%, #1b2a6b 55%, #1f3380 100%) fixed; color: var(--texto); min-height: 100vh; }
+html { background: #16245a; }
+/* Degradê só no topo e cor sólida embaixo: sem `fixed` (o iOS não respeita) e sem emenda no rodapé. */
+body { background: linear-gradient(180deg, #0e1840 0, #1b2a6b 360px, #16245a 760px) no-repeat, #16245a; color: var(--texto); min-height: 100vh; }
 body { font-family: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -128,3 +129,17 @@ textarea::placeholder, input::placeholder { color: rgba(255, 255, 255, .6); }
 .p-topo .marcas { display: flex; align-items: center; gap: 1.4vw; }
 .p-topo .marcas img:first-child { height: 4.4vh; border-radius: 8px; }
 .qr small { font-size: 1.35vh; white-space: nowrap; overflow-wrap: normal; }
+
+/* ---------------- Celular: rodapé, topo, legendas e hierarquia ---------------- */
+.f-rodape { background: linear-gradient(rgba(22, 36, 90, 0), #16245a 28%); padding-bottom: calc(10px + env(safe-area-inset-bottom)); margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+.f-topo span { white-space: nowrap; font-size: .7rem; }
+.legenda { gap: 12px; font-size: .7rem; }
+.legenda span:last-child { text-align: right; }
+.q-grupo { color: var(--amarelo); font-size: 1.2rem; font-weight: 800; margin-top: 4px; }
+.q-sub { font-weight: 600; font-size: .98rem; margin: 16px 0 8px; }
+@media (max-width: 380px) {
+  .f-topo .marcas img:first-child { height: 22px; }
+  .f-topo .marcas img.ed { height: 16px; width: auto; }
+  .f-topo span { display: none; }
+  .b { min-height: 48px; font-size: 1rem; }
+}

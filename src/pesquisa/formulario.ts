@@ -72,14 +72,14 @@ function renderPergunta(p: Pergunta): HTMLElement | null {
     case 'nps':
       q.append(el('p', { class: 'q-titulo' }, p.titulo));
       if (p.ajuda) q.append(el('p', { class: 'q-ajuda' }, p.ajuda));
-      q.append(escalaNotas('nps', 10, 0), legenda(['0 = não recomendaria', '10 = recomendaria muito'])!);
+      q.append(escalaNotas('nps', 10, 0), legenda(['0 = não recomendaria', '10 = recomendaria'])!);
       return q;
     case 'nota':
       q.append(el('p', { class: 'q-titulo' }, p.titulo), escalaNotas(p.campo, 5, 1));
       { const l = legenda(p.legenda); if (l) q.append(l); }
       return q;
     case 'grupo':
-      q.append(el('p', { class: 'q-titulo' }, p.titulo));
+      q.append(el('p', { class: 'q-titulo q-grupo' }, p.titulo));
       if (p.ajuda) q.append(el('p', { class: 'q-ajuda' }, p.ajuda));
       for (const item of p.itens) q.append(el('p', { class: 'q-sub' }, item.rotulo), escalaNotas(item.campo, 5, 1));
       { const l = legenda(p.legenda); if (l) q.append(l); }
