@@ -6,3 +6,4 @@ export { syncService, type ResumoPlacar } from './syncService';
 export { facilitadorService } from './facilitadorService';
 export { relatorioService } from './relatorioService';
 export { copiaLocal, sessaoLocal, escolherEstadoParaRestaurar } from './armazenamentoLocal';
+export { satisfacaoService } from './satisfacaoService';

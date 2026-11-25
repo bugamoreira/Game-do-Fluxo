@@ -11,6 +11,12 @@
 -- Não fica em supabase/migrations/ de propósito, para o CLI não aplicar.
 -- =============================================================================
 
+-- pesquisa de satisfação (20261125090000)
+drop function if exists public.enviar_satisfacao(jsonb);
+drop function if exists public.painel_satisfacao(text);
+drop function if exists public.leads_satisfacao(text);
+drop table if exists public.satisfacao_respostas;
+
 -- funções públicas
 drop function if exists public.estado_turma(text, text);
 drop function if exists public.ranking(text);

@@ -461,7 +461,7 @@ select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.p
                   and not ('search_path=""' = any(coalesce(p.proconfig, '{}')))) = 0,
               'toda função security definer de public tem search_path vazio');
 select tst.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                where n.nspname = 'public' and p.prosecdef) = 21, '21 RPCs security definer');
+                where n.nspname = 'public' and p.prosecdef) = 24, '24 RPCs security definer (21 do jogo + 3 da pesquisa de satisfação)');
 select tst.ok((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
                 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity) = 0,
               'RLS ligado em todas as tabelas de public');

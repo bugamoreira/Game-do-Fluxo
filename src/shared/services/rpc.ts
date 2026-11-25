@@ -36,6 +36,9 @@ export const RPC = {
   seriesTurma: 'series_turma',
   eventosTurma: 'eventos_turma',
   codigoAcessoTelao: 'codigo_acesso_telao',
+  enviarSatisfacao: 'enviar_satisfacao',
+  painelSatisfacao: 'painel_satisfacao',
+  leadsSatisfacao: 'leads_satisfacao',
 } as const;
 
 export type NomeRpc = (typeof RPC)[keyof typeof RPC];
@@ -55,6 +58,7 @@ export const RPC_COM_SESSAO: ReadonlySet<NomeRpc> = new Set<NomeRpc>([
   RPC.seriesTurma,
   RPC.eventosTurma,
   RPC.codigoAcessoTelao,
+  RPC.leadsSatisfacao,
 ]);
 
 /** Cliente certo para a RPC: com sessão só para o facilitador. */

@@ -64,3 +64,13 @@ Legenda: ✅ feito · 🔧 em andamento · ⏳ pendente · 💬 aguarda decisão
 |---|---|---|
 | 25 | Botão "Trocar senha" no painel do facilitador | ✅ |
 | 24 | Aviso do Vite sobre `__dirname` no `vite.config.ts` | ✅ |
+
+## Pesquisa de satisfação (25/11)
+
+| # | Item | Estado |
+|---|---|---|
+| 26 | Formulário `/pesquisa/`, telão `/pesquisa/painel.html`, leads `/pesquisa/leads.html` (login de facilitador) | ✅ |
+| 27 | Banco: `satisfacao_respostas` sem acesso direto; `enviar_satisfacao` (anônimo), `painel_satisfacao` (só agregados, sem e-mail), `leads_satisfacao` (só facilitador) | ✅ |
+| 28 | QR code: `docs/qr-pesquisa-cbmede26.png` (2000 px) e `public/pesquisa/qr-pesquisa.png` (painel) | ✅ |
+| 29 | Confirmar nomes finais dos blocos de conteúdo (`src/pesquisa/perguntas.ts`) | 💬 |
+| 30 | Comparar a pergunta de NPS com o Jotform do FLAME | 💬 |
