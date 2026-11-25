@@ -25,7 +25,6 @@ import { resumoDe } from './jogo/storeJogo';
 import { storeJogo, useJogo, useRelogioDoJogo } from './jogo/useJogo';
 import { useTravaAba } from './jogo/useTravaAba';
 import { musica } from './lib/musicaAdapter';
-import { useLigarSomNoPrimeiroGesto } from './lib/useLigarSom';
 import { TelaPlantao } from './plantao/TelaPlantao';
 import { usePorta, type PortaJogo } from './servicos/porta';
 import { TelaAviso } from './telas/TelaAviso';
@@ -53,7 +52,7 @@ interface AppSalaProps {
 }
 
 export function AppSala({ sala, grupoInicial = null }: AppSalaProps) {
-  useLigarSomNoPrimeiroGesto();
+  // Na turma, a música e os sinais tocam só no telão (sincronizados para a sala).
   const porta = usePorta();
   const sessaoInicial = useMemo(() => porta.sessao.ler(sala), [porta, sala]);
   const [grupo, setGrupo] = useState<GrupoAtivo | null>(null);

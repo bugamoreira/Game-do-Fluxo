@@ -84,6 +84,7 @@ export function AppSolo() {
         pausado={pausado}
         textoPausa="Plantão pausado. Clique em Retomar para continuar."
         podeAutorizarPcp
+        som
         extraCabecalho={
           <div className="flex items-center gap-2">
             <Button variante="contorno" tamanho="p" onClick={alternarPausa} icone={<Icone nome={pausado ? 'play' : 'pausa'} tamanho={16} />}>

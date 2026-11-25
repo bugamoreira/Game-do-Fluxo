@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { musica } from '../shared/lib/music';
+import { criarEstadoInicial, sementeDaTurma } from '../shared/lib/simulation';
 import type { Conexao } from '../shared/hooks';
 import type { EstadoTurma, EventoTurma, ItemRanking, PontoSerieTurma } from '../shared/schemas';
 import { BotaoSom, Logos, Moldura, Palco } from './componentes';
@@ -82,6 +83,43 @@ export function Telao(d: DadosTelao) {
       () => setSomAtivo(false),
     );
   }, []);
+  // --- Chegadas: todos os grupos recebem os mesmos pacientes nos mesmos minutos
+  // (semente da turma). O telão toca um sinal a cada chegada, no relógio da sala.
+  const turmaId = turma?.id ?? null;
+  const chegadas = useMemo(() => {
+    const porMinuto = new Map<number, { total: number; grave: boolean }>();
+    if (!turmaId) return porMinuto;
+    for (const c of criarEstadoInicial(rodada, sementeDaTurma(turmaId)).agenda.chegadas) {
+      const atual = porMinuto.get(c.minuto) ?? { total: 0, grave: false };
+      porMinuto.set(c.minuto, { total: atual.total + 1, grave: atual.grave || c.sev === 'red' });
+    }
+    return porMinuto;
+  }, [turmaId, rodada]);
+  const [ultimoMinutoSom, setUltimoMinutoSom] = useState<number | null>(null);
+  useEffect(() => {
+    if (fase !== 'rodada' || minuto === null || turma?.pausada) {
+      setUltimoMinutoSom(minuto);
+      return;
+    }
+    if (ultimoMinutoSom === null || minuto < ultimoMinutoSom || minuto - ultimoMinutoSom > 5) {
+      // começo, reconexão ou salto grande: não despeja sons atrasados
+      setUltimoMinutoSom(minuto);
+      return;
+    }
+    if (minuto === ultimoMinutoSom) return;
+    let grave = false;
+    let total = 0;
+    for (let m = ultimoMinutoSom + 1; m <= minuto; m++) {
+      const c = chegadas.get(m);
+      if (c) {
+        total += c.total;
+        grave ||= c.grave;
+      }
+    }
+    if (total > 0) musica.efeito(grave ? 'chegadaGrave' : 'chegada');
+    setUltimoMinutoSom(minuto);
+  }, [fase, minuto, turma?.pausada, chegadas, ultimoMinutoSom]);
+
   const som = <BotaoSom ativo={somAtivo} mudoPeloFacilitador={mudo} onAtivar={ativarSom} />;
 
   if (!turma) {

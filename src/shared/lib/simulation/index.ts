@@ -9,3 +9,4 @@ export * from './constantes';
 export { gerarChegadas, gerarLotesAlta } from './agenda';
 export { passivo, puxaFluxo, seguraNoPs, leitoInadequado, ESTRATEGIAS, simularPartida } from './estrategias';
 export type { ResultadoPartida } from './estrategias';
+export { sementeDaTurma } from './semente';

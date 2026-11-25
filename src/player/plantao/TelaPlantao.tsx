@@ -23,6 +23,8 @@ interface TelaPlantaoProps {
   textoFim?: string;
   podeAutorizarPcp?: boolean;
   extraCabecalho?: ReactNode;
+  /** Mostra o botão de som (só no treino sozinho: na turma, a música toca no telão). */
+  som?: boolean;
 }
 
 export function TelaPlantao({
@@ -34,6 +36,7 @@ export function TelaPlantao({
   textoFim = 'Plantão encerrado às 19h. Aguarde o facilitador.',
   podeAutorizarPcp = false,
   extraCabecalho,
+  som = false,
 }: TelaPlantaoProps) {
   const estado = useJogo(s => s.estado);
   if (!estado) return null;
@@ -53,7 +56,7 @@ export function TelaPlantao({
         conexao={conexao}
         extra={
           <div className="flex items-center gap-2">
-            <BotaoSomJogo />
+            {som && <BotaoSomJogo />}
             {extraCabecalho}
           </div>
         }

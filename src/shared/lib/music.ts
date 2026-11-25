@@ -41,7 +41,8 @@ export interface ConfigMusica {
 }
 
 /** Efeitos sonoros: os do motor (`SfxType`) e os positivos do Lean. */
-export type SomEfeito = SfxType | 'nir' | 'alta';
+/** `chegada`/`chegadaGrave`: paciente novo no DE (o telão toca a agenda de chegadas da turma). */
+export type SomEfeito = SfxType | 'nir' | 'alta' | 'chegada' | 'chegadaGrave';
 
 export type ModoMusica = 'silencio' | 'travado' | 'tenso' | 'crise' | 'lean';
 
@@ -886,6 +887,22 @@ function efeito(som: SomEfeito): void {
       case 'nir':
         eSuave.triggerAttackRelease(['G4', 'D5'], '8n', t, 0.45);
         eSuave.triggerAttackRelease(['C5', 'G5'], '4n', t + 0.14, 0.45);
+        break;
+      case 'chegada':
+        // porta do DE: duas notas curtas (Lean claro, Travado mais seco)
+        if (lean) {
+          eSuave.triggerAttackRelease('A5', '32n', t, 0.4);
+          eSuave.triggerAttackRelease('D6', '16n', t + 0.07, 0.4);
+        } else {
+          eSeco.triggerAttackRelease('B4', '32n', t, 0.5);
+          eSuave.triggerAttackRelease('E5', '32n', t + 0.03, 0.35);
+        }
+        break;
+      case 'chegadaGrave':
+        // paciente vermelho: alerta mais forte
+        eGrave.triggerAttackRelease(lean ? 'D3' : 'C3', '16n', t, 0.75);
+        eSuave.triggerAttackRelease(lean ? ['D5', 'A5'] : ['C5', 'F#5'], '16n', t + 0.06, 0.55);
+        eSuave.triggerAttackRelease(lean ? ['D5', 'A5'] : ['C5', 'F#5'], '16n', t + 0.22, 0.55);
         break;
     }
   } catch (erro) {
